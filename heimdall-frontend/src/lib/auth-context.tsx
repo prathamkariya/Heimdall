@@ -96,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getSseToken = async () => {
-    const res = await apiFetch('/auth/sse-token', { method: 'POST' });
-    return res.token; // we'll verify the exact response shape during testing
+    const res = await apiFetch('/auth/sse-token', { method: 'POST' }) as any;
+    return res.sse_token;
   };
 
   return (

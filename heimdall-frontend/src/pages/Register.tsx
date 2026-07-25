@@ -73,6 +73,9 @@ export function Register() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="mt-1 font-mono text-[10px] text-ink-faint">
+              Minimum 8 characters with at least 1 uppercase letter and 1 digit.
+            </p>
           </div>
 
           <button

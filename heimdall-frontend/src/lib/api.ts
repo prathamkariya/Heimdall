@@ -29,7 +29,11 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     let message = 'An error occurred';
     try {
       const errorData = await response.json();
-      message = errorData.detail || message;
+      if (Array.isArray(errorData.detail)) {
+        message = errorData.detail.map((err: any) => err.msg).join(', ');
+      } else {
+        message = errorData.detail || message;
+      }
     } catch {
       // Ignored
     }

@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { Activity, TriangleAlert, Eye, FileText } from 'lucide-react'
+import { Activity, TriangleAlert, Eye, FileText, LogOut } from 'lucide-react'
+import { useAuth } from '../lib/auth-context'
 import type { Market } from '../lib/types'
 
 const NAV_ITEMS = [
@@ -19,6 +20,8 @@ const MODEL_STATUS: { market: Market; healthy: boolean }[] = [
 ]
 
 export function Rail() {
+  const { logout, logoutAll } = useAuth()
+
   return (
     <nav className="flex h-full w-56 shrink-0 flex-col border-r border-line bg-surface">
       <div className="border-b border-line px-4 py-4">
@@ -69,6 +72,23 @@ export function Rail() {
             </li>
           ))}
         </ul>
+      </div>
+
+      {/* Session controls */}
+      <div className="border-t border-line px-2 py-3 space-y-0.5">
+        <button
+          onClick={logout}
+          className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-sm text-ink-dim transition-colors hover:bg-raised/60 hover:text-ink"
+        >
+          <LogOut size={15} strokeWidth={1.75} />
+          Sign Out
+        </button>
+        <button
+          onClick={logoutAll}
+          className="flex w-full items-center gap-2.5 rounded px-3 py-1.5 font-mono text-[10px] text-ink-faint transition-colors hover:text-down"
+        >
+          REVOKE ALL SESSIONS
+        </button>
       </div>
     </nav>
   )

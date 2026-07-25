@@ -2,6 +2,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -65,8 +66,16 @@ def list_market_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List OHLCV records for the authenticated user, optionally filtered by symbol."""
-    query = db.query(MarketData).filter(MarketData.user_id == current_user.id)
+    """List OHLCV records for the authenticated user or system user, optionally filtered by symbol."""
+    system_user = db.query(User).filter(User.email == "system@marketsurveillance.local").first()
+    system_user_id = system_user.id if system_user else None
+
+    query = db.query(MarketData).filter(
+        or_(
+            MarketData.user_id == current_user.id,
+            MarketData.user_id == system_user_id
+        )
+    )
     if symbol:
         query = query.filter(MarketData.symbol == symbol.upper())
     return query.order_by(MarketData.timestamp.desc()).limit(limit).all()
@@ -79,9 +88,15 @@ def get_market_data(
     current_user: User = Depends(get_current_user),
 ):
     """Fetch a single OHLCV record by ID."""
+    system_user = db.query(User).filter(User.email == "system@marketsurveillance.local").first()
+    system_user_id = system_user.id if system_user else None
+
     record = db.query(MarketData).filter(
         MarketData.id == record_id,
-        MarketData.user_id == current_user.id,
+        or_(
+            MarketData.user_id == current_user.id,
+            MarketData.user_id == system_user_id
+        )
     ).first()
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")

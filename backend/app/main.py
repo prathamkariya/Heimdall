@@ -8,7 +8,7 @@ from slowapi import _rate_limit_exceeded_handler
 from app.limiter import limiter
 
 from app.config import settings
-from app.routers import alerts, anomaly, auth, market_data, watchlists, reports
+from app.routers import alerts, anomaly, auth, market_data, watchlists, reports, cases
 
 app = FastAPI(
     title="Market Surveillance & Anomaly Detection",
@@ -46,6 +46,7 @@ app.include_router(anomaly.router, prefix=API_PREFIX)
 app.include_router(alerts.router, prefix=API_PREFIX)
 app.include_router(watchlists.router, prefix=API_PREFIX)   # Phase 2
 app.include_router(reports.router, prefix=API_PREFIX)
+app.include_router(cases.router, prefix=API_PREFIX)
 
 # ──────────────────────────────────────────────
 # Health check

@@ -53,6 +53,7 @@ def list_anomalies(
         item_dict["symbol"] = md.symbol
         item_dict["market_timestamp"] = md.timestamp
         item_dict["market"] = md.market
+        item_dict["severity"] = anomaly.severity
         items.append(item_dict)
         
     return AnomalyPaginatedResponse(

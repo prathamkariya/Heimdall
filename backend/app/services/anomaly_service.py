@@ -39,6 +39,7 @@ from app.models import Anomaly, MarketData
 from ml.config import BASE_FEATURE_COLUMNS, MIN_RAW_ROWS_FOR_FEATURES
 from ml.data.synthetic import compute_engineered_features
 from ml.serving.model_registry import ModelRegistry, ModelLoadError
+from app.services.severity import severity_for_score
 
 logger = logging.getLogger(__name__)
 
@@ -526,6 +527,7 @@ def score_live_trade(
         "market": market,
         "source": source,
         "anomaly_score": combined,
+        "severity": severity_for_score(combined),
         # low_confidence=True means the tick came from a polling fallback (YFINANCE),
         # not a real-time WebSocket stream. Alert is still actionable but should
         # be surfaced with a visual indicator on the dashboard.

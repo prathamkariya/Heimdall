@@ -1,0 +1,70 @@
+@import "tailwindcss";
+/* IBM Plex Sans/Mono are loaded from index.html via <link>, not @import
+   here — Tailwind v4's build restructures this file enough that a CSS
+   @import for fonts stopped being first and warned on build. */
+
+/*
+  Design tokens — Heimdall terminal theme.
+  Grounded in the brief: a compliance-desk surveillance tool, not a
+  consumer dashboard. Cool graphite (not pure black), muted phosphor
+  signal colors (not neon defaults), amber accent (a direct nod to the
+  Bloomberg Terminal reference in the brief, not a generic SaaS blue).
+*/
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  --color-void: #0a0d10;
+  --color-surface: #12161a;
+  --color-raised: #1b2127;
+  --color-line: #232a31;
+
+  --color-ink: #e8e6df;
+  --color-ink-dim: #7c8790;
+  --color-ink-faint: #47505a;
+
+  --color-up: #4fbf7a;
+  --color-up-dim: #2c5b40;
+  --color-down: #e8604c;
+  --color-down-dim: #6b3129;
+
+  --color-accent: #d9a441;
+  --color-accent-dim: #3d3320;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01' 1;
+}
+
+/* Numeric/data readouts always use the mono face, tabular figures so
+   columns of prices and scores align. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background-color: var(--color-accent-dim);
+  color: var(--color-ink);
+}
+
+/* Visible keyboard focus everywhere — this is a tool people will
+   navigate quickly, not just click through. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

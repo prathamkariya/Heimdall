@@ -18,7 +18,8 @@ class User(Base):
     email = Column(String(255), nullable=False, unique=True, index=True)
     username = Column(String(50), nullable=False, unique=True, index=True)
     hashed_password = Column(String(255), nullable=False)
-    is_active = Column(Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true")
+    role = Column(String(20), nullable=False, default="user", server_default="user")
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
         DateTime(timezone=True),
@@ -105,6 +106,11 @@ class Anomaly(Base):
 
     def __repr__(self) -> str:
         return f"<Anomaly(id={self.id}, score={self.anomaly_score:.3f})>"
+
+    @property
+    def severity(self) -> str:
+        from app.services.severity import severity_for_score
+        return severity_for_score(self.anomaly_score)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -263,3 +269,115 @@ class RefreshToken(Base):
 
     def __repr__(self) -> str:
         return f"<RefreshToken(id={self.id}, user_id={self.user_id}, revoked={self.revoked})>"
+
+
+# ══════════════════════════════════════════════════════════════
+# CASE MANAGEMENT  (Phases B2-B5 — NEW)
+# ══════════════════════════════════════════════════════════════
+class CaseStatus:
+    OPEN = "OPEN"
+    IN_REVIEW = "IN_REVIEW"
+    ESCALATED = "ESCALATED"
+    DISMISSED = "DISMISSED"
+    CLOSED = "CLOSED"
+
+
+class Case(Base):
+    __tablename__ = "cases"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_by_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_cases_created_by_user_id"),
+        nullable=False,
+        index=True,
+    )
+    assigned_to_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_cases_assigned_to_user_id"),
+        nullable=True,
+        index=True,
+    )
+    title = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False, default=CaseStatus.OPEN, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    closed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by_user_id])
+    assignee = relationship("User", foreign_keys=[assigned_to_user_id])
+    anomalies = relationship("Anomaly", secondary="case_anomalies")
+    notes = relationship("CaseNote", back_populates="case", cascade="all, delete-orphan")
+    events = relationship("CaseEvent", back_populates="case", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<Case(id={self.id}, status='{self.status}')>"
+
+
+class CaseAnomaly(Base):
+    __tablename__ = "case_anomalies"
+
+    case_id = Column(
+        Integer,
+        ForeignKey("cases.id", ondelete="CASCADE", name="fk_case_anomalies_case_id"),
+        primary_key=True,
+    )
+    anomaly_id = Column(
+        Integer,
+        ForeignKey("anomalies.id", ondelete="CASCADE", name="fk_case_anomalies_anomaly_id"),
+        primary_key=True,
+    )
+    added_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class CaseNote(Base):
+    __tablename__ = "case_notes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    case_id = Column(
+        Integer,
+        ForeignKey("cases.id", ondelete="CASCADE", name="fk_case_notes_case_id"),
+        nullable=False,
+        index=True,
+    )
+    author_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE", name="fk_case_notes_author_user_id"),
+        nullable=False,
+    )
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    case = relationship("Case", back_populates="notes")
+    author = relationship("User", foreign_keys=[author_user_id])
+
+
+class CaseEvent(Base):
+    __tablename__ = "case_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    case_id = Column(
+        Integer,
+        ForeignKey("cases.id", ondelete="CASCADE", name="fk_case_events_case_id"),
+        nullable=False,
+        index=True,
+    )
+    actor_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL", name="fk_case_events_actor_user_id"),
+        nullable=True,
+    )
+    event_type = Column(String(30), nullable=False)  # "STATUS_CHANGE", "ASSIGNED", "NOTE_ADDED", "ANOMALY_LINKED", "CREATED"
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    case = relationship("Case", back_populates="events")
+    actor = relationship("User", foreign_keys=[actor_user_id])

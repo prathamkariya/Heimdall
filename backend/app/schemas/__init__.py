@@ -124,6 +124,7 @@ class AnomalyResponse(OrmBase):
     model_version: Optional[str]
     features: Optional[str]
     detected_at: datetime
+    severity: str
 
 
 class AnomalyListResponse(AnomalyResponse):
@@ -211,4 +212,59 @@ class WatchlistListResponse(OrmBase):
     name: str
     description: Optional[str]
     symbol_count: int = 0
+    created_at: datetime
+
+
+# ══════════════════════════════════════════════════════════════
+# CASE MANAGEMENT SCHEMAS (Phases B2-B5 — NEW)
+# ══════════════════════════════════════════════════════════════
+class CaseCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    anomaly_ids: List[int] = Field(..., min_length=1)
+
+
+class CaseUpdate(BaseModel):
+    status: Optional[str] = Field(None, pattern=r"^(OPEN|IN_REVIEW|ESCALATED|DISMISSED|CLOSED)$")
+
+
+class CaseAssign(BaseModel):
+    assignee_user_id: int
+
+
+class CaseResponse(OrmBase):
+    id: int
+    created_by_user_id: int
+    assigned_to_user_id: Optional[int]
+    title: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    closed_at: Optional[datetime]
+
+
+class CasePaginatedResponse(BaseModel):
+    items: List[CaseResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class CaseNoteCreate(BaseModel):
+    body: str = Field(..., min_length=1)
+
+
+class CaseNoteResponse(OrmBase):
+    id: int
+    case_id: int
+    author_user_id: int
+    body: str
+    created_at: datetime
+
+
+class CaseEventResponse(OrmBase):
+    id: int
+    case_id: int
+    actor_user_id: Optional[int]
+    event_type: str
+    detail: Optional[str]
     created_at: datetime

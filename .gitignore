@@ -48,3 +48,5 @@ htmlcov/
 .context/
 .continue
 
+heimdall-plan
+.github

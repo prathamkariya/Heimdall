@@ -69,6 +69,10 @@ def train_market(market: str, input_csv: str, output_dir: str,
                  random_state: int = 42) -> None:
     print(f"\n=== {market}: Rolling z-score + IsolationForest training ===")
 
+    if not Path(input_csv).exists():
+        print(f"Skipping {market}: input file {input_csv} not found.")
+        return
+        
     df = pd.read_csv(input_csv, index_col=0)
     required = set(BASE_FEATURE_COLUMNS) | {"symbol"}
     missing = required - set(df.columns)

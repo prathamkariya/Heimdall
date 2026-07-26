@@ -45,7 +45,8 @@ def fetch_us_equity_data(symbol: str, days: int) -> pd.DataFrame:
     api_key = os.getenv("ALPACA_API_KEY_ID")
     secret_key = os.getenv("ALPACA_API_SECRET_KEY")
     if not api_key or not secret_key:
-        raise ValueError("Alpaca API keys not found in .env")
+        print("Warning: Alpaca API keys not found in .env, skipping US Equity data.")
+        return pd.DataFrame()
         
     client = StockHistoricalDataClient(api_key, secret_key)
     end_dt = datetime.datetime.now()
@@ -90,6 +91,10 @@ def process_market(market: str, symbols: list[str], fetch_func):
         # Drop the warmup rows containing NaNs
         df_feat = df_feat.dropna(subset=['return', 'volume_ratio_20d', 'volatility_20d'])
         all_features.append(df_feat)
+        
+    if not all_features:
+        print(f"\n{market} Pooled Data: 0 total usable rows")
+        return
         
     pooled_df = pd.concat(all_features)
     print(f"\n{market} Pooled Data: {len(pooled_df)} total usable rows")

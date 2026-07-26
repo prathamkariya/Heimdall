@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from fastapi.responses import PlainTextResponse
 
 from app.database import get_db
-from app.models import User, Anomaly, MarketData
+from app.models import User, Anomaly, MarketData, Case
+from sqlalchemy.orm import joinedload
 from app.dependencies import get_current_user
 from app.services.mar_generator import generate_mar
 
@@ -16,32 +17,26 @@ router = APIRouter(prefix="/reports", tags=["Reports"])
 # Limit concurrent Gemini generation requests to avoid exhausting workers/rate limits
 mar_generation_semaphore = asyncio.BoundedSemaphore(5)
 
-@router.get("/mar/{alert_id}")
+@router.get("/mar/case/{case_id}")
 async def get_mar_report(
-    alert_id: int,
+    case_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
-    Generate an AI-driven Market Abuse Report (MAR) for a specific alert.
-    Returns markdown content. Only accessible by the user who owns the alert (B4).
-    The Gemini call is offloaded to a thread with a 30-second timeout (B6).
+    Generate an AI-driven Market Abuse Report (MAR) for a specific case.
+    Returns markdown content. Accessible by case creator, assignee, or system admin.
+    The Gemini call is offloaded to a thread with a 30-second timeout.
     """
     
-    # 1. Fetch anomaly
-    anomaly = db.query(Anomaly).filter(Anomaly.id == alert_id).first()
-    if not anomaly:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anomaly not found")
+    # 1. Fetch case with eager loaded anomalies and market data
+    case = db.query(Case).options(
+        joinedload(Case.anomalies).joinedload(Anomaly.market_data)
+    ).filter(Case.id == case_id).first()
 
-    # B4: Ownership check — any logged-in user could previously read any user's report
-    md = db.query(MarketData).filter(MarketData.id == anomaly.market_data_id).first()
-    if md is None:
-        # B5: Parent MarketData was deleted — don't crash into md.symbol AttributeError
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Market data record associated with this alert no longer exists.",
-        )
-        
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
     system_user = db.query(User).filter(
         or_(
             User.email == "system@marketsurveillance.local",
@@ -50,24 +45,38 @@ async def get_mar_report(
     ).first()
     system_user_id = system_user.id if system_user else None
     
-    # Deliberate: system-detected (streaming) anomalies are visible to any authenticated user, since they reflect market-wide surveillance findings, not personal trading data. Only user-submitted anomalies (POST /anomalies) remain strictly private. Decided 2026-07-18.
-    if md.user_id != current_user.id and md.user_id != system_user_id:
+    # Check ownership
+    if case.created_by_user_id != current_user.id and case.assigned_to_user_id != current_user.id and current_user.id != system_user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this report.",
         )
         
     # Extract necessary variables before closing the session
+    anomalies_data = []
+    for anomaly in case.anomalies:
+        md = anomaly.market_data
+        anomalies_data.append({
+            "anomaly_id": anomaly.id,
+            "anomaly_score": anomaly.anomaly_score,
+            "anomaly_if": anomaly.isolation_forest_score,
+            "anomaly_rf": anomaly.multi_pattern_max_score,
+            "anomaly_features": anomaly.features,
+            "md_symbol": md.symbol,
+            "md_timestamp": md.timestamp.isoformat() if md.timestamp else None,
+            "md_close": float(md.close) if md.close else None,
+            "md_volume": float(md.volume) if md.volume else None,
+        })
+    
+    # Sort anomalies chronologically
+    anomalies_data.sort(key=lambda x: x["md_timestamp"])
+
     context_data = {
-        "md_symbol": md.symbol,
-        "md_timestamp": md.timestamp,
-        "md_close": md.close,
-        "md_volume": md.volume,
-        "anomaly_id": anomaly.id,
-        "anomaly_score": anomaly.anomaly_score,
-        "anomaly_if": anomaly.isolation_forest_score,
-        "anomaly_rf": anomaly.multi_pattern_max_score,
-        "anomaly_features": anomaly.features,
+        "case_id": case.id,
+        "case_title": case.title,
+        "case_status": case.status,
+        "case_created_at": case.created_at.isoformat() if case.created_at else None,
+        "anomalies": anomalies_data
     }
 
     try:
@@ -87,7 +96,7 @@ async def get_mar_report(
         return PlainTextResponse(
             content=report_md,
             media_type="text/markdown",
-            headers={"Content-Disposition": f"attachment; filename=MAR_Alert_{alert_id}.md"},
+            headers={"Content-Disposition": f"attachment; filename=MAR_Case_{case_id}.md"},
         )
     except Exception as e:
         if isinstance(e, HTTPException):

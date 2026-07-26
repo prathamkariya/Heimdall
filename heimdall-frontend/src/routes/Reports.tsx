@@ -8,7 +8,7 @@ type ReportType = 'mar' | 'daily' | 'weekly' | 'export' | 'compliance'
 
 export function Reports() {
   const [selectedType, setSelectedType] = useState<ReportType>('mar')
-  const [alertId, setAlertId] = useState('')
+  const [caseId, setCaseId] = useState('')
   const [report, setReport] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +18,7 @@ export function Reports() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault()
-    const id = alertId.trim()
+    const id = caseId.trim()
     if (!id) return
 
     setLoading(true)
@@ -27,7 +27,7 @@ export function Reports() {
 
     try {
       const token = getAccessToken()
-      const res = await fetch(`${BASE_URL}/reports/mar/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${BASE_URL}/reports/mar/case/${encodeURIComponent(id)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -100,7 +100,7 @@ export function Reports() {
           >
             <div className="flex-1 min-w-0">
               <div className="text-[12px] font-semibold">Incident Report (MAR)</div>
-              <div className="text-[10px] text-ink-faint mt-0.5">Detailed abuse regulation timeline of specific anomaly.</div>
+              <div className="text-[10px] text-ink-faint mt-0.5">Detailed abuse regulation timeline of a Case investigation.</div>
             </div>
             <ChevronRight size={14} className="text-ink-faint mt-0.5" />
           </button>
@@ -145,29 +145,29 @@ export function Reports() {
 
             <div className="border-b border-line px-5 py-4 bg-surface/30">
               <p className="mb-3 text-[12px] text-ink-dim leading-relaxed">
-                Generate an AI-driven Market Abuse Regulation (MAR) report for a specific anomaly.
-                The generator calls Gemini to outline the timeline and suspicious flags.
+                Generate an AI-driven Market Abuse Regulation (MAR) report for a specific investigation Case.
+                The generator calls Gemini to outline the timeline and suspicious flags from all linked anomalies.
               </p>
 
               <form onSubmit={handleGenerate} className="flex items-end gap-3">
                 <div className="flex-1 max-w-[200px]">
-                  <label htmlFor="alert-id" className="mb-1.5 block font-mono text-[9px] uppercase tracking-wider text-ink-faint">
-                    Anomaly / Alert ID
+                  <label htmlFor="case-id" className="mb-1.5 block font-mono text-[9px] uppercase tracking-wider text-ink-faint">
+                    Case ID
                   </label>
                   <input
-                    id="alert-id"
+                    id="case-id"
                     type="number"
                     min={1}
                     required
                     placeholder="e.g. 42"
-                    value={alertId}
-                    onChange={(e) => setAlertId(e.target.value)}
+                    value={caseId}
+                    onChange={(e) => setCaseId(e.target.value)}
                     className="w-full border border-line bg-raised px-3 py-1.5 font-mono text-[12px] text-ink outline-none focus:border-accent"
                   />
                 </div>
                 <button
                   type="submit"
-                  disabled={loading || !alertId.trim()}
+                  disabled={loading || !caseId.trim()}
                   className="flex items-center gap-2 rounded bg-line px-4 py-1.5 font-mono text-[11px] font-medium text-ink transition-colors hover:bg-raised disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {loading ? (
@@ -202,7 +202,7 @@ export function Reports() {
                 <div className="mx-auto max-w-3xl">
                   <div className="mb-4 flex items-center justify-between">
                     <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-                      MAR Report — Alert #{alertId}
+                      MAR Report — Case #{caseId}
                     </span>
                     <button
                       onClick={() => {
@@ -210,7 +210,7 @@ export function Reports() {
                         const url = URL.createObjectURL(blob)
                         const a = document.createElement('a')
                         a.href = url
-                        a.download = `MAR_Alert_${alertId}.md`
+                        a.download = `MAR_Case_${caseId}.md`
                         a.click()
                         URL.revokeObjectURL(url)
                       }}
@@ -229,7 +229,7 @@ export function Reports() {
             {!loading && !report && !error && (
               <div className="flex flex-1 flex-col items-center justify-center">
                 <FileText size={24} strokeWidth={1.5} className="mb-2 text-ink-faint" />
-                <p className="text-[12px] text-ink-faint font-mono">Select or enter an alert ID above to compile incident logs</p>
+                <p className="text-[12px] text-ink-faint font-mono">Select or enter a Case ID above to compile incident logs</p>
               </div>
             )}
           </>

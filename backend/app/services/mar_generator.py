@@ -32,25 +32,41 @@ def generate_mar(context_data: dict) -> str:
         )
 
     # 2. Prepare Context Prompt
+    anomalies_text = ""
+    for a in context_data.get("anomalies", []):
+        try:
+            features = json.dumps(json.loads(a['anomaly_features']), indent=2) if a.get('anomaly_features') else 'N/A'
+        except Exception:
+            features = str(a.get('anomaly_features', 'N/A'))
+            
+        anomalies_text += f"""
+        ---
+        - Anomaly ID: {a['anomaly_id']}
+        - Symbol: {a['md_symbol']}
+        - Timestamp: {a['md_timestamp']}
+        - Price: {a['md_close']} | Volume: {a['md_volume']}
+        - Overall Score: {a['anomaly_score']}
+        - Isolation Forest Score: {a['anomaly_if']}
+        - Random Forest Score: {a['anomaly_rf']}
+        - Features: {features}
+        """
+
     context = f"""
-    You are an expert financial compliance officer. Please generate a Market Abuse Report (MAR)
-    for the following detected anomaly on {context_data['md_symbol']} at {context_data['md_timestamp']}.
+    You are an expert financial compliance officer. Please generate a Market Abuse Regulation (MAR) Report
+    for the following investigation Case.
     
-    Alert ID: {context_data['anomaly_id']}
-    Anomaly Score: {context_data['anomaly_score']} (Threshold: 0.7)
-    Isolation Forest Unsupervised Score: {context_data['anomaly_if']}
-    Random Forest Supervised Score: {context_data['anomaly_rf']}
+    Case ID: {context_data['case_id']}
+    Case Title: {context_data['case_title']}
+    Case Status: {context_data['case_status']}
+    Created At: {context_data['case_created_at']}
     
-    Price: {context_data['md_close']}
-    Volume: {context_data['md_volume']}
-    
-    Features computed at the time of anomaly:
-    {json.dumps(json.loads(context_data['anomaly_features']), indent=2) if context_data.get('anomaly_features') else 'N/A'}
+    This Case contains the following anomalous market events forming a timeline of suspicious activity:
+    {anomalies_text}
     
     Please structure the report with:
     1. Executive Summary
-    2. Event Details
-    3. Technical ML Breakdown (explain the Isolation Forest vs Random Forest scores)
+    2. Investigation Timeline (summarizing the events above)
+    3. Technical ML Breakdown (explain the Isolation Forest vs Random Forest scores across the events)
     4. Compliance Action Recommended
     
     Use clear Markdown format. Make it look professional.

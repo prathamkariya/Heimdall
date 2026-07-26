@@ -59,6 +59,12 @@ import joblib
 import numpy as np
 import pandas as pd
 
+try:
+    import mlflow
+    HAS_MLFLOW = True
+except ImportError:
+    HAS_MLFLOW = False
+
 from ml.config import PatternType, BASE_FEATURE_COLUMNS
 from ml.data.synthetic import (
     generate_synthetic_market_data,
@@ -71,8 +77,35 @@ sys.path.insert(0, str(Path(__file__).parent))
 from _common import load_real_csv as _load_real_csv
 
 
+def _setup_mlflow(experiment_name: str) -> bool:
+    """Configure MLflow tracking. Returns True if MLflow is available."""
+    if not HAS_MLFLOW:
+        print("NOTE: mlflow not installed — skipping experiment tracking. "
+              "Install with: pip install mlflow")
+        return False
+    
+    # Use SQLite backend as the filesystem backend is deprecated in MLflow
+    db_path = Path(__file__).resolve().parent.parent.parent / "mlflow.db"
+    mlflow.set_tracking_uri(f"sqlite:///{db_path}")
+    mlflow.set_experiment(experiment_name)
+    return True
+
+
+def _log_eval_metrics(eval_result: pd.DataFrame) -> None:
+    """Log per-pattern precision/recall/f1 as MLflow metrics."""
+    if not HAS_MLFLOW:
+        return
+    for _, row in eval_result.iterrows():
+        pattern = row["pattern"]
+        for metric in ["precision", "recall", "f1"]:
+            if metric in row and pd.notna(row[metric]):
+                mlflow.log_metric(f"{pattern}_{metric}", float(row[metric]))
+
+
 def train_synthetic(args: argparse.Namespace) -> None:
     from ml.data.synthetic import PatternInjectionConfig
+
+    use_mlflow = _setup_mlflow("market-surveillance-synthetic")
 
     # The library's built-in DEFAULT_PATTERN_CONFIGS uses small, fixed
     # absolute day-counts (12-25 days) -- deliberately tiny so the test
@@ -101,31 +134,61 @@ def train_synthetic(args: argparse.Namespace) -> None:
     df = generate_synthetic_market_data(
         n_days=args.n_days, pattern_configs=generous_configs, random_state=args.random_state,
     )
+
+    # Save the generated dataset to disk for DVC versioning
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    dataset_path = data_dir / "synthetic_dataset.csv"
+    df.to_csv(dataset_path, index=False)
+    print(f"  Saved synthetic dataset to {dataset_path}")
+
     train_df, test_df = chronological_train_test_split(df, test_size=args.test_size)
     print(f"  train: {len(train_df)} rows, test: {len(test_df)} rows")
 
-    detector = MultiPatternDetector(random_state=args.random_state)
-    print("Training MultiPatternDetector (one classifier per pattern)...")
-    detector.fit(train_df[BASE_FEATURE_COLUMNS], train_df)
+    run_ctx = mlflow.start_run(run_name=f"synthetic-{args.n_days}d-rs{args.random_state}") if use_mlflow else None
+    try:
+        if use_mlflow and run_ctx:
+            run_ctx.__enter__()
+            mlflow.log_params({
+                "mode": "synthetic",
+                "n_days": args.n_days,
+                "random_state": args.random_state,
+                "test_size": args.test_size,
+                "n_train": len(train_df),
+                "n_test": len(test_df),
+            })
+            mlflow.log_artifact(str(dataset_path), "datasets")
 
-    print("\nPer-pattern evaluation on held-out test data:")
-    eval_result = detector.evaluate(test_df[BASE_FEATURE_COLUMNS], test_df)
-    print(eval_result.to_string(index=False))
-    _warn_if_low_sample_size(eval_result)
+        detector = MultiPatternDetector(random_state=args.random_state)
+        print("Training MultiPatternDetector (one classifier per pattern)...")
+        detector.fit(train_df[BASE_FEATURE_COLUMNS], train_df)
 
-    print("\nComparison against a single blended-label baseline model:")
-    comparison = detector.compare_against_blended_baseline(
-        train_df[BASE_FEATURE_COLUMNS], train_df, test_df[BASE_FEATURE_COLUMNS], test_df
-    )
-    print(comparison.to_string(index=False))
+        print("\nPer-pattern evaluation on held-out test data:")
+        eval_result = detector.evaluate(test_df[BASE_FEATURE_COLUMNS], test_df)
+        print(eval_result.to_string(index=False))
+        _warn_if_low_sample_size(eval_result)
 
-    _save_supervised_artifacts(detector, args, eval_result, comparison, data_source="synthetic")
+        if use_mlflow:
+            _log_eval_metrics(eval_result)
+
+        print("\nComparison against a single blended-label baseline model:")
+        comparison = detector.compare_against_blended_baseline(
+            train_df[BASE_FEATURE_COLUMNS], train_df, test_df[BASE_FEATURE_COLUMNS], test_df
+        )
+        print(comparison.to_string(index=False))
+
+        _save_supervised_artifacts(detector, args, eval_result, comparison, data_source="synthetic")
+    finally:
+        if use_mlflow and run_ctx:
+            run_ctx.__exit__(None, None, None)
 
 
 def train_real_supervised(args: argparse.Namespace) -> None:
     if not args.csv:
         print("ERROR: --csv is required for real-supervised mode.", file=sys.stderr)
         sys.exit(1)
+
+    use_mlflow = _setup_mlflow("market-surveillance-supervised")
 
     df = _load_real_csv(args.csv)
 
@@ -148,30 +211,50 @@ def train_real_supervised(args: argparse.Namespace) -> None:
         col = f"is_{p.value}"
         print(f"  {p.value}: {int(train_df[col].sum())} positive in train, {int(test_df[col].sum())} in test")
 
-    detector = MultiPatternDetector(patterns=patterns, random_state=args.random_state)
-    print("\nTraining MultiPatternDetector on real data...")
-    detector.fit(train_df[BASE_FEATURE_COLUMNS], train_df)
+    run_ctx = mlflow.start_run(run_name=f"supervised-{Path(args.csv).stem}") if use_mlflow else None
+    try:
+        if use_mlflow and run_ctx:
+            run_ctx.__enter__()
+            mlflow.log_params({
+                "mode": "real-supervised",
+                "data_source": args.csv,
+                "random_state": args.random_state,
+                "test_size": args.test_size,
+                "patterns": [p.value for p in patterns],
+                "n_train": len(train_df),
+                "n_test": len(test_df),
+            })
 
-    print("\nPer-pattern evaluation on held-out test data:")
-    eval_result = detector.evaluate(test_df[BASE_FEATURE_COLUMNS], test_df)
-    print(eval_result.to_string(index=False))
-    _warn_if_low_sample_size(eval_result)
+        detector = MultiPatternDetector(patterns=patterns, random_state=args.random_state)
+        print("\nTraining MultiPatternDetector on real data...")
+        detector.fit(train_df[BASE_FEATURE_COLUMNS], train_df)
 
-    comparison = None
-    if "is_manipulation" in df.columns:
-        print("\nComparison against a single blended-label baseline model:")
-        comparison = detector.compare_against_blended_baseline(
-            train_df[BASE_FEATURE_COLUMNS], train_df, test_df[BASE_FEATURE_COLUMNS], test_df
-        )
-        print(comparison.to_string(index=False))
-    else:
-        print(
-            "\n(Skipping blended-baseline comparison: no 'is_manipulation' "
-            "column in your CSV. Add one -- OR of your pattern columns -- "
-            "to get this comparison.)"
-        )
+        print("\nPer-pattern evaluation on held-out test data:")
+        eval_result = detector.evaluate(test_df[BASE_FEATURE_COLUMNS], test_df)
+        print(eval_result.to_string(index=False))
+        _warn_if_low_sample_size(eval_result)
 
-    _save_supervised_artifacts(detector, args, eval_result, comparison, data_source=args.csv)
+        if use_mlflow:
+            _log_eval_metrics(eval_result)
+
+        comparison = None
+        if "is_manipulation" in df.columns:
+            print("\nComparison against a single blended-label baseline model:")
+            comparison = detector.compare_against_blended_baseline(
+                train_df[BASE_FEATURE_COLUMNS], train_df, test_df[BASE_FEATURE_COLUMNS], test_df
+            )
+            print(comparison.to_string(index=False))
+        else:
+            print(
+                "\n(Skipping blended-baseline comparison: no 'is_manipulation' "
+                "column in your CSV. Add one -- OR of your pattern columns -- "
+                "to get this comparison.)"
+            )
+
+        _save_supervised_artifacts(detector, args, eval_result, comparison, data_source=args.csv)
+    finally:
+        if use_mlflow and run_ctx:
+            run_ctx.__exit__(None, None, None)
 
 
 def train_real_unsupervised(args: argparse.Namespace) -> None:
@@ -179,59 +262,86 @@ def train_real_unsupervised(args: argparse.Namespace) -> None:
         print("ERROR: --csv is required for real-unsupervised mode.", file=sys.stderr)
         sys.exit(1)
 
+    use_mlflow = _setup_mlflow("market-surveillance-unsupervised")
+
     df = _load_real_csv(args.csv)
     X = df[BASE_FEATURE_COLUMNS].values
 
-    print(f"Training IsolationForestScratch on {len(df)} real days (contamination={args.contamination})...")
-    model = IsolationForestScratch(
-        n_estimators=args.n_estimators, contamination=args.contamination, random_state=args.random_state,
-    )
-    model.fit(X)
+    run_ctx = mlflow.start_run(run_name=f"iforest-{Path(args.csv).stem}") if use_mlflow else None
+    try:
+        if use_mlflow and run_ctx:
+            run_ctx.__enter__()
+            mlflow.log_params({
+                "mode": "real-unsupervised",
+                "data_source": args.csv,
+                "contamination": args.contamination,
+                "n_estimators": args.n_estimators,
+                "random_state": args.random_state,
+                "n_rows": len(df),
+            })
 
-    scores = model.score_samples(X)
-    flags = model.predict(X)
-    df_scored = df.copy()
-    df_scored["anomaly_score"] = scores
-    df_scored["is_flagged"] = flags
+        print(f"Training IsolationForestScratch on {len(df)} real days (contamination={args.contamination})...")
+        model = IsolationForestScratch(
+            n_estimators=args.n_estimators, contamination=args.contamination, random_state=args.random_state,
+        )
+        model.fit(X)
 
-    n_flagged = int(flags.sum())
-    print(f"\nFlagged {n_flagged} of {len(df)} days ({n_flagged / len(df) * 100:.1f}%) as anomalous.")
-    print(
-        "\nReminder: contamination is a THRESHOLD CHOICE, not evidence the model "
-        "found exactly this many real manipulation days -- it means these are "
-        "whichever days scored worst, whether or not a natural break in the "
-        "score distribution falls near this cutoff. Review flagged days as "
-        "candidates for human investigation, not confirmed findings."
-    )
+        scores = model.score_samples(X)
+        flags = model.predict(X)
+        df_scored = df.copy()
+        df_scored["anomaly_score"] = scores
+        df_scored["is_flagged"] = flags
 
-    print("\nTop 10 highest-scoring (most anomalous) days:")
-    top_10 = df_scored.sort_values("anomaly_score", ascending=False).head(10)
-    print(top_10[BASE_FEATURE_COLUMNS + ["anomaly_score", "is_flagged"]].to_string())
+        n_flagged = int(flags.sum())
+        flag_pct = n_flagged / len(df) * 100
+        print(f"\nFlagged {n_flagged} of {len(df)} days ({flag_pct:.1f}%) as anomalous.")
+        print(
+            "\nReminder: contamination is a THRESHOLD CHOICE, not evidence the model "
+            "found exactly this many real manipulation days -- it means these are "
+            "whichever days scored worst, whether or not a natural break in the "
+            "score distribution falls near this cutoff. Review flagged days as "
+            "candidates for human investigation, not confirmed findings."
+        )
 
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    model_path = output_dir / "isolation_forest_scratch.joblib"
-    joblib.dump(model, model_path)
-    scored_csv_path = output_dir / "scored_days.csv"
-    df_scored.to_csv(scored_csv_path)
+        if use_mlflow:
+            mlflow.log_metrics({"n_flagged": n_flagged, "flag_percentage": flag_pct})
 
-    metadata = {
-        "trained_at_utc": datetime.now(timezone.utc).isoformat(),
-        "mode": "real-unsupervised",
-        "data_source": args.csv,
-        "n_rows": len(df),
-        "n_flagged": n_flagged,
-        "contamination": args.contamination,
-        "n_estimators": args.n_estimators,
-        "random_state": args.random_state,
-        "feature_columns": BASE_FEATURE_COLUMNS,
-    }
-    metadata_path = output_dir / "metadata.json"
-    metadata_path.write_text(json.dumps(metadata, indent=2))
+        print("\nTop 10 highest-scoring (most anomalous) days:")
+        top_10 = df_scored.sort_values("anomaly_score", ascending=False).head(10)
+        print(top_10[BASE_FEATURE_COLUMNS + ["anomaly_score", "is_flagged"]].to_string())
 
-    print(f"\nSaved model to {model_path}")
-    print(f"Saved scored days (all rows, with anomaly_score + is_flagged) to {scored_csv_path}")
-    print(f"Saved metadata to {metadata_path}")
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        model_path = output_dir / "isolation_forest_scratch.joblib"
+        joblib.dump(model, model_path)
+        scored_csv_path = output_dir / "scored_days.csv"
+        df_scored.to_csv(scored_csv_path)
+
+        metadata = {
+            "trained_at_utc": datetime.now(timezone.utc).isoformat(),
+            "mode": "real-unsupervised",
+            "data_source": args.csv,
+            "n_rows": len(df),
+            "n_flagged": n_flagged,
+            "contamination": args.contamination,
+            "n_estimators": args.n_estimators,
+            "random_state": args.random_state,
+            "feature_columns": BASE_FEATURE_COLUMNS,
+        }
+        metadata_path = output_dir / "metadata.json"
+        metadata_path.write_text(json.dumps(metadata, indent=2))
+
+        if use_mlflow:
+            mlflow.log_artifact(str(model_path), "models")
+            mlflow.log_artifact(str(scored_csv_path), "scored")
+            mlflow.log_artifact(str(metadata_path), "metadata")
+
+        print(f"\nSaved model to {model_path}")
+        print(f"Saved scored days (all rows, with anomaly_score + is_flagged) to {scored_csv_path}")
+        print(f"Saved metadata to {metadata_path}")
+    finally:
+        if use_mlflow and run_ctx:
+            run_ctx.__exit__(None, None, None)
 
 
 def _resolve_patterns(pattern_names: list[str] | None) -> list[PatternType]:
@@ -276,6 +386,12 @@ def _save_supervised_artifacts(
 
     metadata_path = output_dir / "metadata.json"
     metadata_path.write_text(json.dumps(metadata, indent=2, default=str))
+
+    # Log artifacts to MLflow if available
+    if HAS_MLFLOW and mlflow.active_run():
+        mlflow.log_artifact(str(model_path), "models")
+        mlflow.log_artifact(str(eval_csv_path), "evaluation")
+        mlflow.log_artifact(str(metadata_path), "metadata")
 
     print(f"\nSaved model to {model_path}")
     print(f"Saved evaluation results to {eval_csv_path}")

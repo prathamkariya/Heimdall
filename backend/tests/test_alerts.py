@@ -259,7 +259,7 @@ class TestAlertOwnership:
         alert = _create_alert(client, auth_headers, sample_anomaly["id"])
         other_headers = self._other_user_headers(client, "otherB@example.com", "otheruserB")
         response = client.get(f"/api/v1/alerts/{alert['id']}", headers=other_headers)
-        assert response.status_code == 404
+        assert response.status_code == 403
 
     def test_user_cannot_update_other_users_alert(self, client, auth_headers, sample_anomaly):
         alert = _create_alert(client, auth_headers, sample_anomaly["id"])
@@ -269,13 +269,13 @@ class TestAlertOwnership:
             json={"status": "DISMISSED"},
             headers=other_headers,
         )
-        assert response.status_code == 404
+        assert response.status_code == 403
 
     def test_user_cannot_delete_other_users_alert(self, client, auth_headers, sample_anomaly):
         alert = _create_alert(client, auth_headers, sample_anomaly["id"])
         other_headers = self._other_user_headers(client, "otherD@example.com", "otheruserD")
         response = client.delete(f"/api/v1/alerts/{alert['id']}", headers=other_headers)
-        assert response.status_code == 404
+        assert response.status_code == 403
 
 # --------------------------------------------------------------
 # SSE STREAMING ALERTS (Phase 8)

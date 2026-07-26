@@ -79,19 +79,7 @@ class Settings(BaseSettings):
             )
         return self
 
-    @model_validator(mode="before")
-    @classmethod
-    def _apply_dev_defaults(cls, data: dict) -> dict:
-        import os
-        # APP_ENV may not be in data if relying on the class default or env file,
-        # but pydantic hasn't merged env vars fully into `data` in mode="before"
-        # wait, actually for BaseSettings, `data` contains the env vars + init kwargs.
-        # But just in case, we also check os.getenv.
-        env = data.get("APP_ENV", os.getenv("APP_ENV", "development"))
-        if env == "development":
-            data.setdefault("SECRET_KEY", "change-this-in-production-use-openssl-rand-hex-32")
-            data.setdefault("POSTGRES_PASSWORD", "password")
-        return data
+
 
     @model_validator(mode="after")
     def _build_db_url(self) -> "Settings":

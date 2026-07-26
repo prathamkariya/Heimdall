@@ -47,6 +47,11 @@ logger = logging.getLogger("run_engine")
 STREAM_ALERTS = "live_alerts"
 HISTORY_PREFIX = "history:"
 
+# Dynamic batching constants
+_BASE_BATCH_SIZE: int = 50        # Default pull size per loop iteration
+_MAX_BATCH_SIZE: int = 10_000     # Upper cap to prevent OOM under extreme load
+_BACKLOG_HIGH_WATER: int = 5_000  # If Redis backlog exceeds this, double the batch size
+
 _last_disarmed_log_time = {}
 
 _last_successful_sentiment = {}
@@ -92,6 +97,15 @@ async def update_and_get_history(client, trade: dict) -> list[dict]:
     return [json.loads(r) for r in raw_history[:-1]]  # exclude the one we just pushed
 
 
+async def _get_backlog_length(client, group_name: str) -> int:
+    """Return the approximate number of unprocessed messages in the consumer group."""
+    try:
+        info = await client.xpending(STREAM_TRADES, group_name)
+        return info.get("pending", 0) if isinstance(info, dict) else 0
+    except Exception:
+        return 0
+
+
 async def run():
     logger.info("Initializing ML Engine...")
     await setup_consumer_group("engine_group")
@@ -101,9 +115,38 @@ async def run():
     
     logger.info("Engine listening for live trades...")
     last_claim_check = 0.0
+    last_throughput_log = time.time()
+    ticks_processed = 0
+    current_batch_size = _BASE_BATCH_SIZE
     while True:
         try:
             now = time.time()
+
+            # ── Throughput reporting ─────────────────────────────────────
+            if now - last_throughput_log >= 30:
+                elapsed = now - last_throughput_log
+                rate = ticks_processed / elapsed if elapsed > 0 else 0
+                backlog = await _get_backlog_length(client, "engine_group")
+                logger.info(
+                    "ENGINE METRICS | throughput=%.0f ticks/s | batch_size=%d | redis_backlog=%d",
+                    rate, current_batch_size, backlog,
+                )
+                # Dynamic batching: scale up if backlog is growing, reset when clear
+                if backlog > _BACKLOG_HIGH_WATER:
+                    new_size = min(current_batch_size * 2, _MAX_BATCH_SIZE)
+                    if new_size != current_batch_size:
+                        logger.warning(
+                            "BACKPRESSURE DETECTED: backlog=%d — scaling batch_size %d → %d",
+                            backlog, current_batch_size, new_size,
+                        )
+                        current_batch_size = new_size
+                elif backlog == 0 and current_batch_size > _BASE_BATCH_SIZE:
+                    logger.info("Backlog cleared — resetting batch_size to %d", _BASE_BATCH_SIZE)
+                    current_batch_size = _BASE_BATCH_SIZE
+
+                ticks_processed = 0
+                last_throughput_log = now
+
             batch = None
             
             # Check for crashed-worker pending trades periodically, not every loop
@@ -112,7 +155,7 @@ async def run():
                     group_name="engine_group",
                     consumer_name=consumer_name,
                     min_idle_ms=60_000,
-                    count=50,
+                    count=current_batch_size,
                 )
                 last_claim_check = now
                 
@@ -120,11 +163,13 @@ async def run():
                 batch = await read_trades_blocking(
                     group_name="engine_group",
                     consumer_name=consumer_name,
-                    count=50,
+                    count=current_batch_size,
                     block_ms=2000,
                 )
             if not batch:
                 continue
+
+            ticks_processed += len(batch)
             
             for entry_id, trade in batch:
                 market = trade.get("market")
@@ -209,12 +254,11 @@ def _get_or_create_system_user(db) -> User:
         return user
         
     try:
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        from app.services.auth_service import hash_password
         user = User(
             email=SYSTEM_EMAIL,
             username="system_surveillance",
-            hashed_password=pwd_context.hash("system_password_not_used"),
+            hashed_password=hash_password("system_password_not_used"),
             is_active=True
         )
         db.add(user)

@@ -7,23 +7,34 @@ from app.models import Watchlist, WatchlistSymbol
 from app.schemas import WatchlistCreate, WatchlistSymbolAdd, WatchlistUpdate
 
 
+from app.auth_policy import verify_ownership
+from app.models import User
+
 # ──────────────────────────────────────────────
 # Private helpers
 # ──────────────────────────────────────────────
-def _get_watchlist_or_404(db: Session, watchlist_id: int, user_id: int) -> Watchlist:
+def _get_watchlist_or_404(db: Session, watchlist_id: int, current_user: User) -> Watchlist:
     """
-    Fetch a watchlist by ID and verify ownership.
-    Raises 404 if not found — deliberately same error for not-found and wrong-user
-    (don't reveal that the resource exists but belongs to someone else).
+    Fetch a watchlist by ID and verify ownership using the central policy.
+    Raises 404 if not found.
     """
     wl = (
         db.query(Watchlist)
         .options(selectinload(Watchlist.symbols))
-        .filter(Watchlist.id == watchlist_id, Watchlist.user_id == user_id)
+        .filter(Watchlist.id == watchlist_id)
         .first()
     )
     if wl is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found")
+        
+    try:
+        verify_ownership(wl, current_user)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_403_FORBIDDEN:
+            # Mask the 403 as a 404 to prevent resource enumeration
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found")
+        raise
+        
     return wl
 
 
@@ -56,9 +67,9 @@ def create_watchlist(db: Session, user_id: int, payload: WatchlistCreate) -> Wat
     return wl
 
 
-def get_watchlist(db: Session, watchlist_id: int, user_id: int) -> Watchlist:
+def get_watchlist(db: Session, watchlist_id: int, current_user: User) -> Watchlist:
     """Get a single watchlist with all its symbols."""
-    return _get_watchlist_or_404(db, watchlist_id, user_id)
+    return _get_watchlist_or_404(db, watchlist_id, current_user)
 
 
 def list_watchlists(db: Session, user_id: int) -> List[Watchlist]:
@@ -78,19 +89,19 @@ def list_watchlists(db: Session, user_id: int) -> List[Watchlist]:
 def update_watchlist(
     db: Session,
     watchlist_id: int,
-    user_id: int,
+    current_user: User,
     payload: WatchlistUpdate,
 ) -> Watchlist:
     """
     Update watchlist name and/or description.
     Returns 409 if the new name conflicts with another watchlist.
     """
-    wl = _get_watchlist_or_404(db, watchlist_id, user_id)
+    wl = _get_watchlist_or_404(db, watchlist_id, current_user)
 
     if payload.name is not None and payload.name != wl.name:
         # Check name uniqueness for this user
         conflict = db.query(Watchlist).filter(
-            Watchlist.user_id == user_id,
+            Watchlist.user_id == current_user.id,
             Watchlist.name == payload.name,
             Watchlist.id != watchlist_id,
         ).first()
@@ -109,9 +120,9 @@ def update_watchlist(
     return wl
 
 
-def delete_watchlist(db: Session, watchlist_id: int, user_id: int) -> None:
+def delete_watchlist(db: Session, watchlist_id: int, current_user: User) -> None:
     """Delete a watchlist and all its symbols (cascade)."""
-    wl = _get_watchlist_or_404(db, watchlist_id, user_id)
+    wl = _get_watchlist_or_404(db, watchlist_id, current_user)
     db.delete(wl)
     db.commit()
 
@@ -122,14 +133,14 @@ def delete_watchlist(db: Session, watchlist_id: int, user_id: int) -> None:
 def add_symbol(
     db: Session,
     watchlist_id: int,
-    user_id: int,
+    current_user: User,
     payload: WatchlistSymbolAdd,
 ) -> WatchlistSymbol:
     """
     Add a symbol to a watchlist.
     Returns 409 if symbol already in this watchlist.
     """
-    wl = _get_watchlist_or_404(db, watchlist_id, user_id)
+    wl = _get_watchlist_or_404(db, watchlist_id, current_user)
 
     existing = db.query(WatchlistSymbol).filter(
         WatchlistSymbol.watchlist_id == wl.id,
@@ -156,10 +167,10 @@ def remove_symbol(
     db: Session,
     watchlist_id: int,
     symbol: str,
-    user_id: int,
+    current_user: User,
 ) -> None:
     """Remove a symbol from a watchlist."""
-    wl = _get_watchlist_or_404(db, watchlist_id, user_id)
+    wl = _get_watchlist_or_404(db, watchlist_id, current_user)
 
     ws = db.query(WatchlistSymbol).filter(
         WatchlistSymbol.watchlist_id == wl.id,

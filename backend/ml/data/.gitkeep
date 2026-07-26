@@ -1,0 +1,2 @@
+# This file keeps the data/ directory in git.
+# Actual CSV datasets are gitignored and tracked by DVC.

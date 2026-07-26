@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.auth_policy import verify_ownership
 from app.models import MarketData, User
 from app.schemas import MarketDataCreate, MarketDataResponse
 
@@ -120,12 +121,10 @@ def delete_market_data(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a single OHLCV record."""
-    record = db.query(MarketData).filter(
-        MarketData.id == record_id,
-        MarketData.user_id == current_user.id,
-    ).first()
+    record = db.query(MarketData).filter(MarketData.id == record_id).first()
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
+    verify_ownership(record, current_user)
     db.delete(record)
     db.commit()
     return None

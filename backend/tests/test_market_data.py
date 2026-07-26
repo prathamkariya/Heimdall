@@ -211,4 +211,4 @@ class TestMarketDataIsolation:
         other_headers = self._register_and_login(client, "other3@example.com", "otheruser97")
         record_id = sample_market_data["id"]
         response = client.delete(f"/api/v1/market-data/{record_id}", headers=other_headers)
-        assert response.status_code == 404
+        assert response.status_code == 403

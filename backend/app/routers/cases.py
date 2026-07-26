@@ -34,19 +34,15 @@ from app.services.case_service import record_case_event
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 
+from app.auth_policy import verify_case_access
+
 def get_case_if_visible(db: Session, case_id: int, current_user: User) -> Case:
     """Helper to fetch a case and enforce visibility rules."""
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     
-    if not (
-        case.created_by_user_id == current_user.id
-        or case.assigned_to_user_id == current_user.id
-        or current_user.role == "analyst"  # Note: Plain Python boolean, evaluated first
-    ):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Access to this case is not permitted.")
-        
+    verify_case_access(case, current_user)
     return case
 
 

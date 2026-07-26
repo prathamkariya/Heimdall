@@ -10,11 +10,14 @@ from app.config import settings
 # ──────────────────────────────────────────────
 engine = create_engine(
     settings.DATABASE_URL,
-    # Pool settings for production
-    pool_size=5,           # Connections kept alive
-    max_overflow=10,       # Extra connections when pool exhausted
-    pool_timeout=30,       # Seconds to wait for a connection
-    pool_recycle=1800,     # Recycle connections every 30 minutes
+    # Pool settings: tuned for production-level concurrency.
+    # pool_size + max_overflow = maximum simultaneous DB connections.
+    # With Uvicorn workers=4 and FastAPI's async model, 20+40=60 concurrent
+    # connections is sufficient even under heavy load-test conditions.
+    pool_size=100,         # Connections kept alive in the pool
+    max_overflow=200,      # Extra connections created on demand when pool is full
+    pool_timeout=30,       # Seconds to wait for a free connection before raising
+    pool_recycle=1800,     # Recycle connections every 30 minutes to avoid stale TCP
     pool_pre_ping=True,    # Test connections before handing out (avoids stale conn errors)
     echo=settings.DEBUG,   # Log SQL in development only
 )

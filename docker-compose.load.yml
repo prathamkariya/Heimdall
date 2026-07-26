@@ -1,0 +1,85 @@
+version: '3.8'
+
+# ══════════════════════════════════════════════════════════════
+# Load-Test Stack — ISOLATED from the development environment
+#
+# Usage:
+#   docker compose -f docker-compose.load.yml up -d
+#   python backend/scripts/simulate_market_volatility.py --rate 10000 --duration 120
+#   python backend/scripts/simulate_frontend_clients.py --clients 500 --duration 60
+#   docker compose -f docker-compose.load.yml down -v    ← destroys all data cleanly
+#
+# NOTE: This uses a completely separate DB volume (postgres_load_data) so
+# your development database is never touched.
+# ══════════════════════════════════════════════════════════════
+
+services:
+  db_load:
+    image: timescale/timescaledb:latest-pg15
+    container_name: market-surveillance-db_load-1
+    command: postgres -c max_connections=1000
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: loadtest_password
+      POSTGRES_DB: market_surveillance_load
+    volumes:
+      - postgres_load_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 5
+
+  redis_load:
+    image: redis:7-alpine
+    # Increase memory ceiling for load testing vs 256 MB dev default
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  api_load:
+    build: ./backend
+    ports:
+      - "8001:8000"   # Expose on 8001 to avoid conflict with local dev server
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=loadtest_password
+      - POSTGRES_DB=market_surveillance_load
+      - POSTGRES_HOST=db_load
+      - SECRET_KEY=load_test_secret_key_not_for_production_use_only
+      - MODEL_DIR=/app/trained_models
+      - REDIS_URL=redis://redis_load:6379/0
+      - APP_ENV=development   # suppress production password warnings in logs
+      - RATE_LIMIT_PER_MINUTE=10000 # allow massive login spikes for SSE client simulation
+    depends_on:
+      db_load:
+        condition: service_healthy
+      redis_load:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  engine_load:
+    build: ./backend
+    command: python scripts/run_engine.py
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=loadtest_password
+      - POSTGRES_DB=market_surveillance_load
+      - POSTGRES_HOST=db_load
+      - SECRET_KEY=load_test_secret_key_not_for_production_use_only
+      - REDIS_URL=redis://redis_load:6379/0
+      - MODEL_DIR=/app/trained_models
+      - APP_ENV=development
+    depends_on:
+      db_load:
+        condition: service_healthy
+      redis_load:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+volumes:
+  postgres_load_data:

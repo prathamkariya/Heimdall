@@ -50,3 +50,14 @@ htmlcov/
 
 heimdall-plan
 .github
+
+# MLflow tracking artifacts
+mlruns/
+mlartifacts/
+
+# DVC
+/backend/ml/data/*.csv
+!/backend/ml/data/.gitkeep
+
+# Trained model artifacts (tracked by DVC/MLflow, not git)
+trained_models/

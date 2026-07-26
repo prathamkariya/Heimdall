@@ -59,7 +59,8 @@ export interface LiveAlertEvent {
   low_confidence: boolean
   /** Present only on a sentinel (degraded-coverage) event. */
   confidence?: ConfidenceSentinel
-  timestamp: string
+  timestamp?: string
+  timestamp_ms?: number
   pattern_scores?: Record<string, number> | string
   severity?: string
   anomaly_id?: number

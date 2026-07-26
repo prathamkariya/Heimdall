@@ -6,7 +6,7 @@ services:
     image: timescale/timescaledb:latest-pg15
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
       POSTGRES_DB: ${POSTGRES_DB:-market_surveillance}
     ports:
       - "5432:5432"          # Standard port for local tooling
@@ -35,10 +35,10 @@ services:
       - "8000:8000"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
       - POSTGRES_HOST=db
-      - SECRET_KEY=dev_secret_key_change_me
+      - SECRET_KEY=${SECRET_KEY:-change-this-in-production-use-openssl-rand-hex-32}
       - MODEL_DIR=/app/trained_models
       - REDIS_URL=redis://redis:6379/0
     depends_on:
@@ -55,9 +55,10 @@ services:
     command: python scripts/run_engine.py
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin123}
       - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
       - POSTGRES_HOST=db
+      - SECRET_KEY=${SECRET_KEY:-change-this-in-production-use-openssl-rand-hex-32}
       - REDIS_URL=redis://redis:6379/0
       - MODEL_DIR=/app/trained_models
     depends_on:

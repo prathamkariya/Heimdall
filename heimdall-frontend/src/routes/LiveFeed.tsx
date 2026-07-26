@@ -125,7 +125,7 @@ export function LiveFeed() {
           const primarySignal = getPrimarySignal(event)
           return (
             <div
-              key={`${event.symbol}-${event.timestamp}-${i}`}
+              key={`${event.symbol}-${event.timestamp_ms || event.timestamp}-${i}`}
               className={`grid grid-cols-[120px_80px_80px_120px_80px_1fr] gap-x-4 border-b border-line/40 px-5 py-1.5 font-mono text-[13px] transition-colors ${
                 i === 0 ? 'animate-row-flash' : ''
               } ${
@@ -193,7 +193,7 @@ export function LiveFeed() {
 
               {/* Timestamp */}
               <span className="text-ink-dim tabular">
-                {formatTimestamp(event.timestamp)}
+                {formatTimestamp(event.timestamp_ms || event.timestamp)}
               </span>
             </div>
           )
@@ -232,8 +232,10 @@ function getPrimarySignal(event: LiveAlertEvent): string {
   return 'NORMAL'
 }
 
-function formatTimestamp(ts: string): string {
+function formatTimestamp(ts: string | number | undefined): string {
+  if (!ts) return '—'
   try {
+    // If it's a number (timestamp_ms), pass directly to Date. Otherwise string.
     const d = new Date(ts)
     return d.toLocaleTimeString('en-GB', {
       hour: '2-digit',

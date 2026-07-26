@@ -59,7 +59,7 @@ def get_watchlist(
     db: Session = Depends(get_db),
 ):
     """Get a single watchlist with all symbols. 404 if not found or wrong user."""
-    return watchlist_service.get_watchlist(db, watchlist_id, current_user.id)
+    return watchlist_service.get_watchlist(db, watchlist_id, current_user)
 
 
 @router.put("/{watchlist_id}", response_model=WatchlistResponse)
@@ -70,7 +70,7 @@ def update_watchlist(
     db: Session = Depends(get_db),
 ):
     """Update watchlist name or description."""
-    return watchlist_service.update_watchlist(db, watchlist_id, current_user.id, payload)
+    return watchlist_service.update_watchlist(db, watchlist_id, current_user, payload)
 
 
 @router.delete("/{watchlist_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -80,7 +80,7 @@ def delete_watchlist(
     db: Session = Depends(get_db),
 ):
     """Delete a watchlist and all its symbols."""
-    watchlist_service.delete_watchlist(db, watchlist_id, current_user.id)
+    watchlist_service.delete_watchlist(db, watchlist_id, current_user)
 
 
 # ──────────────────────────────────────────────
@@ -98,7 +98,7 @@ def add_symbol(
     db: Session = Depends(get_db),
 ):
     """Add a symbol to a watchlist. 409 if symbol already present."""
-    return watchlist_service.add_symbol(db, watchlist_id, current_user.id, payload)
+    return watchlist_service.add_symbol(db, watchlist_id, current_user, payload)
 
 
 @router.delete(
@@ -112,4 +112,4 @@ def remove_symbol(
     db: Session = Depends(get_db),
 ):
     """Remove a symbol from a watchlist. 404 if symbol not in watchlist."""
-    watchlist_service.remove_symbol(db, watchlist_id, symbol, current_user.id)
+    watchlist_service.remove_symbol(db, watchlist_id, symbol, current_user)

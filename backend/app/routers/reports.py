@@ -11,6 +11,7 @@ from app.models import User, Anomaly, MarketData, Case
 from sqlalchemy.orm import joinedload
 from app.dependencies import get_current_user
 from app.services.mar_generator import generate_mar
+from app.auth_policy import verify_case_access
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -38,11 +39,7 @@ async def get_mar_report(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
     # Check ownership (creator, assignee, or analyst)
-    if case.created_by_user_id != current_user.id and case.assigned_to_user_id != current_user.id and current_user.role != "analyst":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this report.",
-        )
+    verify_case_access(case, current_user)
         
     # Extract necessary variables before closing the session
     anomalies_data = []

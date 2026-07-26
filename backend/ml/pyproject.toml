@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4", "pytest-cov>=4.1"]
+mlops = ["mlflow>=2.10", "dvc>=3.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

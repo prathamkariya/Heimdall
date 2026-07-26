@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.auth_policy import verify_ownership
 from app.models import Alert, Anomaly, MarketData, User
 from app.schemas import AlertCreate, AlertResponse, AlertUpdate
 
@@ -25,14 +26,14 @@ def create_alert(
     anomaly = (
         db.query(Anomaly)
         .join(MarketData, Anomaly.market_data_id == MarketData.id)
-        .filter(
-            Anomaly.id == payload.anomaly_id,
-            MarketData.user_id == current_user.id,
-        )
+        .filter(Anomaly.id == payload.anomaly_id)
         .first()
     )
     if anomaly is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anomaly not found")
+        
+    # Verify the user owns the market data associated with the anomaly
+    verify_ownership(anomaly.market_data, current_user)
 
     alert = Alert(
         anomaly_id=payload.anomaly_id,
@@ -50,7 +51,11 @@ def list_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all alerts for the current user."""
+    """List all alerts for the current user. (Admins see all for simplicity, or just their own?)
+    Actually, list endpoints usually filter by the user themselves unless specified."""
+    # List endpoints typically filter directly for the user unless admin
+    if current_user.role == "admin":
+        return db.query(Alert).all()
     return db.query(Alert).filter(Alert.user_id == current_user.id).all()
 
 
@@ -61,12 +66,10 @@ def get_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Fetch a single alert by ID."""
-    alert = db.query(Alert).filter(
-        Alert.id == alert_id,
-        Alert.user_id == current_user.id,
-    ).first()
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if alert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    verify_ownership(alert, current_user)
     return alert
 
 
@@ -78,12 +81,10 @@ def update_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Update alert status or message."""
-    alert = db.query(Alert).filter(
-        Alert.id == alert_id,
-        Alert.user_id == current_user.id,
-    ).first()
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if alert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    verify_ownership(alert, current_user)
 
     if payload.status is not None:
         alert.status = payload.status
@@ -102,12 +103,10 @@ def delete_alert(
     current_user: User = Depends(get_current_user),
 ):
     """Delete an alert."""
-    alert = db.query(Alert).filter(
-        Alert.id == alert_id,
-        Alert.user_id == current_user.id,
-    ).first()
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if alert is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    verify_ownership(alert, current_user)
     db.delete(alert)
     db.commit()
     return None
@@ -125,7 +124,6 @@ import json
 @router.get("/stream/live")
 async def stream_live_alerts(
     token: str = Query(..., description="Short-lived SSE token from POST /auth/sse-token"),
-    db: Session = Depends(get_db),
 ):
     """
     Server-Sent Events (SSE) endpoint for live anomalies.
@@ -144,6 +142,7 @@ async def stream_live_alerts(
     from jose import JWTError, jwt as jose_jwt
     from app.models import Watchlist, WatchlistSymbol
     from app.services.redis_service import get_async_redis, STREAM_ALERTS
+    from app.database import SessionLocal
 
     # B1: Validate SSE-scoped token — reject regular access tokens
     try:
@@ -160,14 +159,19 @@ async def stream_live_alerts(
         from fastapi.responses import Response
         return Response(status_code=status.HTTP_401_UNAUTHORIZED)
 
-    # B2: Load the user's watchlist symbols once before the stream loop
-    watchlist_symbols: set[str] = {
-        row.symbol
-        for row in db.query(WatchlistSymbol.symbol)
-        .join(Watchlist, WatchlistSymbol.watchlist_id == Watchlist.id)
-        .filter(Watchlist.user_id == user_id)
-        .all()
-    }
+    # B2: Load the user's watchlist symbols using a short-lived session so we don't 
+    # hold a DB connection from the pool for the entire duration of the SSE stream.
+    db = SessionLocal()
+    try:
+        watchlist_symbols: set[str] = {
+            row.symbol
+            for row in db.query(WatchlistSymbol.symbol)
+            .join(Watchlist, WatchlistSymbol.watchlist_id == Watchlist.id)
+            .filter(Watchlist.user_id == user_id)
+            .all()
+        }
+    finally:
+        db.close()
 
     async def event_generator():
         client = get_async_redis()

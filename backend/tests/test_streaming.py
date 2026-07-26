@@ -73,9 +73,8 @@ def test_score_live_trade_volume_is_preserved(monkeypatch):
     # value — we override the default in the call instead to keep the patch
     # narrow and avoid mutating module state.
 
-    # Build exactly 20 history ticks (MIN_RAW_ROWS_FOR_FEATURES is 21 total
-    # including current tick, so 20 history + 1 current = 21).
-    history = _make_history(20, base_ts=1_717_999_980_000)
+    # Build enough history to satisfy FEATURE_HISTORY_LENGTH (100).
+    history = _make_history(100, base_ts=1_717_999_980_000)
 
     trade = {
         "event_id": "TEST_BTCUSDT_1718000000000",

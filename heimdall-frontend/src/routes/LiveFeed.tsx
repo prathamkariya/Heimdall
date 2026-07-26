@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../lib/auth-context'
 import { ConnectionStatus } from '../components/ConnectionStatus'
-import type { LiveAlertEvent } from '../lib/types'
+import type { LiveAlertEvent, EvidenceSignal } from '../lib/types'
 import { isScoredAlert } from '../lib/types'
 
 const MAX_EVENTS = 200
@@ -111,8 +111,10 @@ export function LiveFeed() {
       {/* Event rows */}
       <div ref={containerRef} className="flex-1 overflow-y-auto">
         {events.length === 0 ? (
-          <div className="flex h-32 items-center justify-center text-sm text-ink-faint font-mono">
-            Listening for market events...
+          <div className="flex h-32 flex-col items-center justify-center text-ink-faint font-mono text-[11px] gap-2">
+            <p>Event stream initialized.</p>
+            <p>Awaiting incoming market data.</p>
+            <p className="text-[10px] text-ink-dim mt-2">Feed Status: {connState.toUpperCase()}</p>
           </div>
         ) : events.filter(isScoredAlert).length === 0 ? (
           <div className="flex h-12 items-center justify-center text-xs text-ink-faint font-mono border-b border-line/40 bg-surface/30">
@@ -123,79 +125,16 @@ export function LiveFeed() {
         {events.map((event, i) => {
           const scored = isScoredAlert(event)
           const primarySignal = getPrimarySignal(event)
+          const evidence = event.evidence ?? event.detection_result?.evidence ?? []
           return (
-            <div
+            <EventRow
               key={`${event.symbol}-${event.timestamp_ms || event.timestamp}-${i}`}
-              className={`grid grid-cols-[120px_80px_80px_120px_80px_1fr] gap-x-4 border-b border-line/40 px-5 py-1.5 font-mono text-[13px] transition-colors ${
-                i === 0 ? 'animate-row-flash' : ''
-              } ${
-                scored
-                  ? 'text-ink hover:bg-raised/40'
-                  : 'text-ink-faint italic hover:bg-raised/20'
-              }`}
-            >
-              {/* Symbol */}
-              <span className="truncate font-medium">
-                {event.symbol}
-              </span>
-
-              {/* Market */}
-              <span className="text-ink-dim">
-                {event.market}
-              </span>
-
-              {/* Score */}
-              <span>
-                {scored ? (
-                  <span className={
-                    (event.anomaly_score ?? 0) >= 0.8
-                      ? 'text-down font-medium'
-                      : (event.anomaly_score ?? 0) >= 0.5
-                        ? 'text-accent'
-                        : 'text-ink-dim'
-                  }>
-                    {event.anomaly_score?.toFixed(4)}
-                  </span>
-                ) : (
-                  <span className="text-ink-faint text-[11px]">
-                    {event.confidence ?? '—'}
-                  </span>
-                )}
-              </span>
-
-              {/* Primary Signal */}
-              <span>
-                {scored ? (
-                  <span className={`text-[11px] rounded px-1.5 py-0.5 border ${
-                    primarySignal === 'PUMP & DUMP'
-                      ? 'bg-down/10 text-down border-down/20 font-medium'
-                      : primarySignal === 'WASH TRADING'
-                        ? 'bg-accent/10 text-accent border-accent/20'
-                        : 'bg-raised text-ink-dim border-line'
-                  }`}>
-                    {primarySignal}
-                  </span>
-                ) : (
-                  <span className="text-ink-faint text-[11px] italic">
-                    {primarySignal}
-                  </span>
-                )}
-              </span>
-
-              {/* Severity */}
-              <span>
-                {scored && event.severity ? (
-                  <SeverityBadge severity={event.severity} />
-                ) : (
-                  <span className="text-ink-faint text-[11px]">—</span>
-                )}
-              </span>
-
-              {/* Timestamp */}
-              <span className="text-ink-dim tabular">
-                {formatTimestamp(event.timestamp_ms || event.timestamp)}
-              </span>
-            </div>
+              event={event}
+              scored={scored}
+              primarySignal={primarySignal}
+              evidence={evidence}
+              isNew={i === 0}
+            />
           )
         })}
       </div>
@@ -235,7 +174,6 @@ function getPrimarySignal(event: LiveAlertEvent): string {
 function formatTimestamp(ts: string | number | undefined): string {
   if (!ts) return '—'
   try {
-    // If it's a number (timestamp_ms), pass directly to Date. Otherwise string.
     const d = new Date(ts)
     return d.toLocaleTimeString('en-GB', {
       hour: '2-digit',
@@ -244,7 +182,7 @@ function formatTimestamp(ts: string | number | undefined): string {
       hour12: false,
     }) + '.' + String(d.getMilliseconds()).padStart(3, '0')
   } catch {
-    return ts
+    return String(ts)
   }
 }
 
@@ -265,3 +203,109 @@ function SeverityBadge({ severity }: { severity: string }) {
   )
 }
 
+// ── EventRow ────────────────────────────────────────────────────────────────
+
+interface EventRowProps {
+  event: LiveAlertEvent
+  scored: boolean
+  primarySignal: string
+  evidence: EvidenceSignal[]
+  isNew: boolean
+}
+
+function EventRow({ event, scored, primarySignal, evidence, isNew }: EventRowProps) {
+  const [open, setOpen] = useState(false)
+  const hasEvidence = evidence.length > 0
+
+  return (
+    <div className={`border-b border-line/40 font-mono text-[13px] transition-colors ${
+      scored ? 'text-ink hover:bg-raised/40' : 'text-ink-faint italic hover:bg-raised/20'
+    }`}>
+      {/* Main row */}
+      <div
+        className={`grid grid-cols-[120px_80px_80px_120px_80px_1fr_16px] gap-x-4 px-5 py-1.5 ${
+          isNew ? 'animate-row-flash' : ''
+        } ${hasEvidence ? 'cursor-pointer' : ''}`}
+        onClick={() => hasEvidence && setOpen(o => !o)}
+      >
+        <span className="truncate font-medium">{event.symbol}</span>
+        <span className="text-ink-dim">{event.market}</span>
+
+        {/* Score */}
+        <span>
+          {scored ? (
+            <span className={
+              (event.anomaly_score ?? 0) >= 0.8
+                ? 'text-down font-medium'
+                : (event.anomaly_score ?? 0) >= 0.5
+                  ? 'text-accent'
+                  : 'text-ink-dim'
+            }>
+              {event.anomaly_score?.toFixed(4)}
+            </span>
+          ) : (
+            <span className="text-ink-faint text-[11px]">{event.confidence ?? '—'}</span>
+          )}
+        </span>
+
+        {/* Primary signal */}
+        <span>
+          {scored ? (
+            <span className={`text-[11px] rounded px-1.5 py-0.5 border ${
+              primarySignal === 'PUMP & DUMP'
+                ? 'bg-down/10 text-down border-down/20 font-medium'
+                : primarySignal === 'WASH TRADING'
+                  ? 'bg-accent/10 text-accent border-accent/20'
+                  : 'bg-raised text-ink-dim border-line'
+            }`}>
+              {primarySignal}
+            </span>
+          ) : (
+            <span className="text-ink-faint text-[11px] italic">{primarySignal}</span>
+          )}
+        </span>
+
+        {/* Severity */}
+        <span>
+          {scored && event.severity
+            ? <SeverityBadge severity={event.severity} />
+            : <span className="text-ink-faint text-[11px]">—</span>}
+        </span>
+
+        {/* Timestamp */}
+        <span className="text-ink-dim tabular">
+          {formatTimestamp(event.timestamp_ms || event.timestamp)}
+        </span>
+
+        {/* Expand toggle */}
+        <span className="text-ink-faint text-[10px] self-center">
+          {hasEvidence ? (open ? '▲' : '▼') : ''}
+        </span>
+      </div>
+
+      {/* Evidence panel */}
+      {open && hasEvidence && (
+        <div className="px-5 pb-2 pt-1 grid grid-cols-[1fr_1fr_1fr_60px] gap-x-4 gap-y-1 bg-surface/60 border-t border-line/20">
+          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Signal</span>
+          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Observed</span>
+          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Threshold</span>
+          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Status</span>
+          {evidence.map((sig) => (
+            <>
+              <span className="text-[11px] text-ink-dim font-mono">
+                {sig.name.replace(/_/g, ' ')}
+              </span>
+              <span className="text-[11px] tabular">{sig.value.toFixed(4)}</span>
+              <span className="text-[11px] tabular text-ink-dim">{sig.threshold.toFixed(4)}</span>
+              <span className={`text-[10px] font-semibold ${
+                sig.triggered ? 'text-down' : 'text-up'
+              }`}>
+                {sig.triggered ? '✓ FIRED' : '– OK'}
+              </span>
+            </>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

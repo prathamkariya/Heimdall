@@ -38,11 +38,46 @@ _SRC = _HERE / ".." / "src"
 sys.path.insert(0, str(_SRC.resolve()))
 sys.path.insert(0, str(_HERE.resolve()))
 
-from ml.config import BASE_FEATURE_COLUMNS
+from ml.config import BASE_FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION
 from ml.anomaly.isolation_forest import IsolationForestScratch
+from ml.anomaly.local_outlier_factor import LocalOutlierFactorDetector
 
 ROLLING_WINDOW = 60
 MIN_PERIODS = 20
+# Metadata columns that must NEVER enter the feature matrix (plan1.md issue #4)
+_METADATA_COLUMNS = frozenset({"symbol", "exchange", "market", "asset_id", "ticker"})
+
+
+def _audit_no_leakage(X_df: pd.DataFrame, context: str) -> None:
+    """Raise if any known metadata column is present in X_df.
+    Called immediately before every model.fit() call so data-science changes
+    can't accidentally reintroduce symbol/market leakage into the feature matrix.
+    """
+    leaking = _METADATA_COLUMNS & set(X_df.columns)
+    if leaking:
+        raise ValueError(
+            f"[{context}] Metadata leakage detected — column(s) {sorted(leaking)} must be "
+            "removed before fit(). These columns encode symbol/market identity and must "
+            "NEVER enter the training feature matrix (plan1.md issue #4)."
+        )
+
+
+def _dataset_hash(df: pd.DataFrame) -> str:
+    """SHA-256 of the raw CSV bytes, for reproducibility metadata."""
+    import hashlib
+    return hashlib.sha256(df.to_csv(index=True).encode()).hexdigest()[:16]
+
+
+def _git_commit() -> str:
+    """Return the current HEAD commit SHA or 'unknown' if not in a git repo."""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3
+        )
+        return result.stdout.strip()[:12] if result.returncode == 0 else "unknown"
+    except Exception:
+        return "unknown"
 
 
 def add_rolling_zscores(df: pd.DataFrame) -> pd.DataFrame:
@@ -115,9 +150,12 @@ def train_market(market: str, input_csv: str, output_dir: str,
         print(f"  Dropped {dropped} rows with insufficient rolling history "
               f"(first {MIN_PERIODS} rows per symbol - expected).")
 
-    print(f"  Training on {len(df_norm)} rows ({df_norm['symbol'].nunique()} symbols).")
-    X = df_norm[BASE_FEATURE_COLUMNS].values
+    # --- Metadata leakage audit (plan1.md issue #4) ---
+    X_df = df_norm[BASE_FEATURE_COLUMNS]
+    _audit_no_leakage(X_df, context=f"train_market({market})")
+    X = X_df.values
 
+    # === Isolation Forest ===
     model = IsolationForestScratch(
         n_estimators=n_estimators,
         contamination=contamination,
@@ -125,36 +163,66 @@ def train_market(market: str, input_csv: str, output_dir: str,
     )
     model.fit(X)
 
+    # === Local Outlier Factor ===
+    lof_model = LocalOutlierFactorDetector(
+        n_neighbors=20,
+        contamination=contamination,
+        random_state=random_state,
+    )
+    lof_model.fit(X)
+
     scores = model.score_samples(X)
     flags = model.predict(X)
+    lof_flags = lof_model.predict(X)
 
     df_scored = df_norm.copy()
     df_scored["anomaly_score"] = scores
     df_scored["is_flagged"] = flags
+    df_scored["is_flagged_lof"] = lof_flags
+    df_scored["detector_agreement"] = (flags.astype(bool) & lof_flags.astype(bool)).astype(float)
 
     n_flagged = int(flags.sum())
+    n_flagged_lof = int(lof_flags.sum())
+    n_both = int((flags.astype(bool) & lof_flags.astype(bool)).sum())
     print(f"  Flagged {n_flagged} of {len(df_norm)} days "
-          f"({n_flagged / len(df_norm) * 100:.1f}%) as anomalous.")
+          f"({n_flagged / len(df_norm) * 100:.1f}%) as anomalous (IF).")
+    print(f"  Flagged {n_flagged_lof} of {len(df_norm)} days "
+          f"({n_flagged_lof / len(df_norm) * 100:.1f}%) as anomalous (LOF).")
+    print(f"  Both detectors agree on {n_both} anomalous days.")
 
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Save Isolation Forest model
     model_path = out / "isolation_forest_scratch.joblib"
     joblib.dump(model, model_path)
+
+    # Save LOF model
+    lof_model_path = out / "local_outlier_factor.joblib"
+    joblib.dump(lof_model, lof_model_path)
 
     scored_path = out / "scored_days.csv"
     df_scored.to_csv(scored_path)
 
+    # --- Enriched metadata (plan1.md issue #7) ---
+    git_commit = _git_commit()
+    dataset_hash = _dataset_hash(df)
     metadata = {
         "trained_at_utc": datetime.now(timezone.utc).isoformat(),
         "mode": "real-unsupervised-zscored",
         "data_source": input_csv,
+        "git_commit": git_commit,
+        "dataset_hash": dataset_hash,
+        "feature_version": f"v{FEATURE_SCHEMA_VERSION}",
+        "feature_columns": BASE_FEATURE_COLUMNS,
         "n_rows": len(df_norm),
-        "n_flagged": n_flagged,
+        "n_flagged_if": n_flagged,
+        "n_flagged_lof": n_flagged_lof,
+        "n_both_agree": n_both,
         "contamination": contamination,
         "n_estimators": n_estimators,
         "random_state": random_state,
-        "feature_columns": BASE_FEATURE_COLUMNS,
+        "lof_n_neighbors": 20,
         "zscore_normalization": {
             "features": ["return", "volatility_20d"],
             "rolling_window": ROLLING_WINDOW,
@@ -175,9 +243,12 @@ def train_market(market: str, input_csv: str, output_dir: str,
     baselines_path.write_text(json.dumps(symbol_baselines, indent=2))
 
     print(f"  Saved model      -> {model_path}")
+    print(f"  Saved LOF model  -> {lof_model_path}")
     print(f"  Saved scored CSV -> {scored_path}")
     print(f"  Saved metadata   -> {meta_path} + isolation_forest_metadata.json")
     print(f"  Saved baselines  -> {baselines_path} ({len(symbol_baselines)} symbols)")
+    print(f"  Git commit       -> {git_commit}")
+    print(f"  Dataset hash     -> {dataset_hash}")
 
 
 if __name__ == "__main__":

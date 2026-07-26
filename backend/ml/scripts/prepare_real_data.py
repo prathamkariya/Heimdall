@@ -15,29 +15,48 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.en
 CRYPTO_SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT"]
 US_SYMBOLS = ["AAPL", "MSFT", "TSLA", "NVDA", "SPY", "AMZN", "META", "GOOGL"]
 N_DAYS = 400  # Fetch 400 days to ensure >250 usable trading days
+N_MINUTES = 5000  # Fetch 5000 minutes (3.5 days) of 1m data for crypto
 
-def fetch_crypto_data(symbol: str, days: int) -> pd.DataFrame:
-    """Fetch daily OHLCV from Binance API"""
+def fetch_crypto_data(symbol: str, minutes: int) -> pd.DataFrame:
+    """Fetch 1m OHLCV from Binance API in chunks of 1000 to fix train-serve skew."""
     url = "https://api.binance.com/api/v3/klines"
-    params = {
-        "symbol": symbol,
-        "interval": "1d",
-        "limit": days
-    }
-    resp = requests.get(url, params=params, timeout=(5, 30))
-    resp.raise_for_status()
-    data = resp.json()
-    
+    limit = 1000
     records = []
-    for row in data:
-        # timestamp, open, high, low, close, volume, close_time, ...
-        dt = pd.to_datetime(row[0], unit='ms').strftime('%Y-%m-%d')
-        records.append({
-            'date': dt,
-            'close': float(row[4]),
-            'volume': float(row[5])
-        })
+    
+    # Calculate start time
+    end_time = int(datetime.datetime.now().timestamp() * 1000)
+    start_time = end_time - (minutes * 60 * 1000)
+    
+    curr_time = start_time
+    while curr_time < end_time:
+        params = {
+            "symbol": symbol,
+            "interval": "1m",
+            "limit": limit,
+            "startTime": curr_time
+        }
+        resp = requests.get(url, params=params, timeout=(5, 30))
+        resp.raise_for_status()
+        data = resp.json()
+        
+        if not data:
+            break
+            
+        for row in data:
+            dt = pd.to_datetime(row[0], unit='ms')
+            records.append({
+                'date': dt,
+                'close': float(row[4]),
+                'volume': float(row[5])
+            })
+            
+        curr_time = data[-1][0] + 1  # Next candle start time
+        if len(data) < limit:
+            break
+            
     df = pd.DataFrame(records).set_index('date')
+    # Remove duplicates just in case
+    df = df[~df.index.duplicated(keep='last')]
     return df
 
 def fetch_us_equity_data(symbol: str, days: int) -> pd.DataFrame:
@@ -76,7 +95,10 @@ def process_market(market: str, symbols: list[str], fetch_func):
     all_features = []
     for sym in symbols:
         print(f"Fetching {sym}...")
-        df_raw = fetch_func(sym, N_DAYS)
+        if market == "crypto":
+            df_raw = fetch_func(sym, N_MINUTES)
+        else:
+            df_raw = fetch_func(sym, N_DAYS)
         if df_raw.empty:
             print(f"Warning: No data for {sym}")
             continue

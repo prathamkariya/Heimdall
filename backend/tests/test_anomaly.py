@@ -126,12 +126,13 @@ class TestDetectAnomaly:
     def test_features_contains_expected_keys(self, client, auth_headers, sample_market_data_with_history):
         """Updated for the real feature set -- see this file's module
         docstring for why these are different from the old mock's keys."""
+        from ml.config import BASE_FEATURE_COLUMNS
         response = client.post("/api/v1/anomalies", json={
             "market_data_id": sample_market_data_with_history["id"],
         }, headers=auth_headers)
         features = json.loads(response.json()["features"])
-        expected_keys = {"return", "volume_ratio_20d", "volatility_20d"}
-        assert expected_keys == features.keys(), f"Expected exactly {expected_keys}, got {features.keys()}"
+        expected_keys = set(BASE_FEATURE_COLUMNS)
+        assert expected_keys == set(features.keys()), f"Expected exactly {expected_keys}, got {features.keys()}"
 
     # ── Per-pattern breakdown (new in Phase 7) ────────────────
     def test_pattern_scores_contains_all_four_patterns(self, client, auth_headers, sample_market_data_with_history):

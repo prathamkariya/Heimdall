@@ -2,7 +2,7 @@ import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { createChart } from 'lightweight-charts'
 import { apiFetch } from '../lib/api'
-import type { AnomalyListItem } from '../lib/types'
+import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
 
 interface AnomalyDetailProps {
   anomaly: AnomalyListItem
@@ -252,6 +252,18 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
             />
             <MetricRow label="Market" value={anomaly.market} />
             <MetricRow label="Model Version" value={anomaly.model_version ?? '—'} />
+            {anomaly.detector_agreement != null && (
+              <MetricRow
+                label="Detector Agreement"
+                value={anomaly.detector_agreement === 1.0 ? 'BOTH AGREE' : 'PARTIAL'}
+              />
+            )}
+            {anomaly.weak_label_confidence != null && (
+              <MetricRow
+                label="Attribution Confidence"
+                value={`${(anomaly.weak_label_confidence * 100).toFixed(1)}%`}
+              />
+            )}
           </dl>
         </section>
 
@@ -281,6 +293,14 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
                   </div>
                 ))}
             </div>
+          </section>
+        )}
+
+
+        {anomaly.evidence && anomaly.evidence.length > 0 && (
+          <section>
+            <SectionLabel>Evidence Signals</SectionLabel>
+            <EvidencePanel signals={anomaly.evidence} />
           </section>
         )}
 
@@ -324,25 +344,6 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
                 }`}>
                   {associatedCase.status}
                 </span>
-              </div>
-              
-              {/* Evidence list */}
-              <div className="space-y-1 mt-2 border border-line bg-surface/50 p-2 rounded">
-                <div className="text-[9px] text-ink-faint uppercase font-bold tracking-wider mb-1">Evidence Breakdown</div>
-                <div className="flex items-center gap-1.5 text-up">
-                  <span>✓</span>
-                  <span>Volume Spike (+{(anomaly.anomaly_score * 12).toFixed(1)}x historical deviation)</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-up">
-                  <span>✓</span>
-                  <span>Order Imbalance (Score: {anomaly.anomaly_score.toFixed(2)})</span>
-                </div>
-                {anomaly.isolation_forest_score !== null && anomaly.isolation_forest_score > 0 && (
-                  <div className="flex items-center gap-1.5 text-up">
-                    <span>✓</span>
-                    <span>Feature Space Outlier (IsoForest)</span>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-2">
@@ -398,6 +399,34 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
           )}
         </section>
       </div>
+    </div>
+  )
+}
+
+/* ── Evidence panel ────────────────────────────────────────────────────── */
+
+function EvidencePanel({ signals }: { signals: EvidenceSignal[] }) {
+  return (
+    <div className="mt-2 border border-line bg-surface/50 rounded overflow-hidden">
+      <div className="grid grid-cols-[1fr_1fr_1fr_52px] gap-x-3 px-3 py-1.5 border-b border-line/60">
+        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Signal</span>
+        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Observed</span>
+        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Threshold</span>
+        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Status</span>
+      </div>
+      {signals.map((sig) => (
+        <div
+          key={sig.name}
+          className="grid grid-cols-[1fr_1fr_1fr_52px] gap-x-3 px-3 py-1.5 border-b border-line/30 last:border-0 font-mono text-[11px]"
+        >
+          <span className="text-ink-dim truncate">{sig.name.replace(/_/g, ' ')}</span>
+          <span className="tabular">{sig.value.toFixed(4)}</span>
+          <span className="tabular text-ink-dim">{sig.threshold.toFixed(4)}</span>
+          <span className={`font-semibold text-[10px] ${sig.triggered ? 'text-down' : 'text-up'}`}>
+            {sig.triggered ? '✓ FIRED' : '– OK'}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

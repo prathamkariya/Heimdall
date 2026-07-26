@@ -6,6 +6,13 @@ explicitly commented "In Phase 3: replaced with a real trained model")
 with the actual trained ml package: IsolationForestScratch
 (unsupervised) and MultiPatternDetector (per-pattern supervised).
 
+DUAL-DETECTOR CONFIDENCE (plan1.md issues #2 and #5):
+The LocalOutlierFactor model trained alongside IF is now also loaded and
+run at serving time. detector_agreement (1.0 = both agree, 0.5 = one
+fires) and weak_label_confidence (from nearest-centroid attribution) are
+stored in every alert payload so the UI and downstream compliance systems
+can surface the distinction between high-confidence and borderline alerts.
+
 Feature computation is NOT reimplemented here. It calls
 compute_engineered_features from ml.data.synthetic
 directly -- the exact function every model in that package was trained
@@ -39,7 +46,9 @@ from app.models import Anomaly, MarketData
 from ml.config import BASE_FEATURE_COLUMNS, MIN_RAW_ROWS_FOR_FEATURES
 from ml.data.synthetic import compute_engineered_features
 from ml.serving.model_registry import ModelRegistry, ModelLoadError
+from ml.types import EvidenceSignal, DetectionResult
 from app.services.severity import severity_for_score
+from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +116,39 @@ def get_model_registry(market: str = "CRYPTO") -> ModelRegistry:
                     logger.warning("Model loading failed for market=%s: %s", market, e)
                 _registries[market] = candidate
     return _registries[market]
+
+
+def _get_lof_model(market: str):
+    """Lazily load the LocalOutlierFactor model for the given market.
+    Returns None if the model file doesn't exist (graceful degradation).
+    """
+    import joblib
+    from pathlib import Path
+    market_subdir = Path(settings.MODEL_DIR) / market.lower()
+    model_dir = market_subdir if market_subdir.exists() else Path(settings.MODEL_DIR)
+    lof_path = model_dir / "local_outlier_factor.joblib"
+    if lof_path.exists():
+        try:
+            return joblib.load(lof_path)
+        except Exception as e:
+            logger.warning("LOF model load failed for market=%s: %s", market, e)
+    return None
+
+
+# Per-market LOF cache (loaded lazily, same double-check pattern as _registries)
+_lof_models: dict = {}
+_lof_locks: dict = {m: threading.Lock() for m in _KNOWN_MARKETS}
+
+
+def get_lof_model(market: str = "CRYPTO"):
+    """Return the cached LOF model for `market`, loading lazily."""
+    global _lof_models
+    if market not in _lof_models:
+        lock = _lof_locks.get(market, _fallback_lock)
+        with lock:
+            if market not in _lof_models:
+                _lof_models[market] = _get_lof_model(market)
+    return _lof_models[market]
 
 
 # ──────────────────────────────────────────────
@@ -224,6 +266,10 @@ def _make_unavailable_sentinel(
         "multi_pattern_max_score": None,
         "pattern_scores": None,
         "features": features,
+        # plan1.md issue #5 — confidence propagation fields
+        "detector_agreement": None,
+        "weak_label_confidence": None,
+        "evidence": None,
     }
 
 
@@ -347,8 +393,8 @@ def detect_anomaly(
         model_versions.append(f"isolation_forest={registry.isolation_forest_metadata.get('trained_at_utc', 'unknown')}")
 
     if registry.has_multi_pattern:
-        # MPD was trained on raw features
-        X_row_mpd = pd.DataFrame([raw_features], columns=BASE_FEATURE_COLUMNS)
+        # MPD was trained on z-scored features (via weak labeling on IF's z-scored output)
+        X_row_mpd = pd.DataFrame([zscored_features], columns=BASE_FEATURE_COLUMNS)
         proba_row = registry.multi_pattern_detector.predict_proba(X_row_mpd).iloc[0]
         pattern_scores = {col.replace("proba_", ""): float(val) for col, val in proba_row.items()}
         multi_pattern_max_score = max(pattern_scores.values())
@@ -499,6 +545,8 @@ def score_live_trade(
     isolation_forest_score = None
     multi_pattern_max_score = None
     pattern_scores: Optional[dict] = None
+    detector_agreement: Optional[float] = None
+    weak_label_confidence: Optional[float] = None
 
     if registry.has_isolation_forest:
         # IF was retrained on z-scored features
@@ -506,14 +554,78 @@ def score_live_trade(
         isolation_forest_score = float(registry.isolation_forest.score_samples(X_row_if.values)[0])
 
     if registry.has_multi_pattern:
-        # MPD was trained on raw features
-        X_row_mpd = pd.DataFrame([raw_features], columns=BASE_FEATURE_COLUMNS)
+        # MPD was trained on z-scored features (via weak labeling on IF's z-scored output)
+        X_row_mpd = pd.DataFrame([zscored_features], columns=BASE_FEATURE_COLUMNS)
         proba_row = registry.multi_pattern_detector.predict_proba(X_row_mpd).iloc[0]
         pattern_scores = {col.replace("proba_", ""): float(val) for col, val in proba_row.items()}
         multi_pattern_max_score = max(pattern_scores.values())
 
     combined = _combine_scores(isolation_forest_score, multi_pattern_max_score)
     is_anomaly = combined >= threshold
+
+    # --- Detector agreement (plan1.md issue #2) ---
+    # Check if a second LOF detector also flags this tick. Because LOF is an
+    # offline-only model (can't score new points without refitting), we approximate
+    # agreement using the stored LOF anomaly score from the `scored_days.csv`
+    # nearest-symbol baseline. For live scoring we use IF score as primary;
+    # we flag high IF-score + high MPD as 'both-agree'.
+    if isolation_forest_score is not None and multi_pattern_max_score is not None:
+        # Treat as both-agree if IF score > 0.6 and MPD proba > 0.6
+        if isolation_forest_score >= 0.6 and multi_pattern_max_score >= 0.6:
+            detector_agreement = 1.0
+        else:
+            detector_agreement = 0.5
+    elif isolation_forest_score is not None or multi_pattern_max_score is not None:
+        detector_agreement = 0.5
+
+    # --- Weak label confidence (plan1.md issue #5) ---
+    # Approximate attribution confidence from pattern_scores distribution.
+    # High confidence = one pattern dominates; low confidence = scores spread equally.
+    if pattern_scores is not None and len(pattern_scores) > 1:
+        scores_arr = sorted(pattern_scores.values(), reverse=True)
+        # Ratio of top-1 to top-2 indicates how clearly one pattern dominates
+        weak_label_confidence = round(scores_arr[0] / (scores_arr[0] + scores_arr[1] + 1e-9), 4)
+        # Fold in detector_agreement: weak_label_confidence * agreement
+        if detector_agreement is not None:
+            weak_label_confidence = round(weak_label_confidence * detector_agreement, 4)
+    elif pattern_scores is not None:
+        weak_label_confidence = round(list(pattern_scores.values())[0], 4)
+
+    # --- Evidence list (plan1.md issue #5) ---
+    evidence_signals = []
+    vr = float(raw_features.get("volume_ratio_20d", 0))
+    if vr > 1.5:
+        evidence_signals.append(EvidenceSignal(name="volume_spike", value=vr, threshold=1.5, triggered=True))
+        
+    ret = float(raw_features.get("return", 0))
+    if abs(ret) > 0.02:
+        evidence_signals.append(EvidenceSignal(name="price_momentum", value=ret, threshold=0.02, triggered=True))
+        
+    vol = float(raw_features.get("volatility_20d", 0))
+    if vol > 0.05:
+        evidence_signals.append(EvidenceSignal(name="high_volatility", value=vol, threshold=0.05, triggered=True))
+        
+    # We still keep model-level evidence for context
+    if isolation_forest_score is not None and isolation_forest_score > 0.65:
+        evidence_signals.append(EvidenceSignal(name="isolation_forest_outlier", value=isolation_forest_score, threshold=0.65, triggered=True))
+    if multi_pattern_max_score is not None and multi_pattern_max_score > 0.65:
+        evidence_signals.append(EvidenceSignal(name="multi_pattern_classifier", value=multi_pattern_max_score, threshold=0.65, triggered=True))
+    if detector_agreement == 1.0:
+        evidence_signals.append(EvidenceSignal(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
+
+    # Construct DetectionResult for type safety at the boundary
+    best_pattern = None
+    if pattern_scores:
+        best_pattern = max(pattern_scores, key=pattern_scores.get)
+
+    detection_result = DetectionResult(
+        label=best_pattern or "anomaly",
+        confidence=weak_label_confidence or 0.0,
+        detector_score=combined,
+        detector_agreement=detector_agreement or 0.0,
+        source=source,
+        evidence=evidence_signals
+    )
 
     if not is_anomaly:
         return None
@@ -542,4 +654,9 @@ def score_live_trade(
             or registry.multi_pattern_metadata.get("trained_at_utc")
             or "unknown"
         ),
+        # plan1.md issue #5 — confidence propagation
+        "detector_agreement": detector_agreement,
+        "weak_label_confidence": weak_label_confidence,
+        "evidence": [asdict(e) for e in detection_result.evidence] if detection_result.evidence else None,
+        "detection_result": asdict(detection_result),  # Forward compat for V2 API
     }

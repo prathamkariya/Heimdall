@@ -311,10 +311,14 @@ class TestSSELiveAlerts:
         with client.stream("GET", f"/api/v1/alerts/stream/live?token={sse_token}") as response:
             assert response.status_code == 200
 
+    @patch("app.database.SessionLocal")
     @patch("app.services.redis_service.get_async_redis")
-    def test_stream_live_alerts_filters_by_watchlist(self, mock_get_redis, client, auth_headers):
+    def test_stream_live_alerts_filters_by_watchlist(self, mock_get_redis, mock_session_local, client, auth_headers, db_session):
         import asyncio
         import json
+
+        # Mock SessionLocal to return the test's db_session
+        mock_session_local.return_value = db_session
 
         # Mock Redis to yield a batch of alerts, then cancel the stream
         class MockRedis:
@@ -330,7 +334,7 @@ class TestSSELiveAlerts:
                         ("2-0", {"data": json.dumps({"symbol": "AAPL", "anomaly_score": 0.95})}),
                         ("3-0", {"data": json.dumps({"symbol": "MSFT", "anomaly_score": 0.8})}),
                     ]
-                    return [("stream_alerts", payloads)]
+                    return [("live_alerts", payloads)]
                 else:
                     await asyncio.sleep(0.1)
                     raise asyncio.CancelledError()

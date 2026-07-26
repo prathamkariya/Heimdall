@@ -53,12 +53,94 @@ def list_anomalies(
     
     items = []
     for anomaly, md in results:
-        # Convert SQLAlchemy Anomaly object to dict/Pydantic
         item_dict = anomaly.__dict__.copy()
         item_dict["symbol"] = md.symbol
         item_dict["market_timestamp"] = md.timestamp
         item_dict["market"] = md.market
         item_dict["severity"] = anomaly.severity
+
+        # --- Inject explainability fields from stored raw features ---
+        # The live stream path always computes these at scoring time.
+        # For historical records we reconstruct them from the stored features
+        # JSON so the frontend can render the same evidence panel.
+        item_dict["evidence"] = None
+        item_dict["detection_result"] = None
+        item_dict["detector_agreement"] = None
+        item_dict["weak_label_confidence"] = None
+
+        try:
+            import json
+            from app.schemas import EvidenceSignalSchema, DetectionResultSchema
+
+            raw_features = json.loads(anomaly.features) if anomaly.features else {}
+            pattern_scores = json.loads(anomaly.pattern_scores) if anomaly.pattern_scores else {}
+
+            evidence_signals = []
+            vr = float(raw_features.get("volume_ratio_20d", 0))
+            if vr > 1.5:
+                evidence_signals.append(EvidenceSignalSchema(name="volume_spike", value=vr, threshold=1.5, triggered=True))
+
+            ret = float(raw_features.get("return", 0))
+            if abs(ret) > 0.02:
+                evidence_signals.append(EvidenceSignalSchema(name="price_momentum", value=ret, threshold=0.02, triggered=True))
+
+            vol = float(raw_features.get("volatility_20d", 0))
+            if vol > 0.05:
+                evidence_signals.append(EvidenceSignalSchema(name="high_volatility", value=vol, threshold=0.05, triggered=True))
+
+            if anomaly.isolation_forest_score is not None and anomaly.isolation_forest_score > 0.65:
+                evidence_signals.append(EvidenceSignalSchema(
+                    name="isolation_forest_outlier",
+                    value=anomaly.isolation_forest_score,
+                    threshold=0.65, triggered=True
+                ))
+            if anomaly.multi_pattern_max_score is not None and anomaly.multi_pattern_max_score > 0.65:
+                evidence_signals.append(EvidenceSignalSchema(
+                    name="multi_pattern_classifier",
+                    value=anomaly.multi_pattern_max_score,
+                    threshold=0.65, triggered=True
+                ))
+
+            # detector_agreement approximation from stored scores
+            da = None
+            if anomaly.isolation_forest_score is not None and anomaly.multi_pattern_max_score is not None:
+                if anomaly.isolation_forest_score >= 0.6 and anomaly.multi_pattern_max_score >= 0.6:
+                    da = 1.0
+                    evidence_signals.append(EvidenceSignalSchema(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
+                else:
+                    da = 0.5
+            elif anomaly.isolation_forest_score is not None or anomaly.multi_pattern_max_score is not None:
+                da = 0.5
+
+            # weak_label_confidence from pattern score distribution
+            wlc = None
+            if pattern_scores and len(pattern_scores) > 1:
+                scores_arr = sorted(pattern_scores.values(), reverse=True)
+                wlc = round(scores_arr[0] / (scores_arr[0] + scores_arr[1] + 1e-9), 4)
+                if da is not None:
+                    wlc = round(wlc * da, 4)
+            elif pattern_scores:
+                wlc = round(list(pattern_scores.values())[0], 4)
+
+            best_pattern = max(pattern_scores, key=pattern_scores.get) if pattern_scores else None
+
+            item_dict["evidence"] = evidence_signals if evidence_signals else None
+            item_dict["detector_agreement"] = da
+            item_dict["weak_label_confidence"] = wlc
+
+            if evidence_signals or best_pattern:
+                item_dict["detection_result"] = DetectionResultSchema(
+                    label=best_pattern or "anomaly",
+                    confidence=wlc or 0.0,
+                    detector_score=anomaly.anomaly_score,
+                    detector_agreement=da or 0.0,
+                    source="stored",
+                    evidence=evidence_signals,
+                )
+        except Exception:
+            # Silently fall back to None fields — never break the list endpoint
+            pass
+
         items.append(item_dict)
         
     return AnomalyPaginatedResponse(

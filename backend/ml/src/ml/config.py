@@ -46,11 +46,10 @@ class GradientBoostingDefaults:
 @dataclass(frozen=True)
 class IsolationForestDefaults:
     n_estimators: int = 100
-    # Not a single global constant -- see anomaly/isolation_forest.py.
-    # Each pattern gets contamination estimated from ITS OWN base rate,
-    # not one dataset-wide guess. This default is only a fallback for
-    # ad-hoc / exploratory calls that don't go through the per-pattern path.
-    contamination: float = 0.05
+    # Contamination can be a float (e.g. 0.05), "auto" (let the algorithm decide based
+    # on its tree structure), or "per_market" (use market-specific configured rates).
+    # Defaulting to "auto" makes it adaptable.
+    contamination: str | float = "auto"
 
 
 @dataclass(frozen=True)
@@ -73,11 +72,46 @@ GB_DEFAULTS = GradientBoostingDefaults()
 IF_DEFAULTS = IsolationForestDefaults()
 GLOBAL_DEFAULTS = GlobalDefaults()
 
+# The schema version identifies this specific set of feature columns and should be saved
+# into every model's metadata.json. If features change, bump this version!
+FEATURE_SCHEMA_VERSION: int = 2
+
+# How many ticks of history the live engine should keep in Redis to allow
+# long-window technical indicators (like 26-period MACD) to warm up and compute.
+FEATURE_HISTORY_LENGTH: int = 100
+
+PRICE_FEATURES: list[str] = [
+    "return",
+    "log_return",
+    "rolling_return_5d",
+    "rolling_return_10d",
+    "price_momentum",
+]
+
+VOLUME_FEATURES: list[str] = [
+    "volume_ratio_20d",
+    "rolling_volume_mean",
+    "rolling_volume_std",
+    "obv",
+]
+
+VOLATILITY_FEATURES: list[str] = [
+    "volatility_20d",
+    "true_range",
+    "atr_14d",
+]
+
+TREND_FEATURES: list[str] = [
+    "rsi_14d",
+    "macd",
+]
+
 # Feature columns every model in this package expects, in a fixed order.
 # Centralized here so a model trained in one module and scored in another
 # can never silently disagree about column order.
-BASE_FEATURE_COLUMNS: list[str] = [
-    "return",
-    "volume_ratio_20d",
-    "volatility_20d",
-]
+BASE_FEATURE_COLUMNS: list[str] = (
+    PRICE_FEATURES
+    + VOLUME_FEATURES
+    + VOLATILITY_FEATURES
+    + TREND_FEATURES
+)

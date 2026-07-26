@@ -69,19 +69,82 @@ DEFAULT_PATTERN_CONFIGS: dict[PatternType, PatternInjectionConfig] = {
 
 
 def compute_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
-    """return, volume_ratio_20d, volatility_20d -- the same three columns
-    used consistently across files 22, 24, 27. Centralized here so every
-    caller computes them identically.
+    """Computes the full set of technical indicators and rolling features
+    defined in ml.config.BASE_FEATURE_COLUMNS.
 
     Public (not just for synthetic data): scripts/train.py calls this
     directly on real OHLCV data too, so a model trained on synthetic
     data and one trained on real data compute features identically.
     Requires columns 'close' and 'volume'; index should be date-sorted.
+
+    Designed to handle partial startup histories gracefully. Features requiring
+    long lookbacks (e.g., 26-period MACD) will be NaN until sufficient data
+    is accumulated, but shorter-term features (like 1-period return) will
+    compute immediately. Downstream models must handle NaNs (e.g., via XGBoost)
+    or drop them (during offline training).
     """
     df = df.copy()
+
+    # Base price / return
     df["return"] = df["close"].pct_change()
-    df["volume_ratio_20d"] = df["volume"] / df["volume"].rolling(20, min_periods=1).mean()
-    df["volatility_20d"] = df["return"].rolling(20).std() * np.sqrt(252)
+    # Adding a small epsilon to avoid log(0) or log(-ve) issues if prices are wild,
+    # though synthetic prices are strictly positive.
+    df["log_return"] = np.log(df["close"] / df["close"].shift(1))
+    
+    # Rolling returns
+    df["rolling_return_5d"] = df["close"].pct_change(periods=5)
+    df["rolling_return_10d"] = df["close"].pct_change(periods=10)
+    df["price_momentum"] = df["close"] - df["close"].shift(10)
+
+    # Volume features
+    df["rolling_volume_mean"] = df["volume"].rolling(20, min_periods=1).mean()
+    df["rolling_volume_std"] = df["volume"].rolling(20, min_periods=2).std()
+    df["volume_ratio_20d"] = df["volume"] / df["rolling_volume_mean"].replace(0, np.nan)
+    
+    # On-Balance Volume (OBV)
+    # OBV = previous OBV + volume if close > prev close, - volume if close < prev close
+    # Since we need vectorized calculation:
+    direction = np.sign(df["return"].fillna(0))
+    df["obv"] = (direction * df["volume"]).cumsum()
+
+    # Volatility features
+    df["volatility_20d"] = df["return"].rolling(20, min_periods=2).std() * np.sqrt(252)
+    
+    # True Range & ATR
+    # Since we only have close in synthetic data (no high/low), we estimate True Range
+    # as absolute price change. In real data with H/L, TR is max(H-L, |H-Cp|, |L-Cp|)
+    # We will compute a simplified ATR based on close-to-close for synthetic data.
+    if "high" in df.columns and "low" in df.columns:
+        h_l = df["high"] - df["low"]
+        h_pc = (df["high"] - df["close"].shift(1)).abs()
+        l_pc = (df["low"] - df["close"].shift(1)).abs()
+        df["true_range"] = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
+    else:
+        df["true_range"] = df["close"].diff().abs()
+        
+    df["atr_14d"] = df["true_range"].rolling(14, min_periods=2).mean()
+
+    # Trend features (RSI & MACD)
+    
+    # RSI (14-period)
+    delta = df["close"].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=2).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=2).mean()
+    rs = gain / loss.replace(0, np.nan)
+    df["rsi_14d"] = 100 - (100 / (1 + rs))
+    # Handle edge case where loss is 0 (rs is inf)
+    df.loc[loss == 0, "rsi_14d"] = 100
+    df.loc[(gain == 0) & (loss == 0), "rsi_14d"] = 50
+
+    # MACD (12-period EMA - 26-period EMA)
+    ema_12 = df["close"].ewm(span=12, adjust=False, min_periods=12).mean()
+    ema_26 = df["close"].ewm(span=26, adjust=False, min_periods=26).mean()
+    df["macd"] = ema_12 - ema_26
+
+    # Optional: ensure exact column order and existence as defined in config
+    # We don't subset it here directly so we don't drop original columns (like 'close')
+    # that callers might still need, but we guarantee they exist.
+    
     return df
 
 

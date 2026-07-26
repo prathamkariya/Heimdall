@@ -37,6 +37,7 @@ from app.services.redis_service import (
     read_trades_blocking,
     STREAM_TRADES,
 )
+from ml.config import FEATURE_HISTORY_LENGTH
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,13 +85,13 @@ async def get_latest_sentiment(client, symbol: str) -> float:
 
 
 async def update_and_get_history(client, trade: dict) -> list[dict]:
-    """Maintain the last 30 ticks for a symbol in a Redis List."""
+    """Maintain the last FEATURE_HISTORY_LENGTH ticks for a symbol in a Redis List."""
     key = f"{HISTORY_PREFIX}{trade['symbol']}"
     trade_json = json.dumps(trade)
     
-    # Push to right, keep only last 30
+    # Push to right, keep only last FEATURE_HISTORY_LENGTH
     await client.rpush(key, trade_json)
-    await client.ltrim(key, -30, -1)
+    await client.ltrim(key, -FEATURE_HISTORY_LENGTH, -1)
     
     # Fetch all
     raw_history = await client.lrange(key, 0, -1)

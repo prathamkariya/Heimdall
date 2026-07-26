@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict
 
 
@@ -113,6 +113,24 @@ class AnomalyDetectRequest(BaseModel):
     threshold: float = Field(default=0.7, ge=0.0, le=1.0)
 
 
+class EvidenceSignalSchema(BaseModel):
+    """A single explainability signal from the Evidence Generator."""
+    name: str
+    value: float
+    threshold: float
+    triggered: bool
+
+
+class DetectionResultSchema(BaseModel):
+    """Structured prediction from the ML pipeline boundary."""
+    label: str
+    confidence: float
+    detector_score: float
+    detector_agreement: float
+    source: str
+    evidence: List[EvidenceSignalSchema] = []
+
+
 class AnomalyResponse(OrmBase):
     id: int
     market_data_id: int
@@ -128,10 +146,16 @@ class AnomalyResponse(OrmBase):
 
 
 class AnomalyListResponse(AnomalyResponse):
-    """Adds joined fields from MarketData for the list view."""
+    """Adds joined fields from MarketData and optional explainability signals."""
     symbol: str
     market_timestamp: datetime
     market: Optional[str] = None
+    # Explainability fields — populated at read time from stored features.
+    # Optional because older records may not have feature data.
+    evidence: Optional[List[EvidenceSignalSchema]] = None
+    detection_result: Optional[DetectionResultSchema] = None
+    detector_agreement: Optional[float] = None
+    weak_label_confidence: Optional[float] = None
 
 
 class AnomalyPaginatedResponse(BaseModel):

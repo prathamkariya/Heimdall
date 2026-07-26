@@ -134,7 +134,7 @@ class IsolationForestScratch:
 
     def __init__(
         self, n_estimators: int = 100, max_samples: int = 256,
-        contamination: float = 0.05, random_state: int | None = None,
+        contamination: str | float = 0.05, random_state: int | None = None,
     ):
         self.n_estimators = n_estimators
         self.max_samples = max_samples
@@ -163,7 +163,13 @@ class IsolationForestScratch:
             self.trees.append(tree)
 
         scores = self.score_samples(X)
-        self.threshold_ = float(np.quantile(scores, 1 - self.contamination))
+        if self.contamination == "auto" or self.contamination == "per_market":
+            # "auto" defaults to 0.5 in our s(x,n) convention (which corresponds to 
+            # expected average path length c(n)). "per_market" is a placeholder for
+            # future market-level adaptive logic; defaults to "auto" fallback.
+            self.threshold_ = 0.5
+        else:
+            self.threshold_ = float(np.quantile(scores, 1 - self.contamination))
         return self
 
     def score_samples(self, X: np.ndarray) -> np.ndarray:

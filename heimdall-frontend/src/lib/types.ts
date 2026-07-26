@@ -41,6 +41,11 @@ export interface AnomalyListItem {
   pattern_scores: string | null
   model_version: string | null
   detected_at: string
+  // plan5.md — explainability injected at read time from stored features
+  evidence?: EvidenceSignal[] | null
+  detection_result?: DetectionResult | null
+  detector_agreement?: number | null
+  weak_label_confidence?: number | null
 }
 
 export interface AnomalyPaginatedResponse {
@@ -48,6 +53,24 @@ export interface AnomalyPaginatedResponse {
   total: number
   limit: number
   offset: number
+}
+
+/** A single explainability signal from the Evidence Generator. */
+export interface EvidenceSignal {
+  name: string
+  value: number
+  threshold: number
+  triggered: boolean
+}
+
+/** Structured prediction from the ML pipeline boundary. */
+export interface DetectionResult {
+  label: string
+  confidence: number
+  detector_score: number
+  detector_agreement: number
+  source: string
+  evidence: EvidenceSignal[]
 }
 
 /** An event off the live SSE stream (`GET /alerts/stream/live`).
@@ -64,6 +87,11 @@ export interface LiveAlertEvent {
   pattern_scores?: Record<string, number> | string
   severity?: string
   anomaly_id?: number
+  // plan2.md fields — present when models are trained and scoring succeeds
+  detector_agreement?: number
+  weak_label_confidence?: number
+  evidence?: EvidenceSignal[] | null
+  detection_result?: DetectionResult | null
 }
 
 /** True only for a genuinely scored alert, not a coverage-gap notice.

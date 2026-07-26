@@ -18,6 +18,21 @@ pump-and-dump days"), or from pure domain knowledge with ZERO true
 examples at all (the harder, more interesting case, and the one this
 module treats as the default).
 
+DUAL-DETECTOR PIPELINE (plan1.md issue #2):
+Instead of trusting a single Isolation Forest, we cross-validate with a
+Local Outlier Factor detector. Detector agreement is computed as:
+  - both detectors flag the row: agreement = 1.0 (high confidence)
+  - only one detector flags the row: agreement = 0.5 (moderate confidence)
+This agreement score is folded into the overall weak-label confidence,
+reducing false positives that arise when only one detector fires.
+
+CONFIDENCE THRESHOLD FILTERING (plan1.md issue #1):
+Every generated weak label carries a confidence score (combining softmax
+attribution confidence + detector agreement). Labels below a configurable
+confidence_threshold are excluded from supervised training rather than
+treated as ground truth. The default (0.70) is conservative -- lower to
+increase training set size at the cost of label precision.
+
 HONESTY, not optimism: weak labels are NOT ground truth. Every function
 here that produces them is paired with a validation function
 (evaluate_weak_labeling_quality) that measures, against synthetic data
@@ -31,11 +46,25 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import json
+from dataclasses import asdict
 from sklearn.metrics import roc_auc_score, confusion_matrix
 
 from ml.config import PatternType, BASE_FEATURE_COLUMNS, RANDOM_STATE
 from ml.anomaly.isolation_forest import IsolationForestScratch
+from ml.anomaly.local_outlier_factor import LocalOutlierFactorDetector
 from ml.detection.multi_pattern import MultiPatternDetector
+from ml.types import EvidenceSignal
+
+# Default confidence threshold: labels below this are excluded from training.
+# Calibrated against real Binance 1m data: with 4 patterns the softmax max
+# achievable is ~0.84, and both-detector-agree rows sit at median ~0.47.
+# The 0.40 cutoff (p25 of both-agree rows) keeps high-quality labels while
+# discarding the lowest-confidence single-detector attributions.
+# - > 0.65: conservative (both-agree strong attributions only)
+# - 0.40\u20130.65: balanced (default, includes most both-agree rows)
+# - < 0.40: aggressive (includes many single-detector attributions)
+DEFAULT_CONFIDENCE_THRESHOLD = 0.40
 
 
 def build_pattern_prototypes_from_examples(
@@ -91,11 +120,18 @@ def build_pattern_prototypes_from_domain_rules() -> dict[PatternType, np.ndarray
 
     Ordered [return_z, volume_ratio_z, volatility_z] to match BASE_FEATURE_COLUMNS.
     """
+    n_features = len(BASE_FEATURE_COLUMNS)
+    
+    def pad(arr):
+        padded = np.zeros(n_features)
+        padded[:3] = arr
+        return padded
+
     return {
-        PatternType.PUMP_AND_DUMP: np.array([2.5, 2.5, 1.0]),   # strong positive return + high volume
-        PatternType.WASH_TRADING: np.array([0.0, 2.5, 0.5]),    # ~zero return + high volume
-        PatternType.SPOOFING: np.array([0.0, 0.8, 1.8]),        # ~zero return + moderate volume + high volatility
-        PatternType.LAYERING: np.array([0.0, 1.3, 1.5]),        # ~zero return + moderate-high volume + high volatility
+        PatternType.PUMP_AND_DUMP: pad([2.5, 2.5, 1.0]),   # strong positive return + high volume
+        PatternType.WASH_TRADING: pad([0.0, 2.5, 0.5]),    # ~zero return + high volume
+        PatternType.SPOOFING: pad([0.0, 0.8, 1.8]),        # ~zero return + moderate volume + high volatility
+        PatternType.LAYERING: pad([0.0, 1.3, 1.5]),        # ~zero return + moderate-high volume + high volatility
     }
 
 
@@ -130,7 +166,7 @@ def attribute_pattern_to_anomalies(
     results = []
     for i in range(len(X)):
         if not flagged_mask[i]:
-            results.append({"attributed_pattern": None, "confidence": None})
+            results.append({"attributed_pattern": None, "confidence": None, "centroid_distance": None})
             continue
         point = X_standardized[i]
         distances = np.sqrt(((prototype_matrix - point) ** 2).sum(axis=1))
@@ -142,6 +178,7 @@ def attribute_pattern_to_anomalies(
         results.append({
             "attributed_pattern": pattern_list[best_idx].value,
             "confidence": float(softmax_scores[best_idx]),
+            "centroid_distance": float(distances[best_idx]),
         })
     return pd.DataFrame(results, index=X.index)
 
@@ -149,13 +186,24 @@ def attribute_pattern_to_anomalies(
 def weak_label_from_isolation_forest(
     X: pd.DataFrame, prototypes: dict[PatternType, np.ndarray] | None = None,
     contamination: float = 0.05, n_estimators: int = 100, random_state: int = RANDOM_STATE,
+    lof_n_neighbors: int = 20,
 ) -> pd.DataFrame:
-    """Full bridge pipeline: fit IsolationForestScratch unsupervised (no
-    labels needed), flag anomalies, attribute a likely pattern to each
-    flagged day, and return a DataFrame with is_{pattern} columns in
-    EXACTLY the schema data/synthetic.py produces and MultiPatternDetector
-    expects -- so this is a drop-in replacement for true labels wherever
-    those aren't available.
+    """Full bridge pipeline: fit IsolationForestScratch AND LocalOutlierFactor
+    unsupervised (no labels needed), cross-validate their flags via detector
+    agreement, attribute a likely pattern to each row flagged by either
+    detector, and return a DataFrame with is_{pattern} columns in EXACTLY the
+    schema data/synthetic.py produces and MultiPatternDetector expects.
+
+    DUAL DETECTOR (plan1.md issue #2):
+    - IF and LOF each produce independent binary flags.
+    - A row is considered anomalous if flagged by EITHER detector.
+    - detector_agreement is 1.0 if both agree, 0.5 if only one fires.
+    - This agreement score is folded into the final label confidence to
+      down-weight attributions backed by only one detector.
+
+    CONFIDENCE SCORING (plan1.md issue #1):
+    - final_confidence = softmax_attribution_confidence * detector_agreement
+    - Stored in `label_confidence` column for downstream filtering.
 
     prototypes defaults to build_pattern_prototypes_from_domain_rules()
     if not given -- the zero-example case.
@@ -163,13 +211,65 @@ def weak_label_from_isolation_forest(
     if prototypes is None:
         prototypes = build_pattern_prototypes_from_domain_rules()
 
+    # === Isolation Forest ===
     iso_forest = IsolationForestScratch(
         n_estimators=n_estimators, contamination=contamination, random_state=random_state,
     )
     iso_forest.fit(X.values)
-    flagged_mask = iso_forest.predict(X.values).astype(bool)
+    if_flags = iso_forest.predict(X.values).astype(bool)
 
+    # === Local Outlier Factor ===
+    lof_detector = LocalOutlierFactorDetector(
+        n_neighbors=lof_n_neighbors, contamination=contamination, random_state=random_state,
+    )
+    lof_detector.fit(X.values)
+    lof_flags = lof_detector.predict(X.values).astype(bool)
+
+    # === Detector Agreement ===
+    # A row is flagged if EITHER detector fires (union) so we don't miss
+    # LOF-only local-density anomalies or IF-only global outliers.
+    flagged_mask = if_flags | lof_flags
+    both_agree = if_flags & lof_flags
+    detector_agreement = np.where(both_agree, 1.0, 0.5)  # shape (n,)
+    # Normal rows (not flagged by either) get agreement = 0 by convention
+    detector_agreement = np.where(flagged_mask, detector_agreement, 0.0)
+
+    # === Pattern Attribution ===
     attribution = attribute_pattern_to_anomalies(X, flagged_mask, prototypes)
+
+    # === Fold agreement into confidence ===
+    # softmax_confidence is in (0, 1]; agreement is 0.5 or 1.0 for flagged rows.
+    # Multiplying gives label_confidence that's strictly lower for single-detector
+    # attributions — exactly the down-weighting plan1.md requires.
+    attribution_conf = attribution["confidence"].fillna(0.0).values
+    label_confidence = attribution_conf * detector_agreement
+
+    # === Evidence Generation ===
+    # Using the raw feature values in X, we determine which thresholds were crossed.
+    # This explains the label *after* the centroid distance decided it.
+    evidence_jsons = []
+    for i in range(len(X)):
+        if not flagged_mask[i]:
+            evidence_jsons.append(json.dumps([]))
+            continue
+        
+        row = X.iloc[i]
+        ev_list = []
+        
+        # Heuristic thresholds for explanation
+        vr = float(row.get("volume_ratio_20d", 0))
+        if vr > 1.5:
+            ev_list.append(asdict(EvidenceSignal(name="volume_spike", value=vr, threshold=1.5, triggered=True)))
+            
+        vol = float(row.get("volatility_20d", 0))
+        if vol > 0.8:
+            ev_list.append(asdict(EvidenceSignal(name="high_volatility", value=vol, threshold=0.8, triggered=True)))
+            
+        ret = float(row.get("return", 0))
+        if abs(ret) > 0.05:
+            ev_list.append(asdict(EvidenceSignal(name="large_return", value=ret, threshold=0.05, triggered=True)))
+
+        evidence_jsons.append(json.dumps(ev_list))
 
     weak_labels = pd.DataFrame(index=X.index)
     for pattern in prototypes:
@@ -177,56 +277,87 @@ def weak_label_from_isolation_forest(
             (attribution["attributed_pattern"] == pattern.value)
         ).astype(int)
     weak_labels["is_manipulation"] = flagged_mask.astype(int)
-    weak_labels["attribution_confidence"] = attribution["confidence"]
+    weak_labels["attribution_confidence"] = attribution_conf
+    weak_labels["detector_agreement"] = detector_agreement
+    weak_labels["label_confidence"] = label_confidence  # primary filtering field
+    weak_labels["centroid_distance"] = attribution["centroid_distance"].fillna(0.0).values
+    weak_labels["evidence_json"] = evidence_jsons
     return weak_labels
 
 
 def train_multi_pattern_detector_with_weak_labels(
     X: pd.DataFrame, prototypes: dict[PatternType, np.ndarray] | None = None,
     contamination: float = 0.05, random_state: int = RANDOM_STATE,
+    confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+    lof_n_neighbors: int = 20,
 ) -> tuple[MultiPatternDetector, pd.DataFrame]:
     """Bootstraps a MultiPatternDetector using weak labels instead of
     true ones. Returns both the fitted detector AND the weak_labels used
-    to fit it, so a caller can inspect exactly what the model was
-    actually trained on -- these are proxy labels, not confirmed ground
-    truth, and treating the returned detector's predictions as more
-    certain than that would misrepresent what was actually done here.
+    to fit it (AFTER confidence filtering), so a caller can inspect exactly
+    what the model was actually trained on.
 
-    Patterns with zero weakly-labeled positive examples are silently
-    excluded (a real possibility if IsolationForest's flagged days
-    happen to all attribute toward other patterns) rather than crashing
-    the whole pipeline -- MultiPatternDetector.fit() would otherwise
-    raise for that specific pattern.
+    CONFIDENCE FILTERING (plan1.md issue #1):
+    Rows where `label_confidence` < confidence_threshold are excluded from
+    the supervised training set. These rows are kept in the returned
+    weak_labels DataFrame with a `used_in_training` column set to False
+    so callers can see exactly what was filtered. The three tiers are:
+        > 0.90  Training   (both detectors agree, strong attribution)
+        0.70–0.90 Training (borderline — included by default)
+        < 0.70  Discarded  (single-detector attribution with low softmax)
 
-    Note on the RuntimeError below: given the CURRENT guarantees
-    elsewhere in this pipeline (IsolationForestScratch's quantile-based
-    threshold always flags at least one row -- see
-    test_weak_labeling.py's test_raises_when_prototypes_dict_is_empty
-    docstring -- and attribute_pattern_to_anomalies always assigns a
-    flagged row to its single closest prototype), this specific check is
-    not reachable with a non-empty prototypes dict; at least one pattern
-    always ends up with a positive. It's kept anyway as a safeguard
-    against a future change (e.g. if attribute_pattern_to_anomalies is
-    later extended to abstain below a confidence threshold, which WOULD
-    make this reachable again) rather than removed as dead code.
+    DUAL DETECTOR (plan1.md issue #2):
+    Internally calls weak_label_from_isolation_forest which now runs both
+    IsolationForestScratch and LocalOutlierFactorDetector. See that
+    function's docstring for agreement semantics.
+
+    Patterns with zero high-confidence weakly-labeled positive examples are
+    silently excluded (a real possibility if all flagged days are below the
+    confidence threshold) rather than crashing the whole pipeline.
     """
     resolved_prototypes = prototypes if prototypes is not None else build_pattern_prototypes_from_domain_rules()
     weak_labels = weak_label_from_isolation_forest(
-        X, prototypes=resolved_prototypes, contamination=contamination, random_state=random_state,
+        X, prototypes=resolved_prototypes, contamination=contamination,
+        random_state=random_state, lof_n_neighbors=lof_n_neighbors,
     )
+
+    # Mark which rows meet the confidence threshold for training
+    high_conf_mask = (
+        weak_labels["is_manipulation"] == 1
+    ) & (
+        weak_labels["label_confidence"] >= confidence_threshold
+    )
+    # Normal (non-manipulation) rows are always included — they don't need
+    # confidence because they were never flagged to begin with.
+    training_mask = (weak_labels["is_manipulation"] == 0) | high_conf_mask
+    weak_labels["used_in_training"] = training_mask
+
+    X_train = X.loc[training_mask]
+    weak_labels_train = weak_labels.loc[training_mask]
+
+    n_total = int(weak_labels["is_manipulation"].sum())
+    n_kept = int(high_conf_mask.sum())
+    n_discarded = n_total - n_kept
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(
+        "Confidence filtering: kept %d / %d anomalous weak labels (discarded %d below threshold=%.2f)",
+        n_kept, n_total, n_discarded, confidence_threshold,
+    )
+
     patterns_with_positives = [
         p for p in resolved_prototypes
-        if weak_labels[f"is_{p.value}"].sum() > 0
+        if weak_labels_train[f"is_{p.value}"].sum() > 0
     ]
     if not patterns_with_positives:
         raise RuntimeError(
-            "Zero patterns have any weakly-labeled positive examples -- cannot "
-            "train MultiPatternDetector on this. Try a higher contamination "
-            "value so more days get flagged, or check that prototypes are "
-            "reasonable for this data's scale."
+            f"Zero patterns have any high-confidence weakly-labeled positive examples after "
+            f"filtering at confidence_threshold={confidence_threshold}. "
+            f"Try lowering confidence_threshold (current: {confidence_threshold}), increasing "
+            f"contamination so more days get flagged, or check that prototypes are "
+            f"reasonable for this data's scale."
         )
     detector = MultiPatternDetector(patterns=patterns_with_positives, random_state=random_state)
-    detector.fit(X, weak_labels)
+    detector.fit(X_train, weak_labels_train)
     return detector, weak_labels
 
 

@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 60
 
+    # MAR (Market Abuse Report) generation — max concurrent Gemini requests
+    MAR_MAX_CONCURRENCY: int = 5
+    # How long to wait for the Gemini background thread before cancelling (seconds)
+    MAR_GENERATION_TIMEOUT_SECONDS: float = 30.0
+
     # ML model artifacts (Phase 7) — directory produced by
     # ml's scripts/train.py (both multi_pattern_detector
     # and isolation_forest_scratch artifacts, if trained, live here together)

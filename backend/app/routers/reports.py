@@ -9,14 +9,16 @@ from fastapi.responses import PlainTextResponse
 from app.database import get_db
 from app.models import User, Anomaly, MarketData, Case
 from sqlalchemy.orm import joinedload
+from app.config import settings
 from app.dependencies import get_current_user
 from app.services.mar_generator import generate_mar
 from app.auth_policy import verify_case_access
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
-# Limit concurrent Gemini generation requests to avoid exhausting workers/rate limits
-mar_generation_semaphore = asyncio.BoundedSemaphore(5)
+# Limit concurrent Gemini generation requests to avoid exhausting workers/rate limits.
+# Configurable via MAR_MAX_CONCURRENCY env variable (default: 5).
+mar_generation_semaphore = asyncio.BoundedSemaphore(settings.MAR_MAX_CONCURRENCY)
 
 @router.get("/mar/case/{case_id}")
 async def get_mar_report(
@@ -78,14 +80,23 @@ async def get_mar_report(
         )
 
     try:
-        # The thread enforces its own 30s timeout via the Gemini SDK,
-        # ensuring the permit is held for the exact duration of the worker thread.
-        report_md = await asyncio.to_thread(generate_mar, context_data)
+        # Wrap the Gemini call with a hard timeout so a hung LLM request
+        # cannot hold the semaphore permit and block worker threads indefinitely.
+        # Timeout is configurable via MAR_GENERATION_TIMEOUT_SECONDS (default: 30s).
+        report_md = await asyncio.wait_for(
+            asyncio.to_thread(generate_mar, context_data),
+            timeout=settings.MAR_GENERATION_TIMEOUT_SECONDS,
+        )
 
         return PlainTextResponse(
             content=report_md,
             media_type="text/markdown",
             headers={"Content-Disposition": f"attachment; filename=MAR_Case_{case_id}.md"},
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Report generation timed out. Please try again later.",
         )
     except Exception as e:
         if isinstance(e, HTTPException):

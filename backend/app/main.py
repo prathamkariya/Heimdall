@@ -1,5 +1,9 @@
 import app.alias
-from fastapi import FastAPI, Depends
+import logging
+import time
+import traceback
+
+from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -19,8 +23,47 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+logger = logging.getLogger("market_surveillance.errors")
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all handler that logs full diagnostic context server-side
+    without leaking stack traces or internal detail to API clients.
+
+    Logs: timestamp, endpoint, request_id header (if present),
+    authenticated user id (if present), exception type and message,
+    and the full stack trace.
+    """
+    # Never interfere with HTTPExceptions — FastAPI's own handler covers those.
+    if isinstance(exc, HTTPException):
+        raise exc
+
+    request_id = request.headers.get("X-Request-ID", "n/a")
+    user_id = getattr(getattr(request.state, "user", None), "id", "unauthenticated")
+
+    logger.error(
+        "Unhandled exception",
+        extra={
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "endpoint": str(request.url),
+            "method": request.method,
+            "request_id": request_id,
+            "user_id": str(user_id),
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc),
+            "traceback": traceback.format_exc(),
+        },
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred. Please try again later."},
+    )
 
 # ──────────────────────────────────────────────
 # Middleware

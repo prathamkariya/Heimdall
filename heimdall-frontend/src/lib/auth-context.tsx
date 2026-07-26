@@ -2,17 +2,46 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { apiFetch, initializeAuth } from './api';
 
+/* ── Typed credential shapes (replaces `any`) ── */
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterCredentials {
+  email: string;
+  username: string;
+  password: string;
+}
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in?: number;
+}
+
+interface SseTokenResponse {
+  sse_token: string;
+}
+
 interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
-  login: (credentials: any) => Promise<void>;
-  register: (credentials: any) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   getSseToken: () => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * Backend ACCESS_TOKEN_EXPIRE_MINUTES = 30.
+ * Refresh at 25 minutes to stay well within the window.
+ */
+const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -29,41 +58,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Handle automatic refresh when we have a refresh token
   useEffect(() => {
     if (!refreshToken) return;
-    
-    // Very simple refresh loop (could be optimized to run before expiry)
-    // The API response includes `expires_in` (seconds).
-    // For now, we'll just try to refresh every 4 minutes (assuming 5 min TTL)
+
     const interval = setInterval(async () => {
       try {
         const res = await apiFetch('/auth/refresh', {
           method: 'POST',
           body: JSON.stringify({ refresh_token: refreshToken }),
-        });
+        }) as TokenResponse;
         setAccessToken(res.access_token);
       } catch (err) {
         console.error('Failed to refresh token', err);
         setAccessToken(null);
         setRefreshToken(null);
       }
-    }, 4 * 60 * 1000);
-    
+    }, REFRESH_INTERVAL_MS);
+
     return () => clearInterval(interval);
   }, [refreshToken]);
 
-  const login = async (credentials: any) => {
+  const login = async (credentials: LoginCredentials) => {
     const res = await apiFetch('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    });
+    }) as TokenResponse;
     setAccessToken(res.access_token);
     setRefreshToken(res.refresh_token);
   };
 
-  const register = async (credentials: any) => {
+  const register = async (credentials: RegisterCredentials) => {
     const res = await apiFetch('/auth/register', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    });
+    }) as TokenResponse;
     setAccessToken(res.access_token);
     setRefreshToken(res.refresh_token);
   };
@@ -96,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getSseToken = async () => {
-    const res = await apiFetch('/auth/sse-token', { method: 'POST' }) as any;
+    const res = await apiFetch('/auth/sse-token', { method: 'POST' }) as SseTokenResponse;
     return res.sse_token;
   };
 

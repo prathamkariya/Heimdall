@@ -4,6 +4,7 @@ import { LiveFeed } from './routes/LiveFeed'
 import { Anomalies } from './routes/Anomalies'
 import { Watchlists } from './routes/Watchlists'
 import { Reports } from './routes/Reports'
+import { Investigations } from './routes/Investigations'
 import { AuthProvider } from './lib/auth-context'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { Login } from './pages/Login'
@@ -25,6 +26,7 @@ export default function App() {
                   <Route path="/anomalies" element={<Anomalies />} />
                   <Route path="/watchlists" element={<Watchlists />} />
                   <Route path="/reports" element={<Reports />} />
+                  <Route path="/investigations" element={<Investigations />} />
                 </Routes>
               </Shell>
             } />

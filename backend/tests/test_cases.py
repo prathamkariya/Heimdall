@@ -43,13 +43,13 @@ def test_case_creation_and_visibility(client: TestClient, db_session: Session, a
     assert resp.status_code == 201
     case_id = resp.json()["id"]
 
-    # 5. User 2 tries to view User 1's case -> 404 Not Found (visibility filter)
+    # 5. User 2 tries to view User 1's case -> 403 Forbidden (visibility filter)
     resp = client2.get(f"/api/v1/cases/{case_id}", headers=user2_headers)
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
-    # 6. User 2 tries to add a note to User 1's case -> 404
+    # 6. User 2 tries to add a note to User 1's case -> 403 Forbidden
     resp = client2.post(f"/api/v1/cases/{case_id}/notes", headers=user2_headers, json={"body": "Sneaky note"})
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 def test_analyst_assignment_and_notes(client: TestClient, db_session: Session, auth_headers: dict, registered_user: dict):
@@ -160,3 +160,58 @@ def test_case_audit_trail_timeline(client: TestClient, db_session: Session, auth
     # Event types should be in chronological order
     event_types = [e["event_type"] for e in events]
     assert event_types == ["CREATED", "STATUS_CHANGE", "ASSIGNED", "NOTE_ADDED"]
+
+
+def test_link_anomalies(client: TestClient, db_session: Session, auth_headers: dict, registered_user: dict):
+    test_user = db_session.query(User).filter(User.id == registered_user["id"]).first()
+
+    md = MarketData(user_id=test_user.id, symbol="LINK", open=1, high=2, low=1, close=1.5, volume=100, timestamp="2023-01-01T00:00:00Z", market="CRYPTO")
+    db_session.add(md)
+    db_session.commit()
+    db_session.refresh(md)
+
+    an1 = Anomaly(market_data_id=md.id, anomaly_score=0.9, is_anomaly=True, features="{}", pattern_scores="{}")
+    an2 = Anomaly(market_data_id=md.id, anomaly_score=0.95, is_anomaly=True, features="{}", pattern_scores="{}")
+    db_session.add_all([an1, an2])
+    db_session.commit()
+    db_session.refresh(an1)
+    db_session.refresh(an2)
+
+    # 1. Create Case with anomaly 1
+    resp = client.post("/api/v1/cases", headers=auth_headers, json={
+        "title": "Link Anomalies Test",
+        "anomaly_ids": [an1.id]
+    })
+    assert resp.status_code == 201
+    case_id = resp.json()["id"]
+
+    # 2. Link anomaly 2 to case
+    resp = client.post(f"/api/v1/cases/{case_id}/anomalies", headers=auth_headers, json={
+        "anomaly_ids": [an2.id]
+    })
+    assert resp.status_code == 200
+    assert an2.id in resp.json()["anomaly_ids"]
+
+    # 3. Check case events for ANOMALY_LINKED event
+    resp = client.get(f"/api/v1/cases/{case_id}/events", headers=auth_headers)
+    assert resp.status_code == 200
+    events = resp.json()
+    assert any(e["event_type"] == "ANOMALY_LINKED" for e in events)
+
+
+def test_list_analysts(client: TestClient, db_session: Session, auth_headers: dict):
+    # Seed an analyst user
+    analyst = User(
+        email="specific_analyst@marketsurveillance.local",
+        username="spec_analyst",
+        hashed_password=hash_password("pass"),
+        role="analyst"
+    )
+    db_session.add(analyst)
+    db_session.commit()
+    db_session.refresh(analyst)
+
+    resp = client.get("/api/v1/cases/analysts", headers=auth_headers)
+    assert resp.status_code == 200
+    analysts = resp.json()
+    assert any(a["id"] == analyst.id for a in analysts)

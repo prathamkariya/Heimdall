@@ -2,6 +2,7 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from fastapi.responses import PlainTextResponse
 
@@ -41,7 +42,12 @@ async def get_mar_report(
             detail="Market data record associated with this alert no longer exists.",
         )
         
-    system_user = db.query(User).filter(User.email == "system@marketsurveillance.local").first()
+    system_user = db.query(User).filter(
+        or_(
+            User.email == "system@marketsurveillance.local",
+            User.email == "system_surveillance@example.com"
+        )
+    ).first()
     system_user_id = system_user.id if system_user else None
     
     # Deliberate: system-detected (streaming) anomalies are visible to any authenticated user, since they reflect market-wide surveillance findings, not personal trading data. Only user-submitted anomalies (POST /anomalies) remain strictly private. Decided 2026-07-18.

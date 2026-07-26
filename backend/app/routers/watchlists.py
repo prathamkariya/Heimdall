@@ -46,6 +46,7 @@ def list_watchlists(
             description=wl.description,
             symbol_count=len(wl.symbols),
             created_at=wl.created_at,
+            updated_at=wl.updated_at,
         )
         result.append(resp)
     return result

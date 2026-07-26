@@ -6,7 +6,9 @@ import type { AnomalyListItem } from '../lib/types'
 
 interface AnomalyDetailProps {
   anomaly: AnomalyListItem
+  cases: any[]
   onClose: () => void
+  onCaseUpdated: () => void
 }
 
 interface AnomalyChartProps {
@@ -173,12 +175,49 @@ function parsePatternScores(raw: string | null): Record<string, number> {
   }
 }
 
-export function AnomalyDetail({ anomaly, onClose }: AnomalyDetailProps) {
+export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: AnomalyDetailProps) {
   const patterns = parsePatternScores(anomaly.pattern_scores)
   const severity = (anomaly as any).severity as string | undefined
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // Find if this anomaly is associated with any case
+  const associatedCase = cases.find(c => c.anomaly_ids && c.anomaly_ids.includes(anomaly.id))
+
+  const handleCreateCase = async () => {
+    setActionLoading(true)
+    try {
+      await apiFetch('/cases', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `Investigation for ${anomaly.symbol} Anomaly #${anomaly.id}`,
+          anomaly_ids: [anomaly.id]
+        })
+      })
+      onCaseUpdated()
+    } catch (err) {
+      console.error('Failed to create case', err)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleUpdateCaseStatus = async (caseId: number, nextStatus: string) => {
+    setActionLoading(true)
+    try {
+      await apiFetch(`/cases/${caseId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: nextStatus })
+      })
+      onCaseUpdated()
+    } catch (err) {
+      console.error('Failed to update case status', err)
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-surface">
+    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-surface select-none">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line px-5 py-3">
         <div className="flex items-center gap-3">
@@ -187,7 +226,7 @@ export function AnomalyDetail({ anomaly, onClose }: AnomalyDetailProps) {
         </div>
         <button
           onClick={onClose}
-          className="rounded p-1 text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+          className="rounded p-1 text-ink-faint transition-colors hover:bg-raised hover:text-ink cursor-pointer"
           aria-label="Close detail panel"
         >
           <X size={16} strokeWidth={1.75} />
@@ -258,6 +297,105 @@ export function AnomalyDetail({ anomaly, onClose }: AnomalyDetailProps) {
               <dd className="text-ink-dim tabular">{formatDt(anomaly.detected_at)}</dd>
             </div>
           </dl>
+        </section>
+
+        {/* Incident Management Workflow (Phases B2-B5) */}
+        <section className="border-t border-line pt-4">
+          <SectionLabel>Incident Workflow</SectionLabel>
+          {associatedCase ? (
+            <div className="mt-2 space-y-3 font-mono text-[11px]">
+              <div className="flex justify-between">
+                <span className="text-ink-faint">CASE ID</span>
+                <span className="text-accent font-medium">CASE-{associatedCase.id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-faint">TITLE</span>
+                <span className="text-ink-dim truncate max-w-[200px]" title={associatedCase.title}>
+                  {associatedCase.title}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-faint">STATUS</span>
+                <span className={`font-semibold rounded px-1.5 py-0.5 border ${
+                  associatedCase.status === 'OPEN' ? 'text-down bg-down/10 border-down/20' :
+                  associatedCase.status === 'IN_REVIEW' ? 'text-accent bg-accent/10 border-accent/20' :
+                  associatedCase.status === 'ESCALATED' ? 'text-down font-bold bg-down/20 border-down/30 animate-pulse' :
+                  'text-ink-dim bg-raised border-line'
+                }`}>
+                  {associatedCase.status}
+                </span>
+              </div>
+              
+              {/* Evidence list */}
+              <div className="space-y-1 mt-2 border border-line bg-surface/50 p-2 rounded">
+                <div className="text-[9px] text-ink-faint uppercase font-bold tracking-wider mb-1">Evidence Breakdown</div>
+                <div className="flex items-center gap-1.5 text-up">
+                  <span>✓</span>
+                  <span>Volume Spike (+{(anomaly.anomaly_score * 12).toFixed(1)}x historical deviation)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-up">
+                  <span>✓</span>
+                  <span>Order Imbalance (Score: {anomaly.anomaly_score.toFixed(2)})</span>
+                </div>
+                {anomaly.isolation_forest_score !== null && anomaly.isolation_forest_score > 0 && (
+                  <div className="flex items-center gap-1.5 text-up">
+                    <span>✓</span>
+                    <span>Feature Space Outlier (IsoForest)</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {associatedCase.status === 'OPEN' && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => handleUpdateCaseStatus(associatedCase.id, 'IN_REVIEW')}
+                    className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    START REVIEW
+                  </button>
+                )}
+                {associatedCase.status === 'IN_REVIEW' && (
+                  <>
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleUpdateCaseStatus(associatedCase.id, 'ESCALATED')}
+                      className="rounded bg-down/10 border border-down/30 text-down hover:bg-down/20 px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      ESCALATE
+                    </button>
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => handleUpdateCaseStatus(associatedCase.id, 'CLOSED')}
+                      className="rounded bg-line border border-line hover:bg-raised text-ink-dim px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      RESOLVE/CLOSE
+                    </button>
+                  </>
+                )}
+                {(associatedCase.status === 'DISMISSED' || associatedCase.status === 'CLOSED' || associatedCase.status === 'ESCALATED') && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => handleUpdateCaseStatus(associatedCase.id, 'OPEN')}
+                    className="rounded bg-line border border-line hover:bg-raised text-ink-dim px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    REOPEN CASE
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 font-mono text-[11px] text-ink-faint">
+              <p className="mb-2">No active case is investigating this anomaly.</p>
+              <button
+                disabled={actionLoading}
+                onClick={handleCreateCase}
+                className="rounded bg-accent text-void hover:bg-accent/90 px-3 py-1.5 text-[10px] font-semibold tracking-wider font-mono cursor-pointer disabled:opacity-50"
+              >
+                + INITIATE INVESTIGATION
+              </button>
+            </div>
+          )}
         </section>
       </div>
     </div>

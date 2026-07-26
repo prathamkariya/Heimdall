@@ -20,8 +20,8 @@
   --color-line: #232a31;
 
   --color-ink: #e8e6df;
-  --color-ink-dim: #7c8790;
-  --color-ink-faint: #47505a;
+  --color-ink-dim: #9fb0bc;
+  --color-ink-faint: #64748b;
 
   --color-up: #4fbf7a;
   --color-up-dim: #2c5b40;
@@ -41,6 +41,8 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: 'ss01' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Numeric/data readouts always use the mono face, tabular figures so
@@ -62,9 +64,49 @@ body {
   outline-offset: 2px;
 }
 
+/* ── Custom scrollbar (thin, dark, unobtrusive) ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-faint);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Slide-in panel animation ── */
+@keyframes slideInRight {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in {
+  animation: slideInRight 0.2s ease-out;
+}
+
+/* ── Row flash for new live-feed events ── */
+@keyframes rowFlash {
+  0%   { background-color: rgba(217, 164, 65, 0.08); }
+  100% { background-color: transparent; }
+}
+.animate-row-flash {
+  animation: rowFlash 1.2s ease-out;
 }

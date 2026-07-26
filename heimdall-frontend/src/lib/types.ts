@@ -60,6 +60,9 @@ export interface LiveAlertEvent {
   /** Present only on a sentinel (degraded-coverage) event. */
   confidence?: ConfidenceSentinel
   timestamp: string
+  pattern_scores?: Record<string, number> | string
+  severity?: string
+  anomaly_id?: number
 }
 
 /** True only for a genuinely scored alert, not a coverage-gap notice.

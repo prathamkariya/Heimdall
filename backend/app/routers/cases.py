@@ -21,11 +21,13 @@ from app.schemas import (
     CaseCreate,
     CaseUpdate,
     CaseAssign,
+    CaseLinkAnomalies,
     CaseResponse,
     CasePaginatedResponse,
     CaseNoteCreate,
     CaseNoteResponse,
-    CaseEventResponse
+    CaseEventResponse,
+    UserResponse
 )
 from app.services.case_service import record_case_event
 
@@ -38,13 +40,12 @@ def get_case_if_visible(db: Session, case_id: int, current_user: User) -> Case:
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     
-    # B3: Case visibility rules
     if not (
         case.created_by_user_id == current_user.id
         or case.assigned_to_user_id == current_user.id
         or current_user.role == "analyst"  # Note: Plain Python boolean, evaluated first
     ):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: Access to this case is not permitted.")
         
     return case
 
@@ -55,7 +56,12 @@ def create_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    system_user = db.query(User).filter(User.email == "system@marketsurveillance.local").first()
+    system_user = db.query(User).filter(
+        or_(
+            User.email == "system@marketsurveillance.local",
+            User.email == "system_surveillance@example.com"
+        )
+    ).first()
     system_user_id = system_user.id if system_user else None
 
     # B2: Visibility check for every anomaly ID
@@ -125,6 +131,16 @@ def list_cases(
         limit=limit,
         offset=offset
     )
+
+
+@router.get("/analysts", response_model=List[UserResponse])
+def list_analysts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List all users with the analyst role (to populate assignees dropdown)."""
+    analysts = db.query(User).filter(User.role == "analyst").all()
+    return analysts
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
@@ -247,3 +263,68 @@ def get_case_events(
     case = get_case_if_visible(db, case_id, current_user)
     events = db.query(CaseEvent).filter(CaseEvent.case_id == case.id).order_by(CaseEvent.created_at.asc()).all()
     return events
+
+
+@router.post("/{case_id}/anomalies", response_model=CaseResponse)
+def link_anomalies_to_case(
+    case_id: int,
+    payload: CaseLinkAnomalies,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Link anomalies to an existing case, enforcing visibility checks and recording ANOMALY_LINKED events."""
+    case = get_case_if_visible(db, case_id, current_user)
+
+    system_user = db.query(User).filter(
+        or_(
+            User.email == "system@marketsurveillance.local",
+            User.email == "system_surveillance@example.com"
+        )
+    ).first()
+    system_user_id = system_user.id if system_user else None
+
+    # Visibility check for every anomaly ID to link
+    anomalies = (
+        db.query(Anomaly)
+        .join(MarketData, Anomaly.market_data_id == MarketData.id)
+        .filter(Anomaly.id.in_(payload.anomaly_ids))
+        .filter(
+            or_(
+                MarketData.user_id == current_user.id,
+                MarketData.user_id == system_user_id
+            )
+        )
+        .all()
+    )
+
+    if len(anomalies) != len(payload.anomaly_ids):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: One or more anomalies are not owned by you or system."
+        )
+
+    # Check existing links to avoid duplicate entry errors
+    existing_links = db.query(CaseAnomaly.anomaly_id).filter(
+        CaseAnomaly.case_id == case.id,
+        CaseAnomaly.anomaly_id.in_(payload.anomaly_ids)
+    ).all()
+    existing_ids = {r[0] for r in existing_links}
+
+    new_anomalies = [a for a in anomalies if a.id not in existing_ids]
+
+    if new_anomalies:
+        for anomaly in new_anomalies:
+            case_anomaly = CaseAnomaly(case_id=case.id, anomaly_id=anomaly.id)
+            db.add(case_anomaly)
+            # Record CaseEvent
+            record_case_event(
+                db,
+                case,
+                current_user,
+                "ANOMALY_LINKED",
+                f"Linked anomaly {anomaly.market_data.symbol} ID {anomaly.id} to Case"
+            )
+        db.commit()
+        db.refresh(case)
+
+    return case

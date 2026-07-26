@@ -8,6 +8,7 @@ const PAGE_SIZE = 20
 
 export function Anomalies() {
   const [data, setData] = useState<AnomalyPaginatedResponse | null>(null)
+  const [cases, setCases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,6 +19,23 @@ export function Anomalies() {
 
   // Detail panel
   const [selected, setSelected] = useState<AnomalyListItem | null>(null)
+
+  const fetchCases = useCallback(async () => {
+    try {
+      const res = await apiFetch('/cases?limit=100') as any
+      setCases(res.items || [])
+    } catch (err) {
+      console.error('Failed to fetch cases', err)
+    }
+  }, [])
+
+  const handleCaseUpdated = () => {
+    fetchCases()
+  }
+
+  useEffect(() => {
+    fetchCases()
+  }, [fetchCases])
 
   const fetchAnomalies = useCallback(async () => {
     setLoading(true)
@@ -87,12 +105,13 @@ export function Anomalies() {
         </header>
 
         {/* Column headers */}
-        <div className="grid grid-cols-[60px_100px_80px_90px_80px_1fr] gap-x-3 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
           <span>ID</span>
           <span>Symbol</span>
           <span>Market</span>
           <span>Score</span>
           <span>Severity</span>
+          <span>Primary Signal</span>
           <span>Detected</span>
         </div>
 
@@ -126,11 +145,12 @@ export function Anomalies() {
 
           {!loading && !error && data?.items.map((item) => {
             const severity = (item as any).severity as string | undefined
+            const primarySignal = getPrimarySignal(item.pattern_scores, item.anomaly_score)
             return (
               <button
                 key={item.id}
                 onClick={() => setSelected(item)}
-                className={`grid w-full grid-cols-[60px_100px_80px_90px_80px_1fr] gap-x-3 border-b border-line/40 px-5 py-2 text-left font-mono text-[13px] transition-colors hover:bg-raised/40 ${
+                className={`grid w-full grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line/40 px-5 py-2 text-left font-mono text-[13px] transition-colors hover:bg-raised/40 ${
                   selected?.id === item.id ? 'bg-raised/60' : ''
                 } ${item.model_version === null ? 'border-l-2 border-l-accent' : ''}`}
               >
@@ -147,16 +167,29 @@ export function Anomalies() {
                   {item.anomaly_score.toFixed(4)}
                 </span>
                 <span>
-                  {severity && (
-                    <span className={`text-[10px] font-medium uppercase ${
-                      severity === 'CRITICAL' ? 'text-down' :
-                      severity === 'HIGH' ? 'text-down/70' :
-                      severity === 'MEDIUM' ? 'text-accent' :
-                      'text-ink-faint'
+                  {severity ? (
+                    <span className={`text-[9px] font-mono tracking-wider rounded px-1 py-0.5 border ${
+                      severity === 'CRITICAL' ? 'text-down bg-down/10 border-down/25 font-bold' :
+                      severity === 'HIGH' ? 'text-down bg-down/10 border-down/20' :
+                      severity === 'MEDIUM' ? 'text-accent bg-accent/10 border-accent/20' :
+                      'text-ink-dim bg-raised border-line'
                     }`}>
                       {severity}
                     </span>
+                  ) : (
+                    <span className="text-ink-faint text-[11px]">—</span>
                   )}
+                </span>
+                <span>
+                  <span className={`text-[11px] rounded px-1.5 py-0.5 border ${
+                    primarySignal === 'PUMP & DUMP'
+                      ? 'bg-down/10 text-down border-down/20 font-medium'
+                      : primarySignal === 'WASH TRADING'
+                        ? 'bg-accent/10 text-accent border-accent/20'
+                        : 'bg-raised text-ink-dim border-line'
+                  }`}>
+                    {primarySignal}
+                  </span>
                 </span>
                 <span className="text-ink-dim tabular text-[12px]">
                   {formatDetectedAt(item.detected_at)}
@@ -179,10 +212,39 @@ export function Anomalies() {
 
       {/* Detail slide-in */}
       {selected && (
-        <AnomalyDetail anomaly={selected} onClose={() => setSelected(null)} />
+        <AnomalyDetail
+          anomaly={selected}
+          cases={cases}
+          onClose={() => setSelected(null)}
+          onCaseUpdated={handleCaseUpdated}
+        />
       )}
     </div>
   )
+}
+
+function getPrimarySignal(patternScores: string | null, score: number): string {
+  if (patternScores) {
+    try {
+      const parsed = JSON.parse(patternScores)
+      let maxPattern = 'ANOMALY'
+      let maxVal = 0
+      for (const [pat, val] of Object.entries(parsed)) {
+        if ((val as number) > maxVal && (val as number) >= 0.5) {
+          maxVal = val as number
+          maxPattern = pat.toUpperCase().replace(/_/g, ' ')
+        }
+      }
+      return maxPattern
+    } catch {
+      // Ignore
+    }
+  }
+
+  if (score >= 0.8) return 'PUMP & DUMP'
+  if (score >= 0.7) return 'WASH TRADING'
+  if (score >= 0.5) return 'SPOOFING'
+  return 'NORMAL'
 }
 
 function formatDetectedAt(ts: string): string {

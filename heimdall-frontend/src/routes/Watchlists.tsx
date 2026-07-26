@@ -26,6 +26,7 @@ interface WatchlistListItem {
   description: string | null
   symbol_count: number
   created_at: string
+  updated_at: string
 }
 
 export function Watchlists() {
@@ -194,26 +195,28 @@ export function Watchlists() {
           {watchlists.map((wl) => (
             <div
               key={wl.id}
-              className={`group flex items-center justify-between border-b border-line/40 px-4 py-2.5 transition-colors cursor-pointer ${
-                selected?.id === wl.id ? 'bg-raised/60' : 'hover:bg-raised/30'
+              onClick={() => fetchDetail(wl.id)}
+              className={`group flex flex-col border-b border-line px-4 py-3 transition-colors cursor-pointer select-none ${
+                selected?.id === wl.id ? 'bg-raised' : 'hover:bg-raised/30'
               }`}
             >
-              <button
-                onClick={() => fetchDetail(wl.id)}
-                className="flex-1 text-left"
-              >
-                <div className="text-[13px] font-medium text-ink">{wl.name}</div>
-                <div className="font-mono text-[10px] text-ink-faint">
-                  {wl.symbol_count} symbol{wl.symbol_count !== 1 && 's'}
-                </div>
-              </button>
-              <button
-                onClick={() => handleDelete(wl.id)}
-                className="rounded p-1 text-ink-faint opacity-0 transition-all group-hover:opacity-100 hover:text-down"
-                aria-label={`Delete ${wl.name}`}
-              >
-                <Trash2 size={13} strokeWidth={1.75} />
-              </button>
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-ink">{wl.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDelete(wl.id)
+                  }}
+                  className="rounded p-1 text-ink-faint opacity-0 transition-all group-hover:opacity-100 hover:text-down cursor-pointer"
+                  aria-label={`Delete ${wl.name}`}
+                >
+                  <Trash2 size={13} strokeWidth={1.75} />
+                </button>
+              </div>
+              <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-ink-faint">
+                <span>{wl.symbol_count} asset{wl.symbol_count !== 1 && 's'}</span>
+                <span>UPDATED {formatWatchlistDate(wl.updated_at)}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -309,4 +312,16 @@ export function Watchlists() {
       )}
     </div>
   )
+}
+
+function formatWatchlistDate(ts: string): string {
+  try {
+    const d = new Date(ts)
+    return d.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+    }).toUpperCase()
+  } catch {
+    return ts
+  }
 }

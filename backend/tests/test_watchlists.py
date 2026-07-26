@@ -123,6 +123,7 @@ class TestListWatchlists:
         list_resp = client.get("/api/v1/watchlists", headers=auth_headers)
         watchlist = next(w for w in list_resp.json() if w["name"] == "With Symbols")
         assert watchlist["symbol_count"] == 2
+        assert "updated_at" in watchlist
 
 
 class TestUpdateWatchlist:

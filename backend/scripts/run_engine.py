@@ -25,6 +25,8 @@ from socket import gethostname
 # Ensure repo root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import app.alias
+
 from app.database import SessionLocal
 from app.models import Anomaly, MarketData, User
 from app.services.anomaly_service import score_live_trade

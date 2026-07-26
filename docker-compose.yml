@@ -6,7 +6,7 @@ services:
     image: timescale/timescaledb:latest-pg15
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
       POSTGRES_DB: ${POSTGRES_DB:-market_surveillance}
     ports:
       - "5432:5432"          # Standard port for local tooling
@@ -35,7 +35,7 @@ services:
       - "8000:8000"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
       - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
       - POSTGRES_HOST=db
       - SECRET_KEY=dev_secret_key_change_me
@@ -55,7 +55,7 @@ services:
     command: python scripts/run_engine.py
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD environment variable must be set.}
       - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0

@@ -213,6 +213,7 @@ class WatchlistListResponse(OrmBase):
     description: Optional[str]
     symbol_count: int = 0
     created_at: datetime
+    updated_at: datetime
 
 
 # ══════════════════════════════════════════════════════════════
@@ -231,15 +232,31 @@ class CaseAssign(BaseModel):
     assignee_user_id: int
 
 
+class CaseLinkAnomalies(BaseModel):
+    anomaly_ids: List[int] = Field(..., min_length=1)
+
+
 class CaseResponse(OrmBase):
     id: int
     created_by_user_id: int
     assigned_to_user_id: Optional[int]
     title: str
     status: str
+    anomaly_ids: List[int] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     closed_at: Optional[datetime]
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_anomaly_ids(cls, data: any) -> any:
+        if hasattr(data, "anomalies") and data.anomalies is not None:
+            # Handle SQLAlchemy models
+            data.anomaly_ids = [a.id for a in data.anomalies]
+        elif isinstance(data, dict) and "anomalies" in data:
+            # Handle dicts
+            data["anomaly_ids"] = [a.id for a in data["anomalies"]]
+        return data
 
 
 class CasePaginatedResponse(BaseModel):

@@ -37,16 +37,8 @@ async def get_mar_report(
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
 
-    system_user = db.query(User).filter(
-        or_(
-            User.email == "system@marketsurveillance.local",
-            User.email == "system_surveillance@example.com"
-        )
-    ).first()
-    system_user_id = system_user.id if system_user else None
-    
-    # Check ownership
-    if case.created_by_user_id != current_user.id and case.assigned_to_user_id != current_user.id and current_user.id != system_user_id:
+    # Check ownership (creator, assignee, or analyst)
+    if case.created_by_user_id != current_user.id and case.assigned_to_user_id != current_user.id and current_user.role != "analyst":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this report.",

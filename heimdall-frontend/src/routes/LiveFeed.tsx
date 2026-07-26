@@ -54,8 +54,11 @@ export function LiveFeed() {
       }
 
       es.onerror = () => {
-        // EventSource auto-reconnects, but the UI must reflect this
+        // Close the dead connection to prevent native auto-reconnect with a stale token
+        es.close()
         setConnState('reconnecting')
+        // Reconnect manually to fetch a fresh token
+        setTimeout(() => connect(), 5000)
       }
     } catch (err) {
       console.error('Failed to acquire SSE token', err)

@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { to: '/', label: 'Live Feed', icon: Activity, end: true },
   { to: '/anomalies', label: 'Anomalies', icon: TriangleAlert, end: false },
   { to: '/watchlists', label: 'Watchlists', icon: Eye, end: false },
-  { to: '/reports', label: 'Reports', icon: FileText, end: false },
   { to: '/investigations', label: 'Investigations', icon: FolderGit, end: false },
 ]
 

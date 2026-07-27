@@ -128,7 +128,7 @@ export function LiveFeed() {
 
         {events.map((event, i) => {
           const scored = isScoredAlert(event)
-          const primarySignal = getPrimarySignal(event)
+          const primarySignal = !scored ? 'COVERAGE GAP' : (event.primary_signal || 'NORMAL')
           const evidence = event.evidence ?? event.detection_result?.evidence ?? []
           return (
             <EventRow
@@ -146,34 +146,7 @@ export function LiveFeed() {
   )
 }
 
-function getPrimarySignal(event: LiveAlertEvent): string {
-  if (!isScoredAlert(event)) return 'COVERAGE GAP'
-  
-  if (event.pattern_scores) {
-    try {
-      const parsed = typeof event.pattern_scores === 'string'
-        ? JSON.parse(event.pattern_scores)
-        : event.pattern_scores
-      let maxPattern = 'ANOMALY'
-      let maxVal = 0
-      for (const [pat, val] of Object.entries(parsed)) {
-        if ((val as number) > maxVal && (val as number) >= 0.5) {
-          maxVal = val as number
-          maxPattern = pat.toUpperCase().replace(/_/g, ' ')
-        }
-      }
-      return maxPattern
-    } catch {
-      // Ignore
-    }
-  }
 
-  const score = event.anomaly_score ?? 0
-  if (score >= 0.8) return 'PUMP & DUMP'
-  if (score >= 0.7) return 'WASH TRADING'
-  if (score >= 0.5) return 'SPOOFING'
-  return 'NORMAL'
-}
 
 function formatTimestamp(ts: string | number | undefined): string {
   if (!ts) return '—'

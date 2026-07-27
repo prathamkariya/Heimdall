@@ -40,6 +40,7 @@ export interface AnomalyListItem {
   /** Raw JSON string. Parse before use: JSON.parse(pattern_scores). */
   pattern_scores: string | null
   model_version: string | null
+  primary_signal?: string
   detected_at: string
   // plan5.md — explainability injected at read time from stored features
   evidence?: EvidenceSignal[] | null
@@ -87,6 +88,7 @@ export interface LiveAlertEvent {
   pattern_scores?: Record<string, number> | string
   severity?: string
   anomaly_id?: number
+  primary_signal?: string
   // plan2.md fields — present when models are trained and scoring succeeds
   detector_agreement?: number
   weak_label_confidence?: number

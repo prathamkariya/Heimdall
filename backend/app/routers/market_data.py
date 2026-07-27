@@ -68,12 +68,7 @@ def list_market_data(
     current_user: User = Depends(get_current_user),
 ):
     """List OHLCV records for the authenticated user or system user, optionally filtered by symbol."""
-    system_user = db.query(User).filter(
-        or_(
-            User.email == "system@marketsurveillance.local",
-            User.email == "system_surveillance@example.com"
-        )
-    ).first()
+    system_user = db.query(User).filter(User.role == "system").first()
     system_user_id = system_user.id if system_user else None
 
     query = db.query(MarketData).filter(
@@ -94,12 +89,7 @@ def get_market_data(
     current_user: User = Depends(get_current_user),
 ):
     """Fetch a single OHLCV record by ID."""
-    system_user = db.query(User).filter(
-        or_(
-            User.email == "system@marketsurveillance.local",
-            User.email == "system_surveillance@example.com"
-        )
-    ).first()
+    system_user = db.query(User).filter(User.role == "system").first()
     system_user_id = system_user.id if system_user else None
 
     record = db.query(MarketData).filter(

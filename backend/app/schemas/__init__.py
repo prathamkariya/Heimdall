@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict, computed_field
 
 
 # ══════════════════════════════════════════════════════════════
@@ -143,6 +143,31 @@ class AnomalyResponse(OrmBase):
     features: Optional[str]
     detected_at: datetime
     severity: str
+
+    @computed_field
+    @property
+    def primary_signal(self) -> str:
+        if self.pattern_scores:
+            import json
+            try:
+                parsed = json.loads(self.pattern_scores)
+                max_pattern = 'ANOMALY'
+                max_val = 0.0
+                for pat, val in parsed.items():
+                    if val > max_val and val >= 0.5:
+                        max_val = val
+                        max_pattern = pat.upper().replace('_', ' ')
+                return max_pattern
+            except Exception:
+                pass
+
+        if self.anomaly_score >= 0.8:
+            return "PUMP & DUMP"
+        if self.anomaly_score >= 0.7:
+            return "WASH TRADING"
+        if self.anomaly_score >= 0.5:
+            return "SPOOFING"
+        return "NORMAL"
 
 
 class AnomalyListResponse(AnomalyResponse):

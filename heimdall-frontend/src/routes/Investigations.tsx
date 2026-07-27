@@ -7,7 +7,8 @@ import {
   Clock, 
   Send, 
   X, 
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react'
 
 const PAGE_SIZE = 20
@@ -335,12 +336,23 @@ export function Investigations() {
               </span>
               <h2 className="text-sm font-semibold text-ink leading-tight truncate max-w-[380px]">{selected.title}</h2>
             </div>
-            <button
-              onClick={() => setSelected(null)}
-              className="text-ink-faint hover:text-ink transition-colors cursor-pointer rounded-full p-1"
-            >
-              <X size={16} />
-            </button>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/api/v1/reports/mar/case/${selected.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-void transition-colors px-2.5 py-1 rounded font-mono text-[10px] uppercase flex items-center gap-1.5"
+                title="Download Market Abuse Report (MAR) as Markdown"
+              >
+                <FileText size={12} /> Gen MAR
+              </a>
+              <button
+                onClick={() => setSelected(null)}
+                className="text-ink-faint hover:text-ink transition-colors cursor-pointer rounded-full p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
           </header>
 
           {detailLoading && !notes.length ? (

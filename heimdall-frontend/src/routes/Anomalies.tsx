@@ -145,7 +145,7 @@ export function Anomalies() {
 
           {!loading && !error && data?.items.map((item) => {
             const severity = (item as any).severity as string | undefined
-            const primarySignal = getPrimarySignal(item.pattern_scores, item.anomaly_score)
+            const primarySignal = item.primary_signal || 'NORMAL'
             return (
               <button
                 key={item.id}
@@ -223,29 +223,7 @@ export function Anomalies() {
   )
 }
 
-function getPrimarySignal(patternScores: string | null, score: number): string {
-  if (patternScores) {
-    try {
-      const parsed = JSON.parse(patternScores)
-      let maxPattern = 'ANOMALY'
-      let maxVal = 0
-      for (const [pat, val] of Object.entries(parsed)) {
-        if ((val as number) > maxVal && (val as number) >= 0.5) {
-          maxVal = val as number
-          maxPattern = pat.toUpperCase().replace(/_/g, ' ')
-        }
-      }
-      return maxPattern
-    } catch {
-      // Ignore
-    }
-  }
 
-  if (score >= 0.8) return 'PUMP & DUMP'
-  if (score >= 0.7) return 'WASH TRADING'
-  if (score >= 0.5) return 'SPOOFING'
-  return 'NORMAL'
-}
 
 function formatDetectedAt(ts: string): string {
   try {

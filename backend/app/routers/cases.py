@@ -101,61 +101,6 @@ def create_case(
     return case
 
 
-@router.post("/{case_id}/anomalies", response_model=CaseResponse)
-def add_anomalies_to_case(
-    case_id: int,
-    payload: CaseLinkAnomalies,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    case = get_case_if_visible(db, case_id, current_user)
-
-    system_user = db.query(User).filter(
-        or_(
-            User.email == "system@marketsurveillance.local",
-            User.email == "system_surveillance@example.com"
-        )
-    ).first()
-    system_user_id = system_user.id if system_user else None
-
-    # B2: Visibility check for every anomaly ID
-    anomalies = (
-        db.query(Anomaly)
-        .join(MarketData, Anomaly.market_data_id == MarketData.id)
-        .filter(Anomaly.id.in_(payload.anomaly_ids))
-        .filter(
-            or_(
-                MarketData.user_id == current_user.id,
-                MarketData.user_id == system_user_id
-            )
-        )
-        .all()
-    )
-    
-    if len(anomalies) != len(payload.anomaly_ids):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Forbidden: One or more anomalies are not owned by you or system."
-        )
-
-    # Filter out anomalies that are already linked
-    existing_links = db.query(CaseAnomaly).filter(CaseAnomaly.case_id == case.id).all()
-    existing_anomaly_ids = {link.anomaly_id for link in existing_links}
-    
-    added_count = 0
-    for anomaly in anomalies:
-        if anomaly.id not in existing_anomaly_ids:
-            case_anomaly = CaseAnomaly(case_id=case.id, anomaly_id=anomaly.id)
-            db.add(case_anomaly)
-            added_count += 1
-
-    if added_count > 0:
-        record_case_event(db, case, current_user, "UPDATED", f"Added {added_count} anomalies to case")
-        db.commit()
-        db.refresh(case)
-
-    return case
-
 
 @router.get("", response_model=CasePaginatedResponse)
 def list_cases(

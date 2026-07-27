@@ -29,9 +29,18 @@ def generate_evidence_signals(
             continue
 
         # Dynamic thresholds based on feature semantics
-        if "return" in feature_name and "ratio" not in feature_name:
+        if feature_name in ("return", "log_return"):
             if abs(val) > 0.02:
                 signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.02, "triggered": True})
+        elif feature_name == "rolling_return_5d":
+            if abs(val) > 0.05:
+                signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.05, "triggered": True})
+        elif feature_name == "rolling_return_10d":
+            if abs(val) > 0.10:
+                signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.10, "triggered": True})
+        elif feature_name == "price_momentum":
+            if abs(val) > 0.05:
+                signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.05, "triggered": True})
         elif "volume_ratio" in feature_name:
             if val > 1.5:
                 signals.append({"name": f"{feature_name}_spike", "value": val, "threshold": 1.5, "triggered": True})
@@ -43,11 +52,9 @@ def generate_evidence_signals(
                 signals.append({"name": f"{feature_name}_overbought", "value": val, "threshold": 70.0, "triggered": True})
             elif val < 30.0:
                 signals.append({"name": f"{feature_name}_oversold", "value": val, "threshold": 30.0, "triggered": True})
-        elif feature_name == "obv":
-            # Just an example heuristic for OBV extremes if they were normalized
-            pass
-        elif feature_name == "macd":
-            pass
+                
+        # Absolute scale features (rolling_volume_mean, rolling_volume_std, true_range, atr_14d, obv, macd) 
+        # deliberately omit hardcoded thresholds as they require dynamic baseline distributions to score properly.
 
     if isolation_forest_score is not None and isolation_forest_score > 0.65:
         signals.append({

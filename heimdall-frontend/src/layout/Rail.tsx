@@ -60,11 +60,15 @@ export function Rail() {
       </div>
 
       {/* Ctrl + K command bar prompt */}
-      <div className="px-3 pt-3 pb-1">
-        <div className="flex items-center gap-2 rounded-md border border-line bg-void px-2.5 py-1.5 font-mono text-[10px] text-ink-faint hover:border-ink-faint/30 transition-colors cursor-pointer">
-          <span>Search command...</span>
-          <kbd className="ml-auto rounded bg-raised px-1 border border-line text-[9px] font-mono">⌘K</kbd>
-        </div>
+      <div className="px-3 pt-3 pb-1 relative">
+        <input 
+          type="text" 
+          placeholder="Search command..." 
+          className="w-full bg-void border border-line rounded-md px-2.5 py-1.5 font-mono text-[10px] text-ink outline-none focus:border-accent transition-colors placeholder:text-ink-faint"
+        />
+        <kbd className="absolute right-5 top-1/2 -translate-y-1/2 rounded bg-raised px-1 border border-line text-[9px] font-mono text-ink-faint pointer-events-none">
+          ⌘K
+        </kbd>
       </div>
 
       <ul className="flex-1 px-2 py-2">

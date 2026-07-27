@@ -176,6 +176,10 @@ async def stream_live_alerts(
     async def event_generator():
         client = get_async_redis()
         last_id = "$"
+        
+        # Send an initial ping to flush HTTP headers and trigger client onopen
+        yield ": ping\n\n"
+        
         while True:
             try:
                 results = await client.xread({STREAM_ALERTS: last_id}, count=10, block=2000)
@@ -184,9 +188,12 @@ async def stream_live_alerts(
                         for entry_id, fields in entries:
                             last_id = entry_id
                             data = json.loads(fields["data"])
-                            # B2: Only emit if the symbol is in this user's watchlists
-                            if data.get("symbol") in watchlist_symbols:
+                            # B2: Only emit if the symbol is in this user's watchlists (or if they have no watchlists yet, show everything for the MVP)
+                            if not watchlist_symbols or data.get("symbol") in watchlist_symbols:
                                 yield f"data: {fields['data']}\n\n"
+                else:
+                    # Keep-alive ping every 2 seconds when idle
+                    yield ": ping\n\n"
             except asyncio.CancelledError:
                 break
             except Exception as e:

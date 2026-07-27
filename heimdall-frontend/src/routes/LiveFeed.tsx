@@ -15,11 +15,12 @@ export function LiveFeed() {
   const [connState, setConnState] = useState<ConnState>('connecting')
   const [timeStr, setTimeStr] = useState('')
   const eventSourceRef = useRef<EventSource | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const update = () => {
-      setTimeStr(new Date().toISOString().slice(11, 19) + ' UTC')
+      setTimeStr(new Date().toLocaleTimeString(undefined, { hour12: false }))
     }
     update()
     const iv = setInterval(update, 1000)
@@ -58,19 +59,22 @@ export function LiveFeed() {
         es.close()
         setConnState('reconnecting')
         // Reconnect manually to fetch a fresh token
-        setTimeout(() => connect(), 5000)
+        reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
       }
     } catch (err) {
       console.error('Failed to acquire SSE token', err)
       setConnState('reconnecting')
       // Retry after a delay
-      setTimeout(() => connect(), 5000)
+      reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
     }
   }, [getSseToken])
 
   useEffect(() => {
     connect()
     return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
       }

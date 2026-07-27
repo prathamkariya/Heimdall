@@ -146,17 +146,19 @@ def train_synthetic(args: argparse.Namespace) -> None:
     print(f"  train: {len(train_df)} rows, test: {len(test_df)} rows")
 
     run_ctx = mlflow.start_run(run_name=f"synthetic-{args.n_days}d-rs{args.random_state}") if use_mlflow else None
+    exc_type, exc_val, exc_tb = None, None, None
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-            mlflow.log_params({
-                "mode": "synthetic",
-                "n_days": args.n_days,
-                "random_state": args.random_state,
-                "test_size": args.test_size,
-                "n_train": len(train_df),
-                "n_test": len(test_df),
-            })
+        mlflow.log_params({
+            "mode": "synthetic",
+            "n_days": args.n_days,
+            "random_state": args.random_state,
+            "test_size": args.test_size,
+            "n_train": len(train_df),
+            "n_test": len(test_df),
+        })
+        if use_mlflow and run_ctx:
             mlflow.log_artifact(str(dataset_path), "datasets")
 
         detector = MultiPatternDetector(random_state=args.random_state)
@@ -178,9 +180,12 @@ def train_synthetic(args: argparse.Namespace) -> None:
         print(comparison.to_string(index=False))
 
         _save_supervised_artifacts(detector, args, eval_result, comparison, data_source="synthetic")
+    except Exception:
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        raise
     finally:
         if use_mlflow and run_ctx:
-            run_ctx.__exit__(None, None, None)
+            run_ctx.__exit__(exc_type, exc_val, exc_tb)
 
 
 def train_real_supervised(args: argparse.Namespace) -> None:
@@ -212,18 +217,19 @@ def train_real_supervised(args: argparse.Namespace) -> None:
         print(f"  {p.value}: {int(train_df[col].sum())} positive in train, {int(test_df[col].sum())} in test")
 
     run_ctx = mlflow.start_run(run_name=f"supervised-{Path(args.csv).stem}") if use_mlflow else None
+    exc_type, exc_val, exc_tb = None, None, None
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-            mlflow.log_params({
-                "mode": "real-supervised",
-                "data_source": args.csv,
-                "random_state": args.random_state,
-                "test_size": args.test_size,
-                "patterns": [p.value for p in patterns],
-                "n_train": len(train_df),
-                "n_test": len(test_df),
-            })
+        mlflow.log_params({
+            "mode": "real-supervised",
+            "data_source": args.csv,
+            "random_state": args.random_state,
+            "test_size": args.test_size,
+            "patterns": [p.value for p in patterns],
+            "n_train": len(train_df),
+            "n_test": len(test_df),
+        })
 
         detector = MultiPatternDetector(patterns=patterns, random_state=args.random_state)
         print("\nTraining MultiPatternDetector on real data...")
@@ -252,9 +258,12 @@ def train_real_supervised(args: argparse.Namespace) -> None:
             )
 
         _save_supervised_artifacts(detector, args, eval_result, comparison, data_source=args.csv)
+    except Exception:
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        raise
     finally:
         if use_mlflow and run_ctx:
-            run_ctx.__exit__(None, None, None)
+            run_ctx.__exit__(exc_type, exc_val, exc_tb)
 
 
 def train_real_unsupervised(args: argparse.Namespace) -> None:
@@ -268,17 +277,18 @@ def train_real_unsupervised(args: argparse.Namespace) -> None:
     X = df[BASE_FEATURE_COLUMNS].values
 
     run_ctx = mlflow.start_run(run_name=f"iforest-{Path(args.csv).stem}") if use_mlflow else None
+    exc_type, exc_val, exc_tb = None, None, None
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-            mlflow.log_params({
-                "mode": "real-unsupervised",
-                "data_source": args.csv,
-                "contamination": args.contamination,
-                "n_estimators": args.n_estimators,
-                "random_state": args.random_state,
-                "n_rows": len(df),
-            })
+        mlflow.log_params({
+            "mode": "real-unsupervised",
+            "data_source": args.csv,
+            "contamination": args.contamination,
+            "n_estimators": args.n_estimators,
+            "random_state": args.random_state,
+            "n_rows": len(df),
+        })
 
         print(f"Training IsolationForestScratch on {len(df)} real days (contamination={args.contamination})...")
         model = IsolationForestScratch(
@@ -339,9 +349,12 @@ def train_real_unsupervised(args: argparse.Namespace) -> None:
         print(f"\nSaved model to {model_path}")
         print(f"Saved scored days (all rows, with anomaly_score + is_flagged) to {scored_csv_path}")
         print(f"Saved metadata to {metadata_path}")
+    except Exception:
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        raise
     finally:
         if use_mlflow and run_ctx:
-            run_ctx.__exit__(None, None, None)
+            run_ctx.__exit__(exc_type, exc_val, exc_tb)
 
 
 def _resolve_patterns(pattern_names: list[str] | None) -> list[PatternType]:

@@ -592,24 +592,14 @@ def score_live_trade(
         weak_label_confidence = round(list(pattern_scores.values())[0], 4)
 
     # --- Evidence list (plan1.md issue #5) ---
-    evidence_signals = []
-    vr = float(raw_features.get("volume_ratio_20d", 0))
-    if vr > 1.5:
-        evidence_signals.append(EvidenceSignal(name="volume_spike", value=vr, threshold=1.5, triggered=True))
-        
-    ret = float(raw_features.get("return", 0))
-    if abs(ret) > 0.02:
-        evidence_signals.append(EvidenceSignal(name="price_momentum", value=ret, threshold=0.02, triggered=True))
-        
-    vol = float(raw_features.get("volatility_20d", 0))
-    if vol > 0.05:
-        evidence_signals.append(EvidenceSignal(name="high_volatility", value=vol, threshold=0.05, triggered=True))
-        
-    # We still keep model-level evidence for context
-    if isolation_forest_score is not None and isolation_forest_score > 0.65:
-        evidence_signals.append(EvidenceSignal(name="isolation_forest_outlier", value=isolation_forest_score, threshold=0.65, triggered=True))
-    if multi_pattern_max_score is not None and multi_pattern_max_score > 0.65:
-        evidence_signals.append(EvidenceSignal(name="multi_pattern_classifier", value=multi_pattern_max_score, threshold=0.65, triggered=True))
+    from ml.explainability import generate_evidence_signals
+    raw_dicts = generate_evidence_signals(
+        raw_features, 
+        isolation_forest_score, 
+        multi_pattern_max_score
+    )
+    evidence_signals = [EvidenceSignal(**sig) for sig in raw_dicts]
+    
     if detector_agreement == 1.0:
         evidence_signals.append(EvidenceSignal(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
 

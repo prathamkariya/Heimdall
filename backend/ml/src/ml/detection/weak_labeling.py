@@ -445,8 +445,14 @@ def evaluate_weak_labeling_quality(
     weak_eval = pd.DataFrame(weak_eval_rows)
 
     comparison = true_eval[["pattern", "auc"]].merge(
-        weak_eval, on="pattern", suffixes=("_true_labels", "_weak_labels")
+        weak_eval, on="pattern", how="outer", suffixes=("_true_labels", "_weak_labels")
     )
+    missing_mask = comparison["auc_weak_labels"].isna()
+    if missing_mask.any():
+        import logging
+        logging.warning("Patterns failed to train in weak labeling: %s", comparison.loc[missing_mask, "pattern"].tolist())
+        comparison["auc_weak_labels"] = comparison["auc_weak_labels"].fillna(0.5)
+
     comparison["auc_lost"] = comparison["auc_true_labels"] - comparison["auc_weak_labels"]
 
     return {

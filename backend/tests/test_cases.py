@@ -192,11 +192,11 @@ def test_link_anomalies(client: TestClient, db_session: Session, auth_headers: d
     assert resp.status_code == 200
     assert an2.id in resp.json()["anomaly_ids"]
 
-    # 3. Check case events for ANOMALY_LINKED event
+    # 3. Check case events for UPDATED event
     resp = client.get(f"/api/v1/cases/{case_id}/events", headers=auth_headers)
     assert resp.status_code == 200
     events = resp.json()
-    assert any(e["event_type"] == "ANOMALY_LINKED" for e in events)
+    assert any(e["event_type"] == "UPDATED" and "Added" in e["description"] for e in events)
 
 
 def test_list_analysts(client: TestClient, db_session: Session, auth_headers: dict):

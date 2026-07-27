@@ -70,36 +70,19 @@ def list_anomalies(
 
         try:
             import json
+            import logging
             from app.schemas import EvidenceSignalSchema, DetectionResultSchema
+            from ml.explainability import generate_evidence_signals
 
             raw_features = json.loads(anomaly.features) if anomaly.features else {}
             pattern_scores = json.loads(anomaly.pattern_scores) if anomaly.pattern_scores else {}
 
-            evidence_signals = []
-            vr = float(raw_features.get("volume_ratio_20d", 0))
-            if vr > 1.5:
-                evidence_signals.append(EvidenceSignalSchema(name="volume_spike", value=vr, threshold=1.5, triggered=True))
-
-            ret = float(raw_features.get("return", 0))
-            if abs(ret) > 0.02:
-                evidence_signals.append(EvidenceSignalSchema(name="price_momentum", value=ret, threshold=0.02, triggered=True))
-
-            vol = float(raw_features.get("volatility_20d", 0))
-            if vol > 0.05:
-                evidence_signals.append(EvidenceSignalSchema(name="high_volatility", value=vol, threshold=0.05, triggered=True))
-
-            if anomaly.isolation_forest_score is not None and anomaly.isolation_forest_score > 0.65:
-                evidence_signals.append(EvidenceSignalSchema(
-                    name="isolation_forest_outlier",
-                    value=anomaly.isolation_forest_score,
-                    threshold=0.65, triggered=True
-                ))
-            if anomaly.multi_pattern_max_score is not None and anomaly.multi_pattern_max_score > 0.65:
-                evidence_signals.append(EvidenceSignalSchema(
-                    name="multi_pattern_classifier",
-                    value=anomaly.multi_pattern_max_score,
-                    threshold=0.65, triggered=True
-                ))
+            raw_dicts = generate_evidence_signals(
+                raw_features, 
+                anomaly.isolation_forest_score, 
+                anomaly.multi_pattern_max_score
+            )
+            evidence_signals = [EvidenceSignalSchema(**sig) for sig in raw_dicts]
 
             # detector_agreement approximation from stored scores
             da = None
@@ -137,10 +120,9 @@ def list_anomalies(
                     source="stored",
                     evidence=evidence_signals,
                 )
-        except Exception:
-            # Silently fall back to None fields — never break the list endpoint
-            pass
-
+        except Exception as e:
+            # Log the failure but don't break the list endpoint
+            logging.error("Failed to generate explainability for anomaly %s: %s", anomaly.id, e, exc_info=True)
         items.append(item_dict)
         
     return AnomalyPaginatedResponse(

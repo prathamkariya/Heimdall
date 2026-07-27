@@ -39,7 +39,8 @@ class TestBuildPatternPrototypesFromExamples:
         train_df, _ = synthetic_split
         prototypes = build_pattern_prototypes_from_examples(train_df[BASE_FEATURE_COLUMNS], train_df)
         pump_proto = prototypes[PatternType.PUMP_AND_DUMP]
-        return_z, volume_z, _ = pump_proto
+        return_z = pump_proto[BASE_FEATURE_COLUMNS.index("return")]
+        volume_z = pump_proto[BASE_FEATURE_COLUMNS.index("volume_ratio_20d")]
         assert return_z > 1.0
         assert volume_z > 1.0
 
@@ -87,7 +88,7 @@ class TestBuildPatternPrototypesFromDomainRules:
 class TestAttributePatternToAnomalies:
     def test_unflagged_rows_get_none_attribution(self):
         rng = np.random.RandomState(1)
-        X = pd.DataFrame(rng.normal(0, 1, (50, 3)), columns=BASE_FEATURE_COLUMNS)
+        X = pd.DataFrame(rng.normal(0, 1, (50, len(BASE_FEATURE_COLUMNS))), columns=BASE_FEATURE_COLUMNS)
         flagged_mask = np.zeros(50, dtype=bool)
         prototypes = build_pattern_prototypes_from_domain_rules()
         result = attribute_pattern_to_anomalies(X, flagged_mask, prototypes)
@@ -100,7 +101,7 @@ class TestAttributePatternToAnomalies:
         rng = np.random.RandomState(1)
         n = 100
         # background of normal-ish points, mean 0 std 1 per column by construction
-        X_vals = rng.normal(0, 1, (n, 3))
+        X_vals = rng.normal(0, 1, (n, len(BASE_FEATURE_COLUMNS)))
         prototypes = build_pattern_prototypes_from_domain_rules()
         pump_proto = prototypes[PatternType.PUMP_AND_DUMP]
         # place one point exactly at the pump prototype's standardized location

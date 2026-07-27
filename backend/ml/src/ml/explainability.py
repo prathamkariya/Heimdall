@@ -1,0 +1,68 @@
+"""backend/ml/src/ml/explainability.py - Evidence generation logic."""
+from typing import Any, Dict, List
+import logging
+
+from ml.config import BASE_FEATURE_COLUMNS
+
+logger = logging.getLogger(__name__)
+
+def generate_evidence_signals(
+    raw_features: Dict[str, Any],
+    isolation_forest_score: float | None = None,
+    multi_pattern_max_score: float | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    Dynamically generates explainability evidence from raw feature values and model scores.
+    Iterates over BASE_FEATURE_COLUMNS so it stays in sync as the feature set expands.
+    Returns a list of dictionaries that match EvidenceSignalSchema.
+    """
+    signals = []
+
+    for feature_name in BASE_FEATURE_COLUMNS:
+        val = raw_features.get(feature_name)
+        if val is None:
+            continue
+            
+        try:
+            val = float(val)
+        except (ValueError, TypeError):
+            continue
+
+        # Dynamic thresholds based on feature semantics
+        if "return" in feature_name and "ratio" not in feature_name:
+            if abs(val) > 0.02:
+                signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.02, "triggered": True})
+        elif "volume_ratio" in feature_name:
+            if val > 1.5:
+                signals.append({"name": f"{feature_name}_spike", "value": val, "threshold": 1.5, "triggered": True})
+        elif "volatility" in feature_name:
+            if val > 0.05:
+                signals.append({"name": f"high_{feature_name}", "value": val, "threshold": 0.05, "triggered": True})
+        elif "rsi" in feature_name:
+            if val > 70.0:
+                signals.append({"name": f"{feature_name}_overbought", "value": val, "threshold": 70.0, "triggered": True})
+            elif val < 30.0:
+                signals.append({"name": f"{feature_name}_oversold", "value": val, "threshold": 30.0, "triggered": True})
+        elif feature_name == "obv":
+            # Just an example heuristic for OBV extremes if they were normalized
+            pass
+        elif feature_name == "macd":
+            pass
+
+    if isolation_forest_score is not None and isolation_forest_score > 0.65:
+        signals.append({
+            "name": "isolation_forest_outlier",
+            "value": float(isolation_forest_score),
+            "threshold": 0.65,
+            "triggered": True
+        })
+        
+    if multi_pattern_max_score is not None and multi_pattern_max_score > 0.65:
+        signals.append({
+            "name": "multi_pattern_classifier",
+            "value": float(multi_pattern_max_score),
+            "threshold": 0.65,
+            "triggered": True
+        })
+
+    return signals

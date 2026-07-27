@@ -6,14 +6,14 @@ from functools import lru_cache
 class Settings(BaseSettings):
     # Database components
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str
+    POSTGRES_PASSWORD: str | None = None
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "market_surveillance"
     DATABASE_URL: str | None = None
 
     # JWT — Access tokens
-    SECRET_KEY: str
+    SECRET_KEY: str | None = None
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -49,39 +49,18 @@ class Settings(BaseSettings):
         case_sensitive = True
         extra = "ignore"
 
-    _WEAK_SECRETS = {
-        "change-this-in-production-use-openssl-rand-hex-32",
-        "dev_secret_key_change_me",
-        "super_secret_production_key_change_me",
-    }
-
     @model_validator(mode="after")
-    def _check_secrets(self) -> "Settings":
-        import warnings
-        if self.SECRET_KEY in self._WEAK_SECRETS:
-            if self.APP_ENV != "development":
-                raise ValueError(
-                    "SECRET_KEY is still set to a default placeholder value. "
-                    "Generate a secure key with: openssl rand -hex 32 "
-                    "and set it in your environment before running in production."
-                )
-            warnings.warn(
-                "SECRET_KEY is using a known insecure placeholder. "
-                "This is only acceptable in APP_ENV=development.",
-                stacklevel=2,
-            )
-            
-        if self.POSTGRES_PASSWORD == "password":
-            if self.APP_ENV != "development":
-                raise ValueError(
-                    "POSTGRES_PASSWORD is still set to the default 'password'. "
-                    "Please use a secure password in production."
-                )
-            warnings.warn(
-                "POSTGRES_PASSWORD is using a known insecure placeholder. "
-                "This is only acceptable in APP_ENV=development.",
-                stacklevel=2,
-            )
+    def _enforce_secrets(self) -> "Settings":
+        if self.APP_ENV == "development":
+            if not self.POSTGRES_PASSWORD:
+                self.POSTGRES_PASSWORD = "admin123"
+            if not self.SECRET_KEY:
+                self.SECRET_KEY = "dev_secret_key_change_me"
+        else:
+            if not self.POSTGRES_PASSWORD:
+                raise ValueError("POSTGRES_PASSWORD is required in non-development environments.")
+            if not self.SECRET_KEY:
+                raise ValueError("SECRET_KEY is required in non-development environments.")
         return self
 
 

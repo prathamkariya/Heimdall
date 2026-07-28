@@ -40,7 +40,7 @@ class LogisticRegressionScratch:
         z_clipped = np.clip(z, -500, 500)
         return 1 / (1 + np.exp(-z_clipped))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "LogisticRegressionScratch":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> LogisticRegressionScratch:
         X = np.asarray(X)
         y = np.asarray(y)
         n_samples, n_features = X.shape

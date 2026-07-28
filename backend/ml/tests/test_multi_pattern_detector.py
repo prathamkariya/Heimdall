@@ -1,11 +1,11 @@
-import numpy as np
 import pandas as pd
 import pytest
-
 from ml.config import PatternType
-from ml.data.synthetic import generate_synthetic_market_data, chronological_train_test_split
+from ml.data.synthetic import (
+    chronological_train_test_split,
+    generate_synthetic_market_data,
+)
 from ml.detection.multi_pattern import MultiPatternDetector
-
 
 FEATURE_COLS = ["return", "volume_ratio_20d", "volatility_20d"]
 
@@ -245,7 +245,7 @@ class TestCompareAgainstBlendedBaseline:
         detector = MultiPatternDetector(random_state=1).fit(train_df[FEATURE_COLS], train_df)
 
         from sklearn.ensemble import RandomForestClassifier
-        from sklearn.metrics import roc_auc_score, recall_score
+        from sklearn.metrics import recall_score, roc_auc_score
 
         blended_model = RandomForestClassifier(
             n_estimators=200, max_depth=6, class_weight="balanced", random_state=1, n_jobs=-1

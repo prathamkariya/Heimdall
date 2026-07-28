@@ -3,8 +3,9 @@
 Checks whether any symbol's flagged-rate deviates substantially from the market average.
 A 2x-or-greater deviation with a reasonably-sized sample is the trigger to flag.
 """
+import os
+
 import pandas as pd
-import sys, os
 
 THRESHOLD_MULTIPLIER = 2.0
 MIN_SAMPLE = 30  # ignore symbols with fewer rows (not enough data to judge)
@@ -31,7 +32,7 @@ def evaluate_market(market: str, scored_csv: str, input_csv: str):
         mean_score=('anomaly_score', 'mean'),
     ).sort_values('flagged_rate', ascending=False)
 
-    print(f"\n  Per-symbol breakdown:")
+    print("\n  Per-symbol breakdown:")
     print(per_sym.to_string())
 
     # Check for deviating symbols

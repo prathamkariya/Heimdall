@@ -3,7 +3,6 @@ tests/test_market_data.py — OHLCV market data endpoint tests.
 
 Covers: ingest, list, get, delete, validation, user isolation.
 """
-import pytest
 
 
 VALID_PAYLOAD = {

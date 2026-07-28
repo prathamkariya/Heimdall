@@ -1,19 +1,19 @@
-import app.alias
 import logging
 import time
 import traceback
 
-from fastapi import FastAPI, Depends, Request, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from app.database import get_db
-from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
-from app.limiter import limiter
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy.orm import Session
 
+import app.alias
 from app.config import settings
-from app.routers import alerts, anomaly, auth, market_data, watchlists, reports, cases
+from app.database import get_db
+from app.limiter import limiter
+from app.routers import alerts, anomaly, auth, cases, market_data, reports, watchlists
 
 app = FastAPI(
     title="Market Surveillance & Anomaly Detection",

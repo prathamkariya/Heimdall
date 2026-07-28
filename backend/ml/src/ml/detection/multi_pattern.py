@@ -20,12 +20,11 @@ actual trained models, not just a single feature's mutual information.
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
 
-from ml.config import PatternType, RANDOM_STATE
+from ml.config import RANDOM_STATE, PatternType
 
 
 class MultiPatternDetector:
@@ -82,7 +81,7 @@ class MultiPatternDetector:
             random_state=self.random_state, n_jobs=-1,
         )
 
-    def fit(self, X: pd.DataFrame, label_df: pd.DataFrame) -> "MultiPatternDetector":
+    def fit(self, X: pd.DataFrame, label_df: pd.DataFrame) -> MultiPatternDetector:
         """label_df must contain one column per pattern, named
         `is_{pattern.value}` (matching data/synthetic.py's convention) --
         e.g. is_pump_and_dump, is_wash_trading, is_spoofing, is_layering.

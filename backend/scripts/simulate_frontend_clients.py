@@ -56,7 +56,7 @@ async def _register_and_login(client: httpx.AsyncClient, base_url: str, idx: int
         }, timeout=10)
         resp.raise_for_status()
         return resp.json()["access_token"]
-    except Exception as e:
+    except Exception:
         return None
 
 

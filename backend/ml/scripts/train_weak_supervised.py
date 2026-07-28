@@ -27,7 +27,6 @@ Updated (plan1.md critical fixes):
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,8 +41,8 @@ sys.path.insert(0, str(_HERE.resolve()))
 
 from ml.config import BASE_FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION
 from ml.detection.weak_labeling import (
-    train_multi_pattern_detector_with_weak_labels,
     DEFAULT_CONFIDENCE_THRESHOLD,
+    train_multi_pattern_detector_with_weak_labels,
 )
 
 # Metadata columns that must NEVER enter the feature matrix (plan1.md issue #4)

@@ -1,6 +1,6 @@
 import logging
+
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.models import Case, CaseEvent, User
 
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 def record_case_event(
     db: Session,
     case: Case,
-    actor: Optional[User],
+    actor: User | None,
     event_type: str,
-    detail: Optional[str] = None
+    detail: str | None = None
 ) -> CaseEvent:
     """
     Core function for the immutable audit trail of a Case.

@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.metrics import roc_auc_score, accuracy_score
-
 from ml.models.gradient_boosting import (
     GradientBoostingScratch,
     train_xgboost_model,
     xgboost_feature_importance,
-    DEFAULT_XGB_PARAMS,
 )
+from sklearn.metrics import roc_auc_score
 
 
 @pytest.fixture

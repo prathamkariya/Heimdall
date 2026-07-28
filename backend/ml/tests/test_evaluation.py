@@ -1,16 +1,15 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-
 from ml.evaluation.metrics import (
-    compare_models_time_series_cv,
     calibration_analysis,
+    compare_combined_vs_per_pattern_auc,
+    compare_models_time_series_cv,
     compute_learning_curve,
     evaluate_on_label,
-    compare_combined_vs_per_pattern_auc,
 )
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 
 
 @pytest.fixture

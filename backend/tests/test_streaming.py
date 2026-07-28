@@ -11,10 +11,7 @@ from re-entering the codebase. It must:
 """
 from __future__ import annotations
 
-import importlib
-
 import pytest
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers

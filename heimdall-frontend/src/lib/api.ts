@@ -43,5 +43,9 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   // If no content, just return null
   if (response.status === 204) return null;
   
-  return response.json();
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return response.json();
+  }
+  return response.blob();
 }

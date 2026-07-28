@@ -1,4 +1,3 @@
-from typing import List
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
@@ -29,7 +28,7 @@ def create_watchlist(
     return watchlist_service.create_watchlist(db, current_user.id, payload)
 
 
-@router.get("", response_model=List[WatchlistListResponse])
+@router.get("", response_model=list[WatchlistListResponse])
 def list_watchlists(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

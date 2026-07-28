@@ -1,14 +1,13 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-
 from ml.features.scaling import (
-    StandardScalerScratch,
     MinMaxScalerScratch,
     RobustScalerScratch,
+    StandardScalerScratch,
     needs_scaling,
 )
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 
 @pytest.fixture

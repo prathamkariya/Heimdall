@@ -21,9 +21,8 @@ import os
 from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # Suppress TensorFlow's informational CPU-optimization logs (oneDNN
 # notices, AVX instruction listings) -- accurate, but not actionable by

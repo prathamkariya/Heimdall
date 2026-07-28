@@ -12,7 +12,6 @@ Design note (inspired by aryan1078/indian-equities-market-surveillance-platform)
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -49,8 +48,8 @@ class UnifiedTradeEvent(BaseModel):
     price: float = Field(..., gt=0)
     volume: float = Field(..., ge=0)
     notional_value: float = Field(..., ge=0)
-    is_buyer_maker: Optional[bool] = None
-    market_cap_usd: Optional[float] = None
+    is_buyer_maker: bool | None = None
+    market_cap_usd: float | None = None
 
     @field_validator("symbol", mode="before")
     @classmethod
@@ -87,7 +86,7 @@ class UnifiedSentimentEvent(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=30)
     source: SentimentSource
     sentiment_score: float = Field(..., ge=-1.0, le=1.0)
-    headline: Optional[str] = Field(None, max_length=500)
+    headline: str | None = Field(None, max_length=500)
 
     @field_validator("symbol", mode="before")
     @classmethod

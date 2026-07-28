@@ -1,6 +1,15 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict, computed_field
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -101,7 +110,7 @@ class MarketDataResponse(OrmBase):
     low: float
     close: float
     volume: float
-    market: Optional[str]
+    market: str | None
     created_at: datetime
 
 
@@ -128,7 +137,7 @@ class DetectionResultSchema(BaseModel):
     detector_score: float
     detector_agreement: float
     source: str
-    evidence: List[EvidenceSignalSchema] = []
+    evidence: list[EvidenceSignalSchema] = []
 
 
 class AnomalyResponse(OrmBase):
@@ -136,11 +145,11 @@ class AnomalyResponse(OrmBase):
     market_data_id: int
     anomaly_score: float
     is_anomaly: bool
-    isolation_forest_score: Optional[float]
-    multi_pattern_max_score: Optional[float]
-    pattern_scores: Optional[str]
-    model_version: Optional[str]
-    features: Optional[str]
+    isolation_forest_score: float | None
+    multi_pattern_max_score: float | None
+    pattern_scores: str | None
+    model_version: str | None
+    features: str | None
     detected_at: datetime
     severity: str
 
@@ -161,12 +170,8 @@ class AnomalyResponse(OrmBase):
             except Exception:
                 pass
 
-        if self.anomaly_score >= 0.8:
-            return "PUMP & DUMP"
-        if self.anomaly_score >= 0.7:
-            return "WASH TRADING"
         if self.anomaly_score >= 0.5:
-            return "SPOOFING"
+            return "UNCLASSIFIED"
         return "NORMAL"
 
 
@@ -174,17 +179,17 @@ class AnomalyListResponse(AnomalyResponse):
     """Adds joined fields from MarketData and optional explainability signals."""
     symbol: str
     market_timestamp: datetime
-    market: Optional[str] = None
+    market: str | None = None
     # Explainability fields — populated at read time from stored features.
     # Optional because older records may not have feature data.
-    evidence: Optional[List[EvidenceSignalSchema]] = None
-    detection_result: Optional[DetectionResultSchema] = None
-    detector_agreement: Optional[float] = None
-    weak_label_confidence: Optional[float] = None
+    evidence: list[EvidenceSignalSchema] | None = None
+    detection_result: DetectionResultSchema | None = None
+    detector_agreement: float | None = None
+    weak_label_confidence: float | None = None
 
 
 class AnomalyPaginatedResponse(BaseModel):
-    items: List[AnomalyListResponse]
+    items: list[AnomalyListResponse]
     total: int
     limit: int
     offset: int
@@ -195,12 +200,12 @@ class AnomalyPaginatedResponse(BaseModel):
 # ══════════════════════════════════════════════════════════════
 class AlertCreate(BaseModel):
     anomaly_id: int = Field(..., gt=0)
-    message: Optional[str] = Field(None, max_length=1000)
+    message: str | None = Field(None, max_length=1000)
 
 
 class AlertUpdate(BaseModel):
-    status: Optional[str] = Field(None, pattern=r"^(PENDING|ACTIVE|RESOLVED|DISMISSED)$")
-    message: Optional[str] = Field(None, max_length=1000)
+    status: str | None = Field(None, pattern=r"^(PENDING|ACTIVE|RESOLVED|DISMISSED)$")
+    message: str | None = Field(None, max_length=1000)
 
 
 class AlertResponse(OrmBase):
@@ -208,7 +213,7 @@ class AlertResponse(OrmBase):
     anomaly_id: int
     user_id: int
     status: str
-    message: Optional[str]
+    message: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -218,17 +223,17 @@ class AlertResponse(OrmBase):
 # ══════════════════════════════════════════════════════════════
 class WatchlistCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    description: str | None = Field(None, max_length=500)
 
 
 class WatchlistUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
 
 
 class WatchlistSymbolAdd(BaseModel):
     symbol: str = Field(..., min_length=1, max_length=20)
-    notes: Optional[str] = Field(None, max_length=500)
+    notes: str | None = Field(None, max_length=500)
 
     @field_validator("symbol")
     @classmethod
@@ -240,7 +245,7 @@ class WatchlistSymbolResponse(OrmBase):
     id: int
     watchlist_id: int
     symbol: str
-    notes: Optional[str]
+    notes: str | None
     added_at: datetime
 
 
@@ -248,8 +253,8 @@ class WatchlistResponse(OrmBase):
     id: int
     user_id: int
     name: str
-    description: Optional[str]
-    symbols: List[WatchlistSymbolResponse] = []
+    description: str | None
+    symbols: list[WatchlistSymbolResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -259,7 +264,7 @@ class WatchlistListResponse(OrmBase):
     id: int
     user_id: int
     name: str
-    description: Optional[str]
+    description: str | None
     symbol_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -270,11 +275,11 @@ class WatchlistListResponse(OrmBase):
 # ══════════════════════════════════════════════════════════════
 class CaseCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
-    anomaly_ids: List[int] = Field(..., min_length=1)
+    anomaly_ids: list[int] = Field(..., min_length=1)
 
 
 class CaseUpdate(BaseModel):
-    status: Optional[str] = Field(None, pattern=r"^(OPEN|IN_REVIEW|ESCALATED|DISMISSED|CLOSED)$")
+    status: str | None = Field(None, pattern=r"^(OPEN|IN_REVIEW|ESCALATED|DISMISSED|CLOSED)$")
 
 
 class CaseAssign(BaseModel):
@@ -282,19 +287,19 @@ class CaseAssign(BaseModel):
 
 
 class CaseLinkAnomalies(BaseModel):
-    anomaly_ids: List[int] = Field(..., min_length=1)
+    anomaly_ids: list[int] = Field(..., min_length=1)
 
 
 class CaseResponse(OrmBase):
     id: int
     created_by_user_id: int
-    assigned_to_user_id: Optional[int]
+    assigned_to_user_id: int | None
     title: str
     status: str
-    anomaly_ids: List[int] = Field(default_factory=list)
+    anomaly_ids: list[int] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
-    closed_at: Optional[datetime]
+    closed_at: datetime | None
 
     @model_validator(mode="before")
     @classmethod
@@ -309,7 +314,7 @@ class CaseResponse(OrmBase):
 
 
 class CasePaginatedResponse(BaseModel):
-    items: List[CaseResponse]
+    items: list[CaseResponse]
     total: int
     limit: int
     offset: int
@@ -330,7 +335,7 @@ class CaseNoteResponse(OrmBase):
 class CaseEventResponse(OrmBase):
     id: int
     case_id: int
-    actor_user_id: Optional[int]
+    actor_user_id: int | None
     event_type: str
-    detail: Optional[str]
+    detail: str | None
     created_at: datetime

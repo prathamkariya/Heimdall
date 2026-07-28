@@ -1,18 +1,18 @@
-import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+import app.models  # noqa: F401 — side-effect import registers all ORM models
 from alembic import context
 
 # ── CRITICAL: import ALL models so Alembic's autogenerate sees them ──
 from app.database import Base
-import app.models  # noqa: F401 — side-effect import registers all ORM models
+from sqlalchemy import engine_from_config, pool
 
 # Alembic config object
 config = context.config
 
 # Override DB URL from pydantic settings which automatically loads the .env file
 from app.config import settings
+
 if settings.DATABASE_URL:
     config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 

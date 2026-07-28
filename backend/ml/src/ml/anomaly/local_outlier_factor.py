@@ -63,7 +63,7 @@ class LocalOutlierFactorDetector:
         self._scores: np.ndarray | None = None  # cached raw scores from fit
         self.threshold_: float | None = None
 
-    def fit(self, X: np.ndarray) -> "LocalOutlierFactorDetector":
+    def fit(self, X: np.ndarray) -> LocalOutlierFactorDetector:
         """Fit LOF on X and fix the anomaly threshold from contamination.
 
         sklearn's LOF with novelty=False computes negative_outlier_factor_

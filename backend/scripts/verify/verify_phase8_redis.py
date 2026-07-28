@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
 import os
+import sys
 import time
 
 # Ensure repo root is on path
@@ -29,7 +29,12 @@ async def main() -> None:
     # ── Check 1: Schema import ────────────────────────────────────────
     print("\n[1/4] Importing schemas ...", end=" ")
     try:
-        from app.schemas.streaming import Market, UnifiedTradeEvent, UnifiedSentimentEvent, SentimentSource
+        from app.schemas.streaming import (
+            Market,
+            SentimentSource,
+            UnifiedSentimentEvent,
+            UnifiedTradeEvent,
+        )
         print("OK [V]")
     except ImportError as e:
         print(f"FAIL [X]  {e}")
@@ -51,7 +56,11 @@ async def main() -> None:
     # ── Check 3: Publish a fake tick ─────────────────────────────────
     print("[3/4] Publishing a test UnifiedTradeEvent ...", end=" ")
     try:
-        from app.services.redis_service import publish_trade, get_async_redis, STREAM_TRADES
+        from app.services.redis_service import (
+            STREAM_TRADES,
+            get_async_redis,
+            publish_trade,
+        )
 
         ts_ms = int(time.time() * 1000)
         test_event = UnifiedTradeEvent(

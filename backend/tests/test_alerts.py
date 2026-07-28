@@ -3,8 +3,9 @@ tests/test_alerts.py — Alert management endpoint tests.
 
 Covers: create, list, get, update (status/message), delete, auth guards, ownership.
 """
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 # ══════════════════════════════════════════════════════════════

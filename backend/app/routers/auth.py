@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from app.limiter import limiter
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.models import User
 from app.schemas import (
     LogoutRequest,
@@ -25,7 +26,6 @@ from app.services.auth_service import (
     revoke_refresh_token,
     rotate_refresh_token,
 )
-from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -157,8 +157,9 @@ def get_sse_token(current_user: User = Depends(get_current_user)):
 
     The returned token is only valid for GET /alerts/stream/live and expires in 60s.
     """
-    from jose import jwt as jose_jwt
     from datetime import timezone
+
+    from jose import jwt as jose_jwt
     expire = datetime.now(timezone.utc) + timedelta(seconds=60)
     payload = {
         "sub": str(current_user.id),

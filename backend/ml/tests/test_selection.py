@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from ml.features.selection import (
+    compare_score_against_combined_vs_per_pattern_label,
+    embedded_select,
     filter_select,
     wrapper_select,
-    embedded_select,
-    compare_score_against_combined_vs_per_pattern_label,
 )
 
 

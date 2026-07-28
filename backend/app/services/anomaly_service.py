@@ -35,20 +35,19 @@ import json
 import logging
 import math
 import threading
-from typing import Optional
+from dataclasses import asdict
 
 import pandas as pd
 from fastapi import HTTPException, status
+from ml.config import BASE_FEATURE_COLUMNS, MIN_RAW_ROWS_FOR_FEATURES
+from ml.data.synthetic import compute_engineered_features
+from ml.serving.model_registry import ModelLoadError, ModelRegistry
+from ml.types import DetectionResult, EvidenceSignal
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import Anomaly, MarketData
-from ml.config import BASE_FEATURE_COLUMNS, MIN_RAW_ROWS_FOR_FEATURES
-from ml.data.synthetic import compute_engineered_features
-from ml.serving.model_registry import ModelRegistry, ModelLoadError
-from ml.types import EvidenceSignal, DetectionResult
 from app.services.severity import severity_for_score
-from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +121,9 @@ def _get_lof_model(market: str):
     """Lazily load the LocalOutlierFactor model for the given market.
     Returns None if the model file doesn't exist (graceful degradation).
     """
-    import joblib
     from pathlib import Path
+
+    import joblib
     market_subdir = Path(settings.MODEL_DIR) / market.lower()
     model_dir = market_subdir if market_subdir.exists() else Path(settings.MODEL_DIR)
     lof_path = model_dir / "local_outlier_factor.joblib"
@@ -204,7 +204,7 @@ def _market_data_to_feature_row(record: MarketData, historical: list[MarketData]
     return {col: float(last_row[col]) for col in BASE_FEATURE_COLUMNS}
 
 
-def _apply_zscores(features: dict, symbol: str, registry: ModelRegistry) -> Optional[dict]:
+def _apply_zscores(features: dict, symbol: str, registry: ModelRegistry) -> dict | None:
     """Applies per-symbol rolling z-score transformation to return and
     volatility_20d features using baselines from the model registry.
     Returns None if the symbol has no baseline.
@@ -245,7 +245,7 @@ def _make_unavailable_sentinel(
     is_low_confidence: bool,
     sentiment_score: float,
     confidence: str,
-    features: Optional[dict] = None,
+    features: dict | None = None,
 ) -> dict:
     """Standardized dictionary shape returned by score_live_trade when
     models or baselines are unavailable. Ensures all expected keys are present.
@@ -276,7 +276,7 @@ def _make_unavailable_sentinel(
 # ──────────────────────────────────────────────
 # Scoring — real trained models
 # ──────────────────────────────────────────────
-def _combine_scores(isolation_forest_score: Optional[float], multi_pattern_max_score: Optional[float]) -> float:
+def _combine_scores(isolation_forest_score: float | None, multi_pattern_max_score: float | None) -> float:
     """Weighted average when both models are available (IF 60%, per-
     pattern max 40% -- the same weighting the mock version used, kept
     for continuity now that both sides of it are real). Falls back to
@@ -383,7 +383,7 @@ def detect_anomaly(
 
     isolation_forest_score = None
     multi_pattern_max_score = None
-    pattern_scores: Optional[dict] = None
+    pattern_scores: dict | None = None
     model_versions = []
 
     if registry.has_isolation_forest:
@@ -544,9 +544,9 @@ def score_live_trade(
 
     isolation_forest_score = None
     multi_pattern_max_score = None
-    pattern_scores: Optional[dict] = None
-    detector_agreement: Optional[float] = None
-    weak_label_confidence: Optional[float] = None
+    pattern_scores: dict | None = None
+    detector_agreement: float | None = None
+    weak_label_confidence: float | None = None
 
     if registry.has_isolation_forest:
         # IF was retrained on z-scored features
@@ -563,20 +563,8 @@ def score_live_trade(
     combined = _combine_scores(isolation_forest_score, multi_pattern_max_score)
     is_anomaly = combined >= threshold
 
-    # --- Detector agreement (plan1.md issue #2) ---
-    # Check if a second LOF detector also flags this tick. Because LOF is an
-    # offline-only model (can't score new points without refitting), we approximate
-    # agreement using the stored LOF anomaly score from the `scored_days.csv`
-    # nearest-symbol baseline. For live scoring we use IF score as primary;
-    # we flag high IF-score + high MPD as 'both-agree'.
-    if isolation_forest_score is not None and multi_pattern_max_score is not None:
-        # Treat as both-agree if IF score > 0.6 and MPD proba > 0.6
-        if isolation_forest_score >= 0.6 and multi_pattern_max_score >= 0.6:
-            detector_agreement = 1.0
-        else:
-            detector_agreement = 0.5
-    elif isolation_forest_score is not None or multi_pattern_max_score is not None:
-        detector_agreement = 0.5
+    from app.models import check_detector_agreement
+    detector_agreement = check_detector_agreement(isolation_forest_score, multi_pattern_max_score)
 
     # --- Weak label confidence (plan1.md issue #5) ---
     # Approximate attribution confidence from pattern_scores distribution.

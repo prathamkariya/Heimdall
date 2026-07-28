@@ -72,23 +72,21 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import load_price_series
-
 from ml.data.synthetic import generate_synthetic_market_data
+from ml.time_series.arima_prophet import (
+    changepoint_sensitivity_sweep,
+    fit_arima_and_forecast,
+    fit_prophet_and_forecast,
+    forecast_error_zscore_anomaly_signal,
+    grid_search_arima_order,
+)
+from ml.time_series.lstm import fit_lstm_forecaster
 from ml.time_series.stationarity import (
     adf_test,
-    kpss_test,
     combined_stationarity_verdict,
     diagnose_ar_or_ma_signature,
     difference_scratch,
 )
-from ml.time_series.arima_prophet import (
-    grid_search_arima_order,
-    fit_arima_and_forecast,
-    fit_prophet_and_forecast,
-    changepoint_sensitivity_sweep,
-    forecast_error_zscore_anomaly_signal,
-)
-from ml.time_series.lstm import fit_lstm_forecaster
 
 
 def _load_series(args: argparse.Namespace) -> pd.Series:
@@ -127,9 +125,9 @@ def run_check_stationarity(args: argparse.Namespace) -> None:
     print(f"ACF/PACF signature: {signature['signature']} "
           f"(acf_cutoff={signature['acf_cutoff_lag']}, pacf_cutoff={signature['pacf_cutoff_lag']})")
     print(
-        f"\n(Signature is a heuristic on ONE finite sample -- 'ambiguous' is a "
-        f"legitimate result, not an error. Use it as a starting point for "
-        f"fit-arima's grid search, not a final answer.)"
+        "\n(Signature is a heuristic on ONE finite sample -- 'ambiguous' is a "
+        "legitimate result, not an error. Use it as a starting point for "
+        "fit-arima's grid search, not a final answer.)"
     )
 
 
@@ -141,7 +139,7 @@ def run_fit_arima(args: argparse.Namespace) -> None:
 
     print(f"\nGrid-searching ARIMA order (p in 0-{args.max_p}, d in {args.d_values}, q in 0-{args.max_q})...")
     search_result = grid_search_arima_order(
-        train, p_range=range(0, args.max_p + 1), d_range=args.d_values, q_range=range(0, args.max_q + 1)
+        train, p_range=range(args.max_p + 1), d_range=args.d_values, q_range=range(args.max_q + 1)
     )
     print(search_result.head(5).to_string(index=False))
 

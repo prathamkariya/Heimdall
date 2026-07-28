@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.calibration import calibration_curve, CalibratedClassifierCV
+from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import TimeSeriesSplit, learning_curve
 from sklearn.preprocessing import StandardScaler

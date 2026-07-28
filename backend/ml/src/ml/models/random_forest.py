@@ -64,7 +64,7 @@ class RandomForestScratch:
             return max(1, int(np.sqrt(n_features)))
         return n_features
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "RandomForestScratch":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> RandomForestScratch:
         X = np.asarray(X)
         y = np.asarray(y)
         rng = np.random.RandomState(self.random_state)

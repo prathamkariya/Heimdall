@@ -145,7 +145,7 @@ class IsolationForestScratch:
         self.threshold_: float | None = None
         self.n_samples_fit_: int | None = None
 
-    def fit(self, X: np.ndarray) -> "IsolationForestScratch":
+    def fit(self, X: np.ndarray) -> IsolationForestScratch:
         X = np.asarray(X)
         rng = np.random.RandomState(self.random_state)
         n_samples = X.shape[0]

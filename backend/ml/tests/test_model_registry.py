@@ -14,8 +14,7 @@ one-line fix.
 """
 import joblib
 import pytest
-
-from ml.serving.model_registry import ModelRegistry, ModelLoadError
+from ml.serving.model_registry import ModelLoadError, ModelRegistry
 
 
 # ──────────────────────────────────────────────

@@ -23,15 +23,15 @@ import asyncio
 import json
 import logging
 import os
-import time
-from typing import Optional
-
-import websockets
-from binance import AsyncClient, BinanceSocketManager
 
 # Local imports — these work when the repo root is on PYTHONPATH.
 # Run as: python -m scripts.market_adapters.crypto_worker
 import sys
+import time
+
+import websockets
+from binance import AsyncClient, BinanceSocketManager
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from app.schemas.streaming import Market, UnifiedTradeEvent
@@ -44,8 +44,8 @@ logging.basicConfig(
 logger = logging.getLogger("crypto_worker")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-BINANCE_API_KEY: Optional[str] = os.getenv("BINANCE_API_KEY")
-BINANCE_API_SECRET: Optional[str] = os.getenv("BINANCE_API_SECRET")
+BINANCE_API_KEY: str | None = os.getenv("BINANCE_API_KEY")
+BINANCE_API_SECRET: str | None = os.getenv("BINANCE_API_SECRET")
 
 # Symbols to monitor (expand this list as needed).
 SYMBOLS: list[str] = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "DOGEUSDT"]
@@ -58,7 +58,7 @@ last_seen_primary: float = time.time()
 
 
 # ── Normalise Binance trade → UnifiedTradeEvent ───────────────────────────────
-def _normalise_binance(raw: dict) -> Optional[UnifiedTradeEvent]:
+def _normalise_binance(raw: dict) -> UnifiedTradeEvent | None:
     """Parse a raw Binance Aggregate Trade Stream ('aggTrade') payload."""
     try:
         symbol: str = raw["s"]            # e.g. "BTCUSDT"

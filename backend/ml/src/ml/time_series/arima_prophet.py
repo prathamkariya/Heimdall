@@ -17,12 +17,6 @@ anomaly-detection system in models/ and anomaly/ -- it feeds it.
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
-
-import numpy as np
-import pandas as pd
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-from statsmodels.tsa.arima.model import ARIMA
 
 # Prophet's cmdstanpy backend logs "Chain [1] start/done processing" at
 # INFO level on every fit -- accurate, but pure noise for a caller of
@@ -31,6 +25,13 @@ from statsmodels.tsa.arima.model import ARIMA
 # actually fit within a process, which can override a level set only
 # right before that first fit.
 import logging
+from dataclasses import dataclass
+
+import numpy as np
+import pandas as pd
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from statsmodels.tsa.arima.model import ARIMA
+
 _cmdstanpy_logger = logging.getLogger("cmdstanpy")
 _cmdstanpy_logger.setLevel(logging.WARNING)
 _cmdstanpy_logger.propagate = False
@@ -122,6 +123,7 @@ def grid_search_arima_order(
     not just a cosmetic one.
     """
     import warnings
+
     from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
     results = []
@@ -186,8 +188,9 @@ def changepoint_sensitivity_sweep(
     genuine trend shifts. The same overfitting-via-flexibility tradeoff
     as file 22's max_depth, via a completely different mechanism.
     """
-    from prophet import Prophet
     import logging
+
+    from prophet import Prophet
     logging.getLogger("cmdstanpy").setLevel(logging.WARNING)
 
     if scales is None:

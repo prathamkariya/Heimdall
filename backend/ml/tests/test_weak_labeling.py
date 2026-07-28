@@ -1,16 +1,18 @@
 import numpy as np
 import pandas as pd
 import pytest
-
-from ml.config import PatternType, BASE_FEATURE_COLUMNS
-from ml.data.synthetic import generate_synthetic_market_data, chronological_train_test_split
+from ml.config import BASE_FEATURE_COLUMNS, PatternType
+from ml.data.synthetic import (
+    chronological_train_test_split,
+    generate_synthetic_market_data,
+)
 from ml.detection.weak_labeling import (
-    build_pattern_prototypes_from_examples,
-    build_pattern_prototypes_from_domain_rules,
     attribute_pattern_to_anomalies,
-    weak_label_from_isolation_forest,
-    train_multi_pattern_detector_with_weak_labels,
+    build_pattern_prototypes_from_domain_rules,
+    build_pattern_prototypes_from_examples,
     evaluate_weak_labeling_quality,
+    train_multi_pattern_detector_with_weak_labels,
+    weak_label_from_isolation_forest,
 )
 
 

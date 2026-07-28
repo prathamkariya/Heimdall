@@ -1,16 +1,16 @@
 """backend/ml/src/ml/explainability.py - Evidence generation logic."""
-from typing import Any, Dict, List
 import logging
+from typing import Any
 
 from ml.config import BASE_FEATURE_COLUMNS
 
 logger = logging.getLogger(__name__)
 
 def generate_evidence_signals(
-    raw_features: Dict[str, Any],
+    raw_features: dict[str, Any],
     isolation_forest_score: float | None = None,
     multi_pattern_max_score: float | None = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Dynamically generates explainability evidence from raw feature values and model scores.
     Iterates over BASE_FEATURE_COLUMNS so it stays in sync as the feature set expands.

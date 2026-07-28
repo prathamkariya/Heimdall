@@ -1,13 +1,13 @@
+import datetime
 import os
+
 import pandas as pd
 import requests
-import datetime
-from dotenv import load_dotenv
+from _common import compute_engineered_features
 from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
-
-from _common import compute_engineered_features
+from dotenv import load_dotenv
 
 # Load .env from repo root regardless of cwd
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))

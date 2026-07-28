@@ -2,17 +2,15 @@
 import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
 from fastapi.responses import PlainTextResponse
+from sqlalchemy.orm import Session, joinedload
 
-from app.database import get_db
-from app.models import User, Anomaly, MarketData, Case
-from sqlalchemy.orm import joinedload
-from app.config import settings
-from app.dependencies import get_current_user
-from app.services.mar_generator import generate_mar
 from app.auth_policy import verify_case_access
+from app.config import settings
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models import Anomaly, Case, User
+from app.services.mar_generator import generate_mar
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 

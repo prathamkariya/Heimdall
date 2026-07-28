@@ -177,7 +177,7 @@ function parsePatternScores(raw: string | null): Record<string, number> {
 
 export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: AnomalyDetailProps) {
   const patterns = parsePatternScores(anomaly.pattern_scores)
-  const severity = (anomaly as any).severity as string | undefined
+  const severity = anomaly.severity
   const [actionLoading, setActionLoading] = useState(false)
 
   // Find if this anomaly is associated with any case

@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 
 
 class _ScratchScalerBase(BaseEstimator, TransformerMixin):
@@ -26,7 +26,7 @@ class _ScratchScalerBase(BaseEstimator, TransformerMixin):
     the same sklearn-compatibility boilerplate three times.
     """
 
-    def fit(self, X: pd.DataFrame | np.ndarray, y=None) -> "_ScratchScalerBase":
+    def fit(self, X: pd.DataFrame | np.ndarray, y=None) -> _ScratchScalerBase:
         X = self._to_frame(X)
         self.feature_names_in_ = list(X.columns)
         self.params_: dict[str, tuple[float, float]] = {

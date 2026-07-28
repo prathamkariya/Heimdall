@@ -24,11 +24,10 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
-import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from app.schemas.streaming import Market, UnifiedTradeEvent

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiFetch } from '../lib/api'
+import { useApiFetch } from '../lib/hooks'
 import { Pagination } from '../components/Pagination'
 import { AnomalyDetail } from '../components/AnomalyDetail'
 import type { AnomalyListItem, AnomalyPaginatedResponse } from '../lib/types'
@@ -7,10 +7,9 @@ import type { AnomalyListItem, AnomalyPaginatedResponse } from '../lib/types'
 const PAGE_SIZE = 20
 
 export function Anomalies() {
-  const [data, setData] = useState<AnomalyPaginatedResponse | null>(null)
-  const [cases, setCases] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error, execute: executeAnomalies } = useApiFetch<AnomalyPaginatedResponse>()
+  const { data: casesResponse, execute: executeCases } = useApiFetch<{items: any[]}>()
+  const cases = casesResponse?.items || []
 
   // Filters
   const [symbolFilter, setSymbolFilter] = useState('')
@@ -20,14 +19,9 @@ export function Anomalies() {
   // Detail panel
   const [selected, setSelected] = useState<AnomalyListItem | null>(null)
 
-  const fetchCases = useCallback(async () => {
-    try {
-      const res = await apiFetch('/cases?limit=100') as any
-      setCases(res.items || [])
-    } catch (err) {
-      console.error('Failed to fetch cases', err)
-    }
-  }, [])
+  const fetchCases = useCallback(() => {
+    executeCases('/cases?limit=100')
+  }, [executeCases])
 
   const handleCaseUpdated = () => {
     fetchCases()
@@ -37,29 +31,19 @@ export function Anomalies() {
     fetchCases()
   }, [fetchCases])
 
-  const fetchAnomalies = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams()
-      params.set('limit', String(PAGE_SIZE))
-      params.set('offset', String(offset))
-      if (symbolFilter.trim()) params.set('symbol', symbolFilter.trim().toUpperCase())
-      if (anomalyOnly) params.set('is_anomaly', 'true')
+  const fetchAnomalies = useCallback(() => {
+    const params = new URLSearchParams()
+    params.set('limit', String(PAGE_SIZE))
+    params.set('offset', String(offset))
+    if (symbolFilter.trim()) params.set('symbol', symbolFilter.trim().toUpperCase())
+    if (anomalyOnly) params.set('is_anomaly', 'true')
 
-      const res = await apiFetch(`/anomalies?${params}`) as AnomalyPaginatedResponse
-      setData(res)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load anomalies')
-    } finally {
-      setLoading(false)
-    }
-  }, [offset, symbolFilter, anomalyOnly])
+    executeAnomalies(`/anomalies?${params}`)
+  }, [executeAnomalies, offset, symbolFilter, anomalyOnly])
 
   useEffect(() => {
     fetchAnomalies()
   }, [fetchAnomalies])
-
   // Reset offset when filters change
   useEffect(() => {
     setOffset(0)
@@ -144,7 +128,7 @@ export function Anomalies() {
           )}
 
           {!loading && !error && data?.items.map((item) => {
-            const severity = (item as any).severity as string | undefined
+            const severity = item.severity
             const primarySignal = item.primary_signal || 'NORMAL'
             return (
               <button

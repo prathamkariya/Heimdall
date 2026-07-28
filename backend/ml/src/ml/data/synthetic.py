@@ -25,12 +25,12 @@ the critical-assessment sections in the notes exist to push back against.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
-from ml.config import PatternType, RANDOM_STATE
+from ml.config import RANDOM_STATE, PatternType
 
 
 @dataclass(frozen=True)

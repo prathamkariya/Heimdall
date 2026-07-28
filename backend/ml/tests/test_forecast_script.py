@@ -11,6 +11,7 @@ SCRIPT_PATH = Path(__file__).parent.parent / "scripts" / "forecast.py"
 
 import tempfile
 
+
 def run_script(args: list[str], timeout: int = 180) -> subprocess.CompletedProcess:
     """Run a script and capture output robustly via temp files to avoid Windows pipe limits/debugpy issues."""
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as out, tempfile.TemporaryFile(mode="w+", encoding="utf-8") as err:

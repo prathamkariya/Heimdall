@@ -1,17 +1,16 @@
 import numpy as np
 import pandas as pd
 import pytest
-from statsmodels.tsa.arima.model import ARIMA
-
 from ml.time_series.arima_prophet import (
-    fit_ar_model_scratch,
-    demonstrate_ma_process,
-    fit_arima_and_forecast,
-    grid_search_arima_order,
-    fit_prophet_and_forecast,
     changepoint_sensitivity_sweep,
+    demonstrate_ma_process,
+    fit_ar_model_scratch,
+    fit_arima_and_forecast,
+    fit_prophet_and_forecast,
     forecast_error_zscore_anomaly_signal,
+    grid_search_arima_order,
 )
+from statsmodels.tsa.arima.model import ARIMA
 
 
 def make_random_walk(random_state=150, n=500, drift=0.03):
@@ -110,13 +109,13 @@ class TestFitArimaAndForecast:
 class TestGridSearchArimaOrder:
     def test_returns_results_sorted_by_aic(self):
         series = make_random_walk(n=300)
-        result = grid_search_arima_order(series, p_range=range(0, 3), d_range=[1], q_range=range(0, 3))
+        result = grid_search_arima_order(series, p_range=range(3), d_range=[1], q_range=range(3))
         aics = result["aic"].values
         assert (aics[:-1] <= aics[1:]).all()
 
     def test_all_returned_orders_have_requested_d(self):
         series = make_random_walk(n=300)
-        result = grid_search_arima_order(series, p_range=range(0, 2), d_range=[1], q_range=range(0, 2))
+        result = grid_search_arima_order(series, p_range=range(2), d_range=[1], q_range=range(2))
         for order in result["order"]:
             assert order[1] == 1
 

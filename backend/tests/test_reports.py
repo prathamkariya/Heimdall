@@ -1,6 +1,6 @@
 """tests/test_reports.py — Tests for the MAR report generator endpoints."""
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 
 # ══════════════════════════════════════════════════════════════
 # MAR REPORT GENERATION (Phase 9 - Tests for IDOR & Edge cases)

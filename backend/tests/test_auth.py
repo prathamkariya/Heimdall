@@ -3,7 +3,6 @@ tests/test_auth.py — Basic authentication endpoint tests.
 
 Covers: registration, login, token validation, and protected route guards.
 """
-import pytest
 
 
 # ══════════════════════════════════════════════════════════════

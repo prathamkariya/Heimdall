@@ -56,7 +56,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 
 try:
@@ -65,13 +64,13 @@ try:
 except ImportError:
     HAS_MLFLOW = False
 
-from ml.config import PatternType, BASE_FEATURE_COLUMNS
+from ml.anomaly.isolation_forest import IsolationForestScratch
+from ml.config import BASE_FEATURE_COLUMNS, PatternType
 from ml.data.synthetic import (
-    generate_synthetic_market_data,
     chronological_train_test_split,
+    generate_synthetic_market_data,
 )
 from ml.detection.multi_pattern import MultiPatternDetector
-from ml.anomaly.isolation_forest import IsolationForestScratch
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _common import load_real_csv as _load_real_csv

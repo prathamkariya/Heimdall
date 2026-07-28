@@ -44,15 +44,16 @@ you can't check it directly.
 """
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
 import json
 from dataclasses import asdict
-from sklearn.metrics import roc_auc_score, confusion_matrix
 
-from ml.config import PatternType, BASE_FEATURE_COLUMNS, RANDOM_STATE
+import numpy as np
+import pandas as pd
+from sklearn.metrics import confusion_matrix, roc_auc_score
+
 from ml.anomaly.isolation_forest import IsolationForestScratch
 from ml.anomaly.local_outlier_factor import LocalOutlierFactorDetector
+from ml.config import BASE_FEATURE_COLUMNS, RANDOM_STATE, PatternType
 from ml.detection.multi_pattern import MultiPatternDetector
 from ml.types import EvidenceSignal
 
@@ -274,7 +275,7 @@ def weak_label_from_isolation_forest(
     weak_labels = pd.DataFrame(index=X.index)
     for pattern in prototypes:
         weak_labels[f"is_{pattern.value}"] = (
-            (attribution["attributed_pattern"] == pattern.value)
+            attribution["attributed_pattern"] == pattern.value
         ).astype(int)
     weak_labels["is_manipulation"] = flagged_mask.astype(int)
     weak_labels["attribution_confidence"] = attribution_conf

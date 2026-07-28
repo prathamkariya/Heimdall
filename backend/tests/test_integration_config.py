@@ -15,8 +15,6 @@ import re
 import threading
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -276,9 +274,9 @@ class TestModelRegistrySingletonRace:
         _registry is assigned before .load() is called, as the current
         code does.)
         """
-        import app.services.anomaly_service as anomaly_service
-        from ml.serving.model_registry import ModelRegistry
         import joblib
+        from app.services import anomaly_service
+        from ml.serving.model_registry import ModelRegistry
 
         joblib.dump(_DummyMultiPatternForRaceTest(), tmp_path / "multi_pattern_detector.joblib")
 

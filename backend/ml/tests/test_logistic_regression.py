@@ -1,15 +1,13 @@
 import numpy as np
-import pandas as pd
 import pytest
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-
 from ml.models.logistic_regression import (
     LogisticRegressionScratch,
-    threshold_sweep,
     best_threshold_by_f1,
     get_coefficient_importance,
+    threshold_sweep,
 )
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
 
 
 @pytest.fixture

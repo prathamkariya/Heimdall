@@ -1,16 +1,15 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from ml.time_series.stationarity import (
-    seasonal_decomposition_comparison,
-    diagnose_stationarity_violations,
     adf_test,
-    kpss_test,
     combined_stationarity_verdict,
-    difference_scratch,
     compute_acf_pacf,
     diagnose_ar_or_ma_signature,
+    diagnose_stationarity_violations,
+    difference_scratch,
+    kpss_test,
+    seasonal_decomposition_comparison,
 )
 
 

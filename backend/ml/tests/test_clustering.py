@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from ml.models.clustering import KMeansScratch, select_optimal_k
 
 

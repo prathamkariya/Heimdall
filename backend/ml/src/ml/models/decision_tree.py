@@ -82,7 +82,7 @@ class DecisionTreeClassifierScratch:
         self.min_samples_split = min_samples_split
         self.root: DecisionTreeNode | None = None
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "DecisionTreeClassifierScratch":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> DecisionTreeClassifierScratch:
         X = np.asarray(X)
         y = np.asarray(y)
         self.root = self._build_tree(X, y, depth=0)

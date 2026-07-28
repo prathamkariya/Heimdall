@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 import pandas as pd
-
 from ml.config import BASE_FEATURE_COLUMNS
 from ml.data.synthetic import compute_engineered_features
 

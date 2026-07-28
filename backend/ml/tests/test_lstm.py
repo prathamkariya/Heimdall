@@ -1,18 +1,17 @@
 import numpy as np
 import pytest
-
 from ml.time_series.lstm import (
-    sigmoid,
-    simple_rnn_step,
+    build_lstm_model,
+    create_multivariate_sequences,
+    create_sequences,
+    demonstrate_vanishing_gradient_comparison,
+    fit_lstm_forecaster,
     forget_gate,
     input_gate_and_candidate,
-    update_cell_state,
     output_gate_and_hidden_state,
-    demonstrate_vanishing_gradient_comparison,
-    create_sequences,
-    create_multivariate_sequences,
-    build_lstm_model,
-    fit_lstm_forecaster,
+    sigmoid,
+    simple_rnn_step,
+    update_cell_state,
 )
 
 

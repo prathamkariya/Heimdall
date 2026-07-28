@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.metrics import accuracy_score
-from sklearn.ensemble import RandomForestClassifier as SklearnRandomForest
-
-from ml.models.random_forest import bootstrap_sample, RandomForestScratch
 from ml.models.decision_tree import DecisionTreeClassifierScratch
+from ml.models.random_forest import RandomForestScratch, bootstrap_sample
+from sklearn.ensemble import RandomForestClassifier as SklearnRandomForest
+from sklearn.metrics import accuracy_score
 
 
 class TestBootstrapSample:

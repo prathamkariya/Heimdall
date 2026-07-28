@@ -1,6 +1,7 @@
 """tests/test_main.py — Tests for main application endpoints (like health)."""
 from unittest.mock import patch
 
+
 def test_health_check_db_ping(client):
     response = client.get("/health")
     assert response.status_code == 200

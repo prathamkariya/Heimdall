@@ -1,12 +1,10 @@
-import numpy as np
 import pandas as pd
 import pytest
-
-from ml.config import PatternType, BASE_FEATURE_COLUMNS
+from ml.config import BASE_FEATURE_COLUMNS, PatternType
 from ml.data.synthetic import (
-    generate_synthetic_market_data,
-    chronological_train_test_split,
     PatternInjectionConfig,
+    chronological_train_test_split,
+    generate_synthetic_market_data,
 )
 
 

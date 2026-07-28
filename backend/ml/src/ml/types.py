@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+
 
 @dataclass
 class EvidenceSignal:
@@ -15,4 +15,4 @@ class DetectionResult:
     detector_score: float
     detector_agreement: float
     source: str
-    evidence: List[EvidenceSignal]
+    evidence: list[EvidenceSignal]

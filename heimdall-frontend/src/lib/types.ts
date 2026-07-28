@@ -47,6 +47,7 @@ export interface AnomalyListItem {
   detection_result?: DetectionResult | null
   detector_agreement?: number | null
   weak_label_confidence?: number | null
+  severity?: string
 }
 
 export interface AnomalyPaginatedResponse {

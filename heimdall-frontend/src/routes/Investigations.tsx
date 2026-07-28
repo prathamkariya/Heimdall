@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { apiFetch } from '../lib/api'
+import { useApiFetch } from '../lib/hooks'
 import { Pagination } from '../components/Pagination'
 import { 
   FolderGit, 
@@ -57,53 +58,31 @@ interface Analyst {
 }
 
 export function Investigations() {
-  const [data, setData] = useState<CasePaginatedResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
+
+  const { data, loading, error, execute: executeCases } = useApiFetch<CasePaginatedResponse>()
+  const { data: currentUser, execute: executeCurrentUser } = useApiFetch<{ id: number; role: string }>()
+  const { data: analysts, execute: executeAnalysts } = useApiFetch<Analyst[]>()
 
   // Detail panel state
   const [selected, setSelected] = useState<Case | null>(null)
   const [notes, setNotes] = useState<CaseNote[]>([])
   const [events, setEvents] = useState<CaseEvent[]>([])
-  const [analysts, setAnalysts] = useState<Analyst[]>([])
   const [newNote, setNewNote] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
 
-  // Current user info (to check role for assignee control)
-  const [currentUser, setCurrentUser] = useState<{ id: number; role: string } | null>(null)
+  const fetchCurrentUser = useCallback(() => {
+    executeCurrentUser('/auth/me')
+  }, [executeCurrentUser])
 
-  const fetchCurrentUser = useCallback(async () => {
-    try {
-      const res = await apiFetch('/auth/me') as any
-      setCurrentUser(res)
-    } catch (err) {
-      console.error('Failed to fetch user context', err)
-    }
-  }, [])
+  const fetchCases = useCallback(() => {
+    executeCases(`/cases?limit=${PAGE_SIZE}&offset=${offset}`)
+  }, [executeCases, offset])
 
-  const fetchCases = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await apiFetch(`/cases?limit=${PAGE_SIZE}&offset=${offset}`) as CasePaginatedResponse
-      setData(res)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load cases')
-    } finally {
-      setLoading(false)
-    }
-  }, [offset])
-
-  const fetchAnalysts = useCallback(async () => {
-    try {
-      const res = await apiFetch('/cases/analysts') as Analyst[]
-      setAnalysts(res)
-    } catch (err) {
-      console.error('Failed to load analysts list', err)
-    }
-  }, [])
+  const fetchAnalysts = useCallback(() => {
+    executeAnalysts('/cases/analysts')
+  }, [executeAnalysts])
 
   const fetchDetailData = useCallback(async (caseId: number) => {
     setDetailLoading(true)
@@ -224,10 +203,11 @@ export function Investigations() {
     }
   }
 
-  const getAssigneeUsername = (userId: number | null) => {
-    if (!userId) return 'Unassigned'
-    const match = analysts.find(a => a.id === userId)
-    return match ? match.username : `User #${userId}`
+  const getAssigneeUsername = (id: number | null) => {
+    if (!id) return 'Unassigned'
+    if (!analysts) return 'Loading...'
+    const a = analysts.find(x => x.id === id)
+    return a ? a.username : `User ${id}`
   }
 
   return (
@@ -337,15 +317,25 @@ export function Investigations() {
               <h2 className="text-sm font-semibold text-ink leading-tight truncate max-w-[380px]">{selected.title}</h2>
             </div>
             <div className="flex items-center gap-3">
-              <a
-                href={`/api/v1/reports/mar/case/${selected.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-void transition-colors px-2.5 py-1 rounded font-mono text-[10px] uppercase flex items-center gap-1.5"
+              <button
+                onClick={async () => {
+                  try {
+                    const blob = await apiFetch(`/reports/mar/case/${selected.id}`) as Blob
+                    const url = window.URL.createObjectURL(blob)
+                    const a = document.createElement('a')
+                    a.href = url
+                    a.download = `mar-case-${selected.id}.md`
+                    a.click()
+                    window.URL.revokeObjectURL(url)
+                  } catch (err: any) {
+                    alert(err.message || 'Failed to generate MAR')
+                  }
+                }}
+                className="bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-void transition-colors px-2.5 py-1 rounded font-mono text-[10px] uppercase flex items-center gap-1.5 cursor-pointer"
                 title="Download Market Abuse Report (MAR) as Markdown"
               >
                 <FileText size={12} /> Gen MAR
-              </a>
+              </button>
               <button
                 onClick={() => setSelected(null)}
                 className="text-ink-faint hover:text-ink transition-colors cursor-pointer rounded-full p-1"
@@ -398,10 +388,8 @@ export function Investigations() {
                       className="bg-raised border border-line text-[11px] text-ink outline-none px-2 py-1 rounded w-full cursor-pointer"
                     >
                       <option value="">Unassigned</option>
-                      {analysts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.username}
-                        </option>
+                      {analysts?.map(a => (
+                        <option key={a.id} value={a.id}>{a.username}</option>
                       ))}
                     </select>
                   ) : (

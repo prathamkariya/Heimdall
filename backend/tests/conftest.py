@@ -17,15 +17,15 @@ testcontainers:
   - Requires Docker to be running
 """
 import pytest
+from app.config import settings
+from app.database import Base, get_db
+from app.limiter import limiter
+from app.main import app
+from app.services import anomaly_service
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base, get_db
-from app.main import app
-from app.config import settings
-import app.services.anomaly_service as anomaly_service
-from app.limiter import limiter
 limiter.enabled = False
 
 
@@ -239,13 +239,14 @@ def trained_models_for_tests(tmp_path_factory):
     detection tests need it to get a real score; other tests are
     unaffected by its presence.
     """
-    from ml.data.synthetic import generate_synthetic_market_data
-    from ml.detection.multi_pattern import MultiPatternDetector
-    from ml.anomaly.isolation_forest import IsolationForestScratch
-    from ml.config import BASE_FEATURE_COLUMNS
-    import joblib
     import json as json_module
     from datetime import datetime, timezone
+
+    import joblib
+    from ml.anomaly.isolation_forest import IsolationForestScratch
+    from ml.config import BASE_FEATURE_COLUMNS
+    from ml.data.synthetic import generate_synthetic_market_data
+    from ml.detection.multi_pattern import MultiPatternDetector
 
     model_dir = tmp_path_factory.mktemp("test_models")
     df = generate_synthetic_market_data(n_days=800, random_state=123)
@@ -280,8 +281,9 @@ def sample_market_data_with_history(client, auth_headers) -> dict:
     sample_market_data, but with enough trailing history for
     ml's rolling-window features to actually compute.
     """
-    import numpy as np
     from datetime import datetime, timedelta
+
+    import numpy as np
     rng = np.random.RandomState(7)
     n = 30
     close = 150 + np.cumsum(rng.normal(0, 1, n))

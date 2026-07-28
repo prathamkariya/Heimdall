@@ -1,8 +1,8 @@
-import os
 import json
-import joblib
 from pathlib import Path
-from typing import Optional
+
+import joblib
+
 
 class ModelLoadError(Exception):
     pass
@@ -65,7 +65,7 @@ class ModelRegistry:
         if errors:
             raise ModelLoadError("; ".join(errors))
 
-    def get_baseline(self, symbol: str) -> Optional[dict]:
+    def get_baseline(self, symbol: str) -> dict | None:
         """Return the per-symbol baseline stats dict or None if unknown.
 
         Returns None (not KeyError) for unrecognised symbols so callers can

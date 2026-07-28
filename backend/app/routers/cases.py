@@ -1,33 +1,32 @@
 from datetime import datetime, timezone
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import (
-    User,
     Anomaly,
-    MarketData,
     Case,
-    CaseStatus,
     CaseAnomaly,
+    CaseEvent,
     CaseNote,
-    CaseEvent
+    CaseStatus,
+    MarketData,
+    User,
 )
 from app.schemas import (
-    CaseCreate,
-    CaseUpdate,
     CaseAssign,
+    CaseCreate,
+    CaseEventResponse,
     CaseLinkAnomalies,
-    CaseResponse,
-    CasePaginatedResponse,
     CaseNoteCreate,
     CaseNoteResponse,
-    CaseEventResponse,
-    UserResponse
+    CasePaginatedResponse,
+    CaseResponse,
+    CaseUpdate,
+    UserResponse,
 )
 from app.services.case_service import record_case_event
 
@@ -35,6 +34,7 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 
 
 from app.auth_policy import verify_case_access
+
 
 def get_case_if_visible(db: Session, case_id: int, current_user: User) -> Case:
     """Helper to fetch a case and enforce visibility rules."""
@@ -130,7 +130,7 @@ def list_cases(
     )
 
 
-@router.get("/analysts", response_model=List[UserResponse])
+@router.get("/analysts", response_model=list[UserResponse])
 def list_analysts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -240,7 +240,7 @@ def add_case_note(
     return note
 
 
-@router.get("/{case_id}/notes", response_model=List[CaseNoteResponse])
+@router.get("/{case_id}/notes", response_model=list[CaseNoteResponse])
 def get_case_notes(
     case_id: int,
     db: Session = Depends(get_db),
@@ -251,7 +251,7 @@ def get_case_notes(
     return notes
 
 
-@router.get("/{case_id}/events", response_model=List[CaseEventResponse])
+@router.get("/{case_id}/events", response_model=list[CaseEventResponse])
 def get_case_events(
     case_id: int,
     db: Session = Depends(get_db),

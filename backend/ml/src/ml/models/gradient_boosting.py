@@ -36,7 +36,7 @@ class GradientBoostingScratch:
     def _sigmoid(self, z: np.ndarray) -> np.ndarray:
         return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "GradientBoostingScratch":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> GradientBoostingScratch:
         X = np.asarray(X)
         y = np.asarray(y)
 

@@ -1,8 +1,8 @@
-import pytest
+from app.models import Anomaly, CaseStatus, MarketData, User
+from app.services.auth_service import create_access_token, hash_password
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from app.models import User, MarketData, Anomaly, Case, CaseStatus, CaseEvent
-from app.services.auth_service import create_access_token, hash_password
+
 
 def test_case_creation_and_visibility(client: TestClient, db_session: Session, auth_headers: dict, registered_user: dict):
     test_user = db_session.query(User).filter(User.id == registered_user["id"]).first()

@@ -24,7 +24,6 @@ FEATURES NORMALIZED: `return` and `volatility_20d` only.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,9 +37,9 @@ _SRC = _HERE / ".." / "src"
 sys.path.insert(0, str(_SRC.resolve()))
 sys.path.insert(0, str(_HERE.resolve()))
 
-from ml.config import BASE_FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION
 from ml.anomaly.isolation_forest import IsolationForestScratch
 from ml.anomaly.local_outlier_factor import LocalOutlierFactorDetector
+from ml.config import BASE_FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION
 
 ROLLING_WINDOW = 60
 MIN_PERIODS = 20

@@ -7,11 +7,12 @@ is present in the feature matrix passed to model.fit().
 These tests follow TDD: they define the CONTRACT that must hold forever,
 not the implementation detail of how the guard works.
 """
-import sys
 import os
-import pytest
-import pandas as pd
+import sys
+
 import numpy as np
+import pandas as pd
+import pytest
 
 # Make sure the ML src is on the path
 _HERE = os.path.dirname(os.path.abspath(__file__))

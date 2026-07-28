@@ -1,14 +1,13 @@
 """app/routers/alerts.py — Alert management endpoints."""
 import logging
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth_policy import verify_ownership
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.auth_policy import verify_ownership
 from app.models import Alert, Anomaly, MarketData, User
 from app.schemas import AlertCreate, AlertResponse, AlertUpdate
 
@@ -46,7 +45,7 @@ def create_alert(
     return alert
 
 
-@router.get("", response_model=List[AlertResponse])
+@router.get("", response_model=list[AlertResponse])
 def list_alerts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -109,16 +108,16 @@ def delete_alert(
     verify_ownership(alert, current_user)
     db.delete(alert)
     db.commit()
-    return None
 
 
 # ──────────────────────────────────────────────
 # Streaming Endpoint (Phase 8)
 # ──────────────────────────────────────────────
-from fastapi.responses import StreamingResponse
-from fastapi import Query
 import asyncio
 import json
+
+from fastapi import Query
+from fastapi.responses import StreamingResponse
 
 
 @router.get("/stream/live")
@@ -139,10 +138,12 @@ async def stream_live_alerts(
     or removes a symbol from their watchlist while connected, they will not see
     the change until they disconnect and reconnect.
     """
-    from jose import JWTError, jwt as jose_jwt
-    from app.models import Watchlist, WatchlistSymbol
-    from app.services.redis_service import get_async_redis, STREAM_ALERTS
+    from jose import JWTError
+    from jose import jwt as jose_jwt
+
     from app.database import SessionLocal
+    from app.models import Watchlist, WatchlistSymbol
+    from app.services.redis_service import STREAM_ALERTS, get_async_redis
 
     # B1: Validate SSE-scoped token — reject regular access tokens
     try:

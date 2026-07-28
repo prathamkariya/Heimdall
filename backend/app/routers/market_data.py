@@ -1,14 +1,13 @@
 """app/routers/market_data.py — OHLCV market data endpoints."""
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth_policy import verify_ownership
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.auth_policy import verify_ownership
 from app.models import MarketData, User
 from app.schemas import MarketDataCreate, MarketDataResponse
 
@@ -60,7 +59,7 @@ def create_market_data(
     return record
 
 
-@router.get("", response_model=List[MarketDataResponse])
+@router.get("", response_model=list[MarketDataResponse])
 def list_market_data(
     symbol: str | None = None,
     limit: int = 100,
@@ -117,4 +116,3 @@ def delete_market_data(
     verify_ownership(record, current_user)
     db.delete(record)
     db.commit()
-    return None

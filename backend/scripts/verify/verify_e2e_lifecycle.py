@@ -47,15 +47,13 @@ import time
 
 sys.path.insert(0, ".")
 
-from sqlalchemy.orm import Session
-
 from app.database import SessionLocal
-from app.models import User, MarketData, Anomaly, Watchlist, WatchlistSymbol
-from app.services.anomaly_service import score_live_trade, get_model_registry
-from app.services.redis_service import get_async_redis, STREAM_ALERTS
+from app.models import Anomaly, MarketData, User, Watchlist, WatchlistSymbol
+from app.services.anomaly_service import get_model_registry, score_live_trade
 from app.services.auth_service import hash_password
 from app.services.mar_generator import generate_mar
-
+from app.services.redis_service import STREAM_ALERTS, get_async_redis
+from sqlalchemy.orm import Session
 
 TEST_SYMBOL = "BTCUSDT"
 TEST_MARKET = "CRYPTO"
@@ -135,7 +133,7 @@ def step_1_score_real_trade(db: Session):
 
 def step_2_persist_and_check_db(db: Session, trade: dict, alert: dict):
     print("\n=== STEP 2: Persist via the same path run_engine.py uses, check the real DB row ===")
-    from scripts.run_engine import persist_alert_to_db, _get_or_create_system_user
+    from scripts.run_engine import _get_or_create_system_user, persist_alert_to_db
 
     user = _get_or_create_system_user(db)
     print(f"  system user id: {user.id}")
@@ -191,7 +189,6 @@ async def step_3_redis_publish_and_readback(alert: dict):
 
 async def step_4_sse_delivers_to_authenticated_watchlisted_user(db: Session):
     print("\n=== STEP 4: SSE endpoint delivers the alert to a real, authenticated, watchlisted user ===")
-    from app.routers.auth import get_sse_token
 
     test_user = db.query(User).filter(User.email == "e2e_test@example.com").first()
     if not test_user:

@@ -24,10 +24,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
-from typing import Optional
-
 import sys
+import time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from app.schemas.streaming import SentimentSource, UnifiedSentimentEvent
@@ -70,7 +69,7 @@ def _simple_sentiment(text: str) -> float:
     return round((pos - neg) / total, 3)
 
 
-def _extract_symbol(text: str) -> Optional[str]:
+def _extract_symbol(text: str) -> str | None:
     """Return the first watched symbol mentioned in text, or None."""
     text_upper = text.upper()
     for sym in WATCH_SYMBOLS:

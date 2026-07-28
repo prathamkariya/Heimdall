@@ -1,16 +1,13 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import RefreshToken, User
-
-import bcrypt
 
 # ──────────────────────────────────────────────
 # Password hashing
@@ -50,7 +47,7 @@ def create_access_token(user_id: int, email: str) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+def decode_access_token(token: str) -> dict | None:
     """
     Decode and verify a JWT access token.
     Returns the payload dict or None if invalid/expired.
@@ -98,7 +95,7 @@ def create_refresh_token(db: Session, user_id: int) -> str:
     return raw_token
 
 
-def rotate_refresh_token(db: Session, raw_token: str) -> Optional[tuple[str, str]]:
+def rotate_refresh_token(db: Session, raw_token: str) -> tuple[str, str] | None:
     """
     Validate a refresh token, revoke it, issue a new pair.
 
@@ -163,7 +160,7 @@ def revoke_all_user_tokens(db: Session, user_id: int) -> int:
     """
     tokens = db.query(RefreshToken).filter(
         RefreshToken.user_id == user_id,
-        RefreshToken.revoked == False,  # noqa: E712
+        RefreshToken.revoked == False,
     ).all()
 
     count = 0
@@ -178,15 +175,15 @@ def revoke_all_user_tokens(db: Session, user_id: int) -> int:
 # ──────────────────────────────────────────────
 # User lookup helpers
 # ──────────────────────────────────────────────
-def get_user_by_email(db: Session, email: str) -> Optional[User]:
+def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
 
 
-def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
+def get_user_by_id(db: Session, user_id: int) -> User | None:
     return db.query(User).filter(User.id == user_id).first()
 
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
+def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Verify credentials. Returns User if valid, None otherwise."""
     user = get_user_by_email(db, email)
     if user is None:

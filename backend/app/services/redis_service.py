@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Optional
 
 import redis
 import redis.asyncio as aioredis
@@ -41,7 +40,7 @@ STREAM_ALERTS: str = "live_alerts"
 STREAM_MAXLEN: int = 50_000
 
 # ── Singleton async connection pool ──────────────────────────────────────────
-_async_pool: Optional[ConnectionPool] = None
+_async_pool: ConnectionPool | None = None
 
 
 def _get_async_pool() -> ConnectionPool:

@@ -1,13 +1,11 @@
 import numpy as np
 import pytest
-from sklearn.metrics import accuracy_score
-
 from ml.models.decision_tree import (
+    DecisionTreeClassifierScratch,
     entropy,
     information_gain,
-    DecisionTreeNode,
-    DecisionTreeClassifierScratch,
 )
+from sklearn.metrics import accuracy_score
 
 
 class TestEntropy:

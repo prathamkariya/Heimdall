@@ -8,7 +8,6 @@ Tests for Phase 2 JWT refresh token functionality:
 - /auth/logout-all revokes all tokens for a user
 - Invalid/revoked/expired tokens are rejected
 """
-import pytest
 
 
 class TestLoginTokenPair:

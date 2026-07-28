@@ -1,13 +1,13 @@
 """app/routers/anomaly.py — Anomaly detection endpoints."""
-from typing import Optional
+
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User, Anomaly, MarketData
-from app.schemas import AnomalyDetectRequest, AnomalyResponse, AnomalyPaginatedResponse
+from app.models import Anomaly, MarketData, User
+from app.schemas import AnomalyDetectRequest, AnomalyPaginatedResponse, AnomalyResponse
 from app.services.anomaly_service import detect_anomaly
 
 router = APIRouter(prefix="/anomalies", tags=["anomalies"])
@@ -17,8 +17,8 @@ router = APIRouter(prefix="/anomalies", tags=["anomalies"])
 def list_anomalies(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    symbol: Optional[str] = Query(None, description="Filter by symbol"),
-    is_anomaly: Optional[bool] = Query(None, description="Filter by anomaly status"),
+    symbol: str | None = Query(None, description="Filter by symbol"),
+    is_anomaly: bool | None = Query(None, description="Filter by anomaly status"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -71,8 +71,10 @@ def list_anomalies(
         try:
             import json
             import logging
-            from app.schemas import EvidenceSignalSchema, DetectionResultSchema
+
             from ml.explainability import generate_evidence_signals
+
+            from app.schemas import DetectionResultSchema, EvidenceSignalSchema
 
             raw_features = json.loads(anomaly.features) if anomaly.features else {}
             pattern_scores = json.loads(anomaly.pattern_scores) if anomaly.pattern_scores else {}
@@ -84,16 +86,10 @@ def list_anomalies(
             )
             evidence_signals = [EvidenceSignalSchema(**sig) for sig in raw_dicts]
 
-            # detector_agreement approximation from stored scores
-            da = None
-            if anomaly.isolation_forest_score is not None and anomaly.multi_pattern_max_score is not None:
-                if anomaly.isolation_forest_score >= 0.6 and anomaly.multi_pattern_max_score >= 0.6:
-                    da = 1.0
-                    evidence_signals.append(EvidenceSignalSchema(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
-                else:
-                    da = 0.5
-            elif anomaly.isolation_forest_score is not None or anomaly.multi_pattern_max_score is not None:
-                da = 0.5
+            from app.models import check_detector_agreement
+            da = check_detector_agreement(anomaly.isolation_forest_score, anomaly.multi_pattern_max_score)
+            if da == 1.0:
+                evidence_signals.append(EvidenceSignalSchema(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
 
             # weak_label_confidence from pattern score distribution
             wlc = None

@@ -13,8 +13,8 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-from statsmodels.tsa.seasonal import seasonal_decompose, DecomposeResult
-from statsmodels.tsa.stattools import adfuller, kpss, acf, pacf
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.stattools import acf, adfuller, kpss, pacf
 
 
 def seasonal_decomposition_comparison(
@@ -112,6 +112,7 @@ def kpss_test(series: pd.Series) -> StationarityTestResult:
     reading direction from ADF -- easy to get backwards).
     """
     import warnings
+
     from statsmodels.tools.sm_exceptions import InterpolationWarning
 
     with warnings.catch_warnings():

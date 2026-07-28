@@ -1,16 +1,14 @@
 import numpy as np
-import pandas as pd
 import pytest
-
 from ml.anomaly.isolation_forest import (
-    IsolationTreeNode,
-    build_isolation_tree,
-    path_length,
-    anomaly_score_formula,
-    _average_path_length_of_unsuccessful_search,
     IsolationForestScratch,
-    contamination_sensitivity_sweep,
+    IsolationTreeNode,
+    _average_path_length_of_unsuccessful_search,
+    anomaly_score_formula,
+    build_isolation_tree,
     compare_isolation_forest_and_lof,
+    contamination_sensitivity_sweep,
+    path_length,
     per_pattern_detection_rate_under_single_contamination,
 )
 

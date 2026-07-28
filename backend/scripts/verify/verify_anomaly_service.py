@@ -14,7 +14,6 @@ Run from the repo root:
     python scripts/verification/verify_anomaly_service.py
 """
 import json
-import os
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -23,22 +22,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-import numpy as np
 import joblib
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from fastapi import HTTPException
-
-from app.database import Base
-from app.models import User, MarketData
-import app.services.anomaly_service as anomaly_service
-from app.services.auth_service import hash_password
+import numpy as np
 from app.config import settings as app_settings
-
-from ml.data.synthetic import generate_synthetic_market_data
-from ml.detection.multi_pattern import MultiPatternDetector
+from app.database import Base
+from app.models import MarketData, User
+from app.services import anomaly_service
+from app.services.auth_service import hash_password
+from fastapi import HTTPException
 from ml.anomaly.isolation_forest import IsolationForestScratch
 from ml.config import BASE_FEATURE_COLUMNS
+from ml.data.synthetic import generate_synthetic_market_data
+from ml.detection.multi_pattern import MultiPatternDetector
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 results = {"passed": 0, "failed": 0}
 

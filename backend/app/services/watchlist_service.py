@@ -1,14 +1,11 @@
-from typing import List, Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Watchlist, WatchlistSymbol
+from app.auth_policy import verify_ownership
+from app.models import User, Watchlist, WatchlistSymbol
 from app.schemas import WatchlistCreate, WatchlistSymbolAdd, WatchlistUpdate
 
-
-from app.auth_policy import verify_ownership
-from app.models import User
 
 # ──────────────────────────────────────────────
 # Private helpers
@@ -72,7 +69,7 @@ def get_watchlist(db: Session, watchlist_id: int, current_user: User) -> Watchli
     return _get_watchlist_or_404(db, watchlist_id, current_user)
 
 
-def list_watchlists(db: Session, user_id: int) -> List[Watchlist]:
+def list_watchlists(db: Session, user_id: int) -> list[Watchlist]:
     """
     List all watchlists for a user.
     Uses selectinload to avoid N+1 when rendering symbol counts.

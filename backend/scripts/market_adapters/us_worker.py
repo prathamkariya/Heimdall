@@ -22,13 +22,11 @@ import asyncio
 import json
 import logging
 import os
-import time
-from typing import Optional
+import sys
 
 import websockets
 from alpaca.data.live import StockDataStream
 
-import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from app.schemas.streaming import Market, UnifiedTradeEvent

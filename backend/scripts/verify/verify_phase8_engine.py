@@ -20,7 +20,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from app.schemas.streaming import Market, UnifiedTradeEvent
-from app.services.redis_service import publish_trade_sync, get_async_redis
+from app.services.redis_service import get_async_redis, publish_trade_sync
 
 STREAM_ALERTS = "live_alerts"
 

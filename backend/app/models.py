@@ -1,7 +1,17 @@
 from datetime import datetime, timezone
+
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, ForeignKey,
-    Index, Integer, Numeric, String, Text, UniqueConstraint,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -111,6 +121,17 @@ class Anomaly(Base):
     def severity(self) -> str:
         from app.services.severity import severity_for_score
         return severity_for_score(self.anomaly_score)
+
+
+def check_detector_agreement(isolation_forest_score: float | None, multi_pattern_max_score: float | None) -> float | None:
+    """Returns the detector agreement score based on isolation forest and multi-pattern scores."""
+    if isolation_forest_score is not None and multi_pattern_max_score is not None:
+        if isolation_forest_score >= 0.6 and multi_pattern_max_score >= 0.6:
+            return 1.0
+        return 0.5
+    elif isolation_forest_score is not None or multi_pattern_max_score is not None:
+        return 0.5
+    return None
 
 
 # ══════════════════════════════════════════════════════════════

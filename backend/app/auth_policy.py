@@ -1,9 +1,13 @@
-from typing import List, Callable, Any
-from fastapi import Depends, HTTPException, status
-from app.models import User
-from app.dependencies import get_current_user
+from collections.abc import Callable
+from typing import Any
 
-def require_role(allowed_roles: List[str]) -> Callable:
+from fastapi import Depends, HTTPException, status
+
+from app.dependencies import get_current_user
+from app.models import User
+
+
+def require_role(allowed_roles: list[str]) -> Callable:
     """
     Returns a FastAPI dependency that verifies the current user has one of the allowed roles.
     """

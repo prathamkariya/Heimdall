@@ -377,9 +377,8 @@ def detect_anomaly(
         zscored_features = norm_features
         
         # Explicit assertion: volume_ratio_20d should NEVER be transformed by _apply_zscores
-        assert raw_features["volume_ratio_20d"] == zscored_features["volume_ratio_20d"], (
-            "volume_ratio_20d was modified by z-score transformation! This feature must remain raw."
-        )
+        if raw_features["volume_ratio_20d"] != zscored_features["volume_ratio_20d"]:
+            raise ValueError("volume_ratio_20d was modified by z-score transformation! This feature must remain raw.")
 
     isolation_forest_score = None
     multi_pattern_max_score = None
@@ -538,9 +537,8 @@ def score_live_trade(
         zscored_features = norm_features
         
         # Explicit assertion: volume_ratio_20d should NEVER be transformed by _apply_zscores
-        assert raw_features["volume_ratio_20d"] == zscored_features["volume_ratio_20d"], (
-            "volume_ratio_20d was modified by z-score transformation! This feature must remain raw."
-        )
+        if raw_features["volume_ratio_20d"] != zscored_features["volume_ratio_20d"]:
+            raise ValueError("volume_ratio_20d was modified by z-score transformation! This feature must remain raw.")
 
     isolation_forest_score = None
     multi_pattern_max_score = None

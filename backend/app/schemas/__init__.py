@@ -167,8 +167,9 @@ class AnomalyResponse(OrmBase):
                         max_val = val
                         max_pattern = pat.upper().replace('_', ' ')
                 return max_pattern
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Failed to parse pattern_scores: %s", e)
 
         if self.anomaly_score >= 0.5:
             return "UNCLASSIFIED"

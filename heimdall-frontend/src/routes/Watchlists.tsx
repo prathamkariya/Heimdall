@@ -34,7 +34,7 @@ export function Watchlists() {
   const { data: watchlistsData, loading, error: listError, execute: executeList } = useApiFetch<WatchlistListItem[]>()
   const watchlists = watchlistsData || []
   
-  const { data: selected, error: detailError, execute: executeDetail } = useApiFetch<Watchlist>()
+  const { data: selected, error: detailError, execute: executeDetail, reset: resetDetail } = useApiFetch<Watchlist>()
   const error = listError || detailError
 
   // Create form
@@ -83,10 +83,7 @@ export function Watchlists() {
     try {
       await apiFetch(`/watchlists/${id}`, { method: 'DELETE' })
       if (selected?.id === id) {
-        // We can't directly mutate 'selected' from useApiFetch unless we re-fetch with a 404
-        // or add a reset mechanism. We can re-fetch list and if it's the selected one, maybe just let the user see it disappear.
-        // Wait, useApiFetch has a `reset()` method we can use, but we didn't extract it. 
-        // We'll just ignore for now or we can reload the page. Actually, the easiest is to just re-fetch list.
+        resetDetail()
       }
       await fetchList()
     } catch (err: any) {

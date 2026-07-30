@@ -282,8 +282,10 @@ class TestAlertOwnership:
 # SSE STREAMING ALERTS (Phase 8)
 # --------------------------------------------------------------
 class TestSSELiveAlerts:
+    @patch("app.database.SessionLocal")
     @patch("app.services.redis_service.get_async_redis")
-    def test_stream_live_alerts_requires_valid_sse_token(self, mock_get_redis, client, auth_headers):
+    def test_stream_live_alerts_requires_valid_sse_token(self, mock_get_redis, mock_session_local, client, auth_headers, db_session):
+        mock_session_local.return_value = db_session
         # Mock Redis to just return an empty list immediately so the loop runs fast
         import asyncio
         class MockRedis:

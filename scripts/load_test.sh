@@ -3,7 +3,7 @@
 # Target: 10,000+ ticks/sec
 # Usage: ./load_test.sh <endpoint_url> <jwt_token>
 
-ENDPOINT=${1:-"http://localhost:8000/api/v1/market_data"}
+ENDPOINT=${1:-"http://localhost:8000/api/v1/market-data"}
 TOKEN=$2
 
 if [ -z "$TOKEN" ]; then

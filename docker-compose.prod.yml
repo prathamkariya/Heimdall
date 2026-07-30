@@ -37,12 +37,10 @@ services:
 
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
     restart: always
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD?Error: REDIS_PASSWORD must be provided}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       retries: 5
 
@@ -52,8 +50,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD must be explicitly provided in the environment}
       POSTGRES_DB: market_surveillance
-    ports:
-      - "5432:5432"
     volumes:
       - prod_postgres_data:/var/lib/postgresql/data
     restart: always

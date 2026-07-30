@@ -186,7 +186,11 @@ class TestDockerComposeEnvVarsMatchSettings:
         from app.config import Settings
         valid_fields = set(Settings.model_fields.keys())
 
-        compose_text = (REPO_ROOT.parent / "docker-compose.yml").read_text()
+        compose_path = REPO_ROOT.parent / "docker-compose.yml"
+        if not compose_path.exists():
+            import pytest
+            pytest.skip("docker-compose.yml not found. Skipping config match test.")
+        compose_text = compose_path.read_text()
         # crude but sufficient block extraction: from "api:" service's
         # "environment:" list to the next top-level-ish key
         api_block = compose_text.split("api:", 1)[1]

@@ -39,8 +39,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
       - POSTGRES_HOST=db
       - SECRET_KEY=${SECRET_KEY}
-      - MODEL_DIR=/app/trained_models
+      - MODEL_DIR=/models
       - REDIS_URL=redis://redis:6379/0
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -48,6 +49,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./trained_models:/models:ro
 
   # ── ML Engine (consumes trades, scores anomalies) ──
   engine:
@@ -60,7 +62,8 @@ services:
       - POSTGRES_HOST=db
       - SECRET_KEY=${SECRET_KEY}
       - REDIS_URL=redis://redis:6379/0
-      - MODEL_DIR=/app/trained_models
+      - MODEL_DIR=/models
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -68,6 +71,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./trained_models:/models:ro
     restart: unless-stopped
 
   # ── Market Adapters (ingest trades into Redis) ──

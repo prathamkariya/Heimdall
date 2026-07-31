@@ -149,14 +149,15 @@ def train_synthetic(args: argparse.Namespace) -> None:
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-        mlflow.log_params({
-            "mode": "synthetic",
-            "n_days": args.n_days,
-            "random_state": args.random_state,
-            "test_size": args.test_size,
-            "n_train": len(train_df),
-            "n_test": len(test_df),
-        })
+        if use_mlflow:
+            mlflow.log_params({
+                "mode": "synthetic",
+                "n_days": args.n_days,
+                "random_state": args.random_state,
+                "test_size": args.test_size,
+                "n_train": len(train_df),
+                "n_test": len(test_df),
+            })
         if use_mlflow and run_ctx:
             mlflow.log_artifact(str(dataset_path), "datasets")
 
@@ -220,15 +221,16 @@ def train_real_supervised(args: argparse.Namespace) -> None:
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-        mlflow.log_params({
-            "mode": "real-supervised",
-            "data_source": args.csv,
-            "random_state": args.random_state,
-            "test_size": args.test_size,
-            "patterns": [p.value for p in patterns],
-            "n_train": len(train_df),
-            "n_test": len(test_df),
-        })
+        if use_mlflow:
+            mlflow.log_params({
+                "mode": "real-supervised",
+                "data_source": args.csv,
+                "random_state": args.random_state,
+                "test_size": args.test_size,
+                "patterns": [p.value for p in patterns],
+                "n_train": len(train_df),
+                "n_test": len(test_df),
+            })
 
         detector = MultiPatternDetector(patterns=patterns, random_state=args.random_state)
         print("\nTraining MultiPatternDetector on real data...")
@@ -280,14 +282,15 @@ def train_real_unsupervised(args: argparse.Namespace) -> None:
     try:
         if use_mlflow and run_ctx:
             run_ctx.__enter__()
-        mlflow.log_params({
-            "mode": "real-unsupervised",
-            "data_source": args.csv,
-            "contamination": args.contamination,
-            "n_estimators": args.n_estimators,
-            "random_state": args.random_state,
-            "n_rows": len(df),
-        })
+        if use_mlflow:
+            mlflow.log_params({
+                "mode": "real-unsupervised",
+                "data_source": args.csv,
+                "contamination": args.contamination,
+                "n_estimators": args.n_estimators,
+                "random_state": args.random_state,
+                "n_rows": len(df),
+            })
 
         print(f"Training IsolationForestScratch on {len(df)} real days (contamination={args.contamination})...")
         model = IsolationForestScratch(

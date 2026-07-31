@@ -49,8 +49,6 @@ htmlcov/
 .continue
 
 heimdall-plan
-.github
-
 # MLflow tracking artifacts
 mlruns/
 mlartifacts/

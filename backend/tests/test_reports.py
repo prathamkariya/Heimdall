@@ -38,6 +38,7 @@ class TestMarReports:
         assert response.status_code == 403
         assert "permission to access this case" in response.json()["detail"].lower()
 
+    @patch.dict("os.environ", {"GEMINI_API_KEY": "test_key"})
     @patch("app.services.mar_generator.genai.Client")
     def test_mar_report_creator_is_allowed(self, mock_client, client, auth_headers, db_session):
         from app.models import Case, User

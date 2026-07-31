@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useApiFetch } from '../lib/hooks'
 import { Pagination } from '../components/Pagination'
@@ -58,6 +59,7 @@ interface Analyst {
 }
 
 export function Investigations() {
+  const navigate = useNavigate()
   const [offset, setOffset] = useState(0)
 
   const { data, loading, error, execute: executeCases } = useApiFetch<CasePaginatedResponse>()
@@ -430,7 +432,7 @@ export function Investigations() {
                         href={`/anomalies?id=${id}`}
                         onClick={(e) => {
                           e.preventDefault()
-                          window.location.href = `/anomalies?id=${id}`
+                          navigate(`/anomalies?id=${id}`)
                         }}
                         className="text-accent hover:underline flex items-center gap-0.5"
                       >

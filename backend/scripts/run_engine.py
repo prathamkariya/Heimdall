@@ -22,6 +22,8 @@ import sys
 import time
 from socket import gethostname
 
+import redis
+
 # Ensure repo root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

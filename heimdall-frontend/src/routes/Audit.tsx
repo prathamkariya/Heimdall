@@ -127,9 +127,14 @@ export function Audit() {
             <FileText size={16} className="text-ink-dim" />
             Audit & Reports
           </h1>
-          <p className="text-[10px] font-mono text-ink-faint mt-1">
-            Historical investigation archive and Market Abuse Reports (MAR)
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-[10px] font-mono text-ink-faint">
+              Historical investigation archive and Market Abuse Reports (MAR)
+            </p>
+            <span className="font-mono text-[10px] text-ink-faint border-l border-line pl-3">
+              {totalCases || 0} RECORD{totalCases !== 1 && 'S'}
+            </span>
+          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -147,14 +152,14 @@ export function Audit() {
       </header>
 
       {/* Column Headers */}
-      <div className="grid grid-cols-[80px_1.5fr_100px_80px_90px_120px_120px_100px] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-        <span>Case ID</span>
-        <span>Case Title</span>
-        <span>Final Status</span>
-        <span>Risk</span>
-        <span>Duration</span>
-        <span>Closed Date</span>
-        <span>Closing Analyst</span>
+      <div className="grid grid-cols-[80px_1.5fr_100px_80px_90px_120px_120px_100px] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Case ID <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Case Title <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Final Status <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Risk <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Duration <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Closed Date <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Closing Analyst <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
         <span className="text-right">Actions</span>
       </div>
 
@@ -178,8 +183,8 @@ export function Audit() {
 
         {!loading && totalCases === 0 && (
           <EmptyState 
-            title="No Historical Cases"
-            description="There are no closed or dismissed cases matching your query."
+            title="Awaiting archival data"
+            description="No historical or dismissed cases match your current filters."
             icon="database"
           />
         )}
@@ -191,7 +196,11 @@ export function Audit() {
               key={c.id}
               onClick={() => setSelectedCaseId(c.id)}
               className={`cursor-pointer grid w-full grid-cols-[80px_1.5fr_100px_80px_90px_120px_120px_100px] items-center gap-x-4 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-all hover:bg-raised/60 ${
-                isFocused || selectedCaseId === c.id ? 'bg-raised/30 border-l-2 border-l-ink-dim/50' : 'border-l-2 border-l-transparent'
+                selectedCaseId === c.id 
+                  ? 'bg-selected border-l-2 border-l-accent' 
+                  : isFocused 
+                    ? 'bg-raised/30 border-l-2 border-l-line' 
+                    : 'border-l-2 border-l-transparent'
               }`}
             >
               <span className="text-ink-faint tabular">#{c.id}</span>

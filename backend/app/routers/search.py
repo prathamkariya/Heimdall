@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User, Anomaly, Case
+from app.models import User, Anomaly, Case, MarketData
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -19,14 +19,14 @@ def global_search(
     
     query_str = f"%{q}%"
     
-    # Search Anomalies (by ID if numeric, otherwise by symbol or signal)
+    # Search Anomalies (by ID if numeric, otherwise by symbol or pattern_scores)
     anomaly_filter = []
     if q.isdigit():
         anomaly_filter.append(Anomaly.id == int(q))
-    anomaly_filter.append(Anomaly.symbol.ilike(query_str))
-    anomaly_filter.append(Anomaly.primary_signal.ilike(query_str))
+    anomaly_filter.append(MarketData.symbol.ilike(query_str))
+    anomaly_filter.append(Anomaly.pattern_scores.ilike(query_str))
     
-    anomalies = db.query(Anomaly).filter(or_(*anomaly_filter)).limit(limit).all()
+    anomalies = db.query(Anomaly).join(MarketData).filter(or_(*anomaly_filter)).limit(limit).all()
     
     # Search Cases
     case_filter = []
@@ -40,12 +40,25 @@ def global_search(
     results = []
     
     for a in anomalies:
+        primary_signal = "ANOMALY"
+        if a.pattern_scores:
+            import json
+            try:
+                parsed = json.loads(a.pattern_scores)
+                max_val = 0.0
+                for pat, val in parsed.items():
+                    if val > max_val and val >= 0.5:
+                        max_val = val
+                        primary_signal = pat.upper().replace('_', ' ')
+            except Exception:
+                pass
+
         results.append({
             "id": f"anomaly-{a.id}",
             "entity_id": a.id,
             "type": "anomaly",
-            "title": f"Anomaly #{a.id} ({a.symbol})",
-            "subtitle": f"{a.primary_signal} (Score: {a.score})",
+            "title": f"Anomaly #{a.id} ({a.market_data.symbol})",
+            "subtitle": f"{primary_signal} (Score: {a.anomaly_score:.2f})",
             "route": f"/anomalies?selected={a.id}"
         })
         

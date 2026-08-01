@@ -6,8 +6,8 @@ import { useSettings } from '../lib/SettingsContext'
 import { formatDate } from '../lib/utils'
 import { getStatusBadgeClass, getAssigneeUsername, getAllowedTransitions } from '../lib/caseUtils'
 import { Skeleton } from './Skeleton'
-import { CollapsibleSection } from './CollapsibleSection'
 import { AnomalyChart } from './AnomalyDetail'
+import { CollapsibleSection } from './CollapsibleSection'
 import type { Case, CaseEvent, CaseNote, Analyst, AnomalyListItem } from '../lib/types'
 
 interface CorrelatedAlertsProps {
@@ -264,13 +264,6 @@ export function CaseWorkspace({
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleGenerateMAR}
-            className="bg-accent/10 text-accent border border-accent/20 hover:bg-accent hover:text-void transition-colors px-2.5 py-1 rounded font-mono text-[10px] uppercase flex items-center gap-1.5 cursor-pointer"
-            title="Download Market Abuse Report (MAR) as Markdown"
-          >
-            <FileText size={12} /> Gen MAR
-          </button>
-          <button
             onClick={onClose}
             className="text-ink-faint hover:text-ink transition-colors cursor-pointer rounded-full p-1"
           >
@@ -281,6 +274,34 @@ export function CaseWorkspace({
 
       <div className="flex-1 overflow-y-auto bg-surface flex flex-col">
           
+        {/* Quick Action Toolbar */}
+        <div className="flex items-center gap-2 px-6 py-3 border-b border-line bg-void/40">
+          <button
+            onClick={handleGenerateMAR}
+            className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer transition-colors flex items-center gap-1.5"
+          >
+            <FileText size={12} /> GENERATE REPORT
+          </button>
+          
+          {selected.status === 'OPEN' && (
+            <button
+              onClick={() => handleStatusChange('IN_REVIEW')}
+              className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer transition-colors"
+            >
+              START REVIEW
+            </button>
+          )}
+          
+          {selected.status === 'IN_REVIEW' && (
+            <button
+              onClick={() => handleStatusChange('CLOSED')}
+              className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer transition-colors"
+            >
+              RESOLVE/CLOSE
+            </button>
+          )}
+        </div>
+
         {/* Main Workspace Area */}
         <div className="flex flex-col overflow-hidden h-full">
           {/* Tabs Navigation */}
@@ -300,17 +321,15 @@ export function CaseWorkspace({
               {activeTab === 'overview' && (
                 <>
                   {/* Summary Section */}
-                  <div>
-                    <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
-                      Case Information
-                    </h3>
-                    <div className="grid grid-cols-2 gap-6 bg-void/30 p-5 rounded border border-line/50">
+                  {/* Summary Section */}
+                  <CollapsibleSection title="Case Information" storageKey="heimdall_cw_case_info">
+                    <div className="grid grid-cols-2 gap-6 bg-void/30 p-5 rounded border border-line/50 mt-4">
                       <div>
-                        <span className="text-[10px] font-mono text-ink-faint uppercase mb-1 block">Asset Focus</span>
+                        <span className="text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1 block">Asset Focus</span>
                         <span className="text-sm font-medium text-ink">Multiple Anomalies</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-mono text-ink-faint uppercase mb-1 block">Severity</span>
+                        <span className="text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1 block">Severity</span>
                         <span className="text-[11px] font-mono font-bold text-down bg-down/10 border border-down/20 px-2 py-0.5 rounded">HIGH</span>
                       </div>
                       <div>
@@ -326,39 +345,36 @@ export function CaseWorkspace({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleSection>
 
                   {/* Technical Indicators */}
-                  <div>
-                    <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
-                      Technical Indicators (Snapshot)
-                    </h3>
-                    <div className="grid grid-cols-4 gap-4">
+                  <CollapsibleSection title="Technical Indicators (Snapshot)" storageKey="heimdall_cw_tech_indicators">
+                    <div className="grid grid-cols-4 gap-4 mt-4">
                       <div className="bg-void/20 border border-line/50 p-3 rounded">
-                        <span className="block text-[10px] font-mono text-ink-faint uppercase mb-1">RSI</span>
+                        <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">RSI</span>
                         <span className="text-down font-mono font-medium">82.3</span>
                       </div>
                       <div className="bg-void/20 border border-line/50 p-3 rounded">
-                        <span className="block text-[10px] font-mono text-ink-faint uppercase mb-1">MACD</span>
+                        <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">MACD</span>
                         <span className="text-up font-mono font-medium">Positive</span>
                       </div>
                       <div className="bg-surface border border-line/50 p-3 rounded">
-                        <span className="block text-[10px] font-mono text-ink-faint uppercase mb-1">Vol Ratio</span>
+                        <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">Vol Ratio</span>
                         <span className="text-down font-mono font-medium">2.6x</span>
                       </div>
                       <div className="bg-surface border border-line/50 p-3 rounded">
-                        <span className="block text-[10px] font-mono text-ink-faint uppercase mb-1">VWAP</span>
+                        <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">VWAP</span>
                         <span className="text-ink font-mono font-medium">Above</span>
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleSection>
+                  
                   {/* Related / Correlated Alerts */}
-                  <div>
-                    <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
-                      Correlated Network Signals
-                    </h3>
-                    <CorrelatedAlerts caseAnomalies={selected.anomaly_ids} allAnomalies={allAnomalies} />
-                  </div>
+                  <CollapsibleSection title="Correlated Network Signals" storageKey="heimdall_cw_correlated_signals">
+                    <div className="mt-4">
+                      <CorrelatedAlerts caseAnomalies={selected.anomaly_ids} allAnomalies={allAnomalies} />
+                    </div>
+                  </CollapsibleSection>
                 </>
               )}
 
@@ -435,9 +451,9 @@ export function CaseWorkspace({
                 <button
                   type="submit"
                   disabled={submittingNote || !newNote.trim()}
-                  className="bg-accent px-5 py-2 rounded text-void hover:bg-accent/90 transition-colors disabled:opacity-40 flex items-center justify-center font-medium text-[13px]"
+                  className="bg-accent border border-accent px-5 py-2 rounded text-void hover:bg-accent-dim hover:border-accent-dim transition-colors disabled:opacity-40 flex items-center justify-center font-mono text-[11px] font-medium tracking-wider cursor-pointer"
                 >
-                  Submit
+                  SUBMIT NOTE
                 </button>
                   </form>
                 </div>
@@ -454,24 +470,24 @@ export function CaseWorkspace({
                     const isCreation = e.event_type === 'CASE_CREATED'
                     const isNote = e.event_type === 'NOTE_ADDED'
 
-                    const nodeColor = isCreation ? 'bg-up border-up' :
-                                      isStatus ? 'bg-accent border-accent' :
-                                      isNote ? 'bg-ink border-ink' :
-                                      'bg-ink-dim border-ink-dim'
-
                     return (
-                      <div key={e.id} className="relative group">
+                      <div key={e.id} className="relative group pb-4 last:pb-0">
                         {/* Connector Node */}
-                        <span className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full flex items-center justify-center border bg-void ${nodeColor}`}>
-                          <span className={`h-1 w-1 rounded-full ${nodeColor}`}></span>
+                        <span className={`absolute -left-[23px] top-0.5 h-4 w-4 rounded-full flex items-center justify-center border bg-void ${isCreation ? 'border-up text-up' : isStatus ? 'border-accent text-accent' : isNote ? 'border-ink text-ink' : 'border-ink-dim text-ink-dim'}`}>
+                          {isNote ? <User size={9} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
                         </span>
                         
                         {/* Timeline Content */}
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center justify-between">
-                            <span className={`font-semibold text-[10.5px] ${isStatus ? 'text-accent' : isCreation ? 'text-up' : 'text-ink'}`}>
-                              {e.event_type.replace(/_/g, ' ')}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono text-[9px] px-1 py-0.5 rounded ${isNote ? 'bg-ink/10 text-ink' : 'bg-ink-dim/10 text-ink-faint'}`}>
+                                {isNote ? '[ USER ]' : '[ SYS ]'}
+                              </span>
+                              <span className={`font-semibold text-[10.5px] ${isStatus ? 'text-accent' : isCreation ? 'text-up' : 'text-ink'}`}>
+                                {e.event_type.replace(/_/g, ' ')}
+                              </span>
+                            </div>
                             <div className="flex items-center gap-1">
                               <Clock size={11} className="text-ink-faint" />
                               <span className="text-[9px] text-ink-faint tabular">

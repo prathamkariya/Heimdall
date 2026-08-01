@@ -94,7 +94,6 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
           candleSeries.setData(chartData)
 
           const volumeSeries = chart.addHistogramSeries({
-            color: '#26a69a',
             priceFormat: { type: 'volume' },
             priceScaleId: '', // overlay
           })
@@ -209,6 +208,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
   const patterns = parsePatternScores(anomaly.pattern_scores)
   const severity = anomaly.severity
   const [actionLoading, setActionLoading] = useState(false)
+  const { timezone } = useSettings()
 
   // Find if this anomaly is associated with any case
   const associatedCase = cases.find(c => c.anomaly_ids && c.anomaly_ids.includes(anomaly.id))
@@ -247,7 +247,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
   }
 
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-surface select-none">
+    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-surface select-none animate-slide-in-right">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
         <div className="flex items-center gap-2">
@@ -270,9 +270,9 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
 
         {/* Summary metrics */}
         <CollapsibleSection title="Detection Summary" storageKey="heimdall_col_detection_summary">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
-            <dt className="font-mono text-[11px] text-ink-faint">Anomaly Confidence</dt>
-            <dd className="font-mono text-[12px] tabular">
+          <dl className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 mt-2">
+            <dt className="font-mono text-[10px] text-ink-faint truncate">Anomaly Confidence</dt>
+            <dd className="font-mono text-[11px] tabular">
               <SignalStrength 
                 score={anomaly.anomaly_score} 
                 size="sm"
@@ -341,13 +341,13 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
         {/* Timestamps */}
         <CollapsibleSection title="Timestamps" storageKey="heimdall_col_timestamps">
           <dl className="mt-2 space-y-1">
-            <div className="flex justify-between font-mono text-[11px]">
-              <dt className="text-ink-faint">Market</dt>
-              <dd className="text-ink-dim tabular">{formatDt(anomaly.market_timestamp)}</dd>
+            <div className="flex justify-between font-mono text-[10px] gap-2">
+              <dt className="text-ink-faint truncate">Market</dt>
+              <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.market_timestamp, timezone)}</dd>
             </div>
-            <div className="flex justify-between font-mono text-[11px]">
-              <dt className="text-ink-faint">Detected</dt>
-              <dd className="text-ink-dim tabular">{formatDt(anomaly.detected_at)}</dd>
+            <div className="flex justify-between font-mono text-[10px] gap-2">
+              <dt className="text-ink-faint truncate">Detected</dt>
+              <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.detected_at, timezone)}</dd>
             </div>
           </dl>
         </CollapsibleSection>
@@ -388,7 +388,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
                   <button
                     disabled={actionLoading}
                     onClick={() => handleUpdateCaseStatus(associatedCase.id, 'IN_REVIEW')}
-                    className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                    className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     START REVIEW
                   </button>
@@ -398,14 +398,14 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
                     <button
                       disabled={actionLoading}
                       onClick={() => handleUpdateCaseStatus(associatedCase.id, 'ESCALATED')}
-                      className="rounded bg-down/10 border border-down/30 text-down hover:bg-down/20 px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                      className="rounded bg-down/10 border border-down/30 text-down hover:bg-down/20 px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
                     >
                       ESCALATE
                     </button>
                     <button
                       disabled={actionLoading}
                       onClick={() => handleUpdateCaseStatus(associatedCase.id, 'CLOSED')}
-                      className="rounded bg-line border border-line hover:bg-raised text-ink-dim px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                      className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
                     >
                       RESOLVE/CLOSE
                     </button>
@@ -415,7 +415,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
                   <button
                     disabled={actionLoading}
                     onClick={() => handleUpdateCaseStatus(associatedCase.id, 'OPEN')}
-                    className="rounded bg-line border border-line hover:bg-raised text-ink-dim px-2 py-1 text-[10px] font-mono tracking-wider font-semibold cursor-pointer disabled:opacity-50"
+                    className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     REOPEN CASE
                   </button>
@@ -428,9 +428,9 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
               <button
                 disabled={actionLoading}
                 onClick={handleCreateCase}
-                className="w-full rounded bg-accent text-void hover:bg-accent/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider font-mono cursor-pointer disabled:opacity-50 transition-colors"
+                className="w-full rounded bg-accent border border-accent text-void hover:bg-accent-dim hover:border-accent-dim px-4 py-2 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
               >
-                + START INVESTIGATION
+                START INVESTIGATION
               </button>
             </div>
           )}
@@ -527,8 +527,8 @@ function MetricRow({
 }) {
   return (
     <>
-      <dt className="font-mono text-[11px] text-ink-faint">{label}</dt>
-      <dd className={`font-mono text-[12px] tabular ${highlight ? 'text-accent' : 'text-ink-dim'}`}>
+      <dt className="font-mono text-[10px] text-ink-faint truncate">{label}</dt>
+      <dd className={`font-mono text-[11px] tabular truncate ${highlight ? 'text-accent' : 'text-ink-dim'}`}>
         {value}
       </dd>
     </>

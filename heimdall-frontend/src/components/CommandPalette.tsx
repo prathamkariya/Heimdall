@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, FileText, ArrowUp, ArrowDown, CornerDownLeft, X } from 'lucide-react'
+import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, FileText, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 type CommandItem = {
@@ -130,9 +130,9 @@ export function CommandPalette() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-void/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-void/80 backdrop-blur-sm animate-fade-in">
       <div 
-        className="w-full max-w-lg bg-surface border border-line rounded-lg shadow-2xl overflow-hidden"
+        className="w-full max-w-lg bg-surface border border-line rounded-lg shadow-2xl overflow-hidden animate-fade-in-zoom"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center px-4 py-3 border-b border-line">
@@ -146,7 +146,7 @@ export function CommandPalette() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <span className="font-mono text-[9px] text-ink-faint uppercase bg-raised px-1.5 py-0.5 rounded border border-line flex items-center gap-2 shrink-0 ml-3">
+          <span className="font-mono text-[9px] text-ink-faint uppercase bg-raised px-1.5 py-0.5 rounded border border-line border-b-2 border-b-line/80 shadow-sm flex items-center gap-2 shrink-0 ml-3">
             {loading ? <Loader2 size={10} className="animate-spin" /> : null}
             ESC
           </span>
@@ -163,8 +163,9 @@ export function CommandPalette() {
                 )}
                 <button
                   onClick={() => { action.onSelect(); setIsOpen(false); }}
-                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded font-mono text-[11px] transition-colors ${
-                    i === selectedIndex ? 'bg-raised text-ink border-l-2 border-l-accent' : 'text-ink-dim hover:bg-raised/60 hover:text-ink border-l-2 border-l-transparent'
+                  onMouseEnter={() => setSelectedIndex(i)}
+                  className={`w-full text-left flex items-center justify-between px-3 py-2.5 rounded font-mono text-[11px] transition-fast ${
+                    i === selectedIndex ? 'bg-selected text-ink border-l-2 border-l-accent shadow-sm' : 'text-ink-dim hover:bg-selected/50 hover:text-ink border-l-2 border-l-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -191,10 +192,10 @@ export function CommandPalette() {
         </div>
         <div className="border-t border-line px-4 py-2 bg-raised/30 flex items-center justify-between font-mono text-[9px] text-ink-faint uppercase select-none">
           <div className="flex gap-4">
-            <span className="flex items-center gap-1.5"><ArrowUp size={10} className="text-ink-dim"/><ArrowDown size={10} className="text-ink-dim"/> Navigate</span>
-            <span className="flex items-center gap-1.5"><CornerDownLeft size={10} className="text-ink-dim"/> Open</span>
+            <span className="flex items-center gap-1.5"><span className="flex items-center bg-surface border border-line border-b-2 border-b-line/80 px-1 py-0.5 rounded shadow-sm gap-0.5"><ArrowUp size={10}/><ArrowDown size={10}/></span> Navigate</span>
+            <span className="flex items-center gap-1.5"><span className="flex items-center bg-surface border border-line border-b-2 border-b-line/80 px-1 py-0.5 rounded shadow-sm"><CornerDownLeft size={10}/></span> Open</span>
           </div>
-          <span className="flex items-center gap-1.5"><X size={10} className="text-ink-dim"/> Close</span>
+          <span className="flex items-center gap-1.5"><span className="flex items-center bg-surface border border-line border-b-2 border-b-line/80 px-1 py-0.5 rounded shadow-sm text-[8px] font-bold">ESC</span> Close</span>
         </div>
       </div>
     </div>

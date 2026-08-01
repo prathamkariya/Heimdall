@@ -18,6 +18,7 @@
   --color-void: #0a0a0a;       /* Near Black */
   --color-surface: #12161a;
   --color-raised: #1b2127;
+  --color-selected: #171B20;
   --color-line: #1f2329;       /* Dark Slate */
 
   --color-ink: #ffffff;        /* Primary White */
@@ -35,6 +36,51 @@
   /* Custom Easing */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@utility transition-fast {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 100ms;
+}
+
+@utility transition-snappy {
+  transition-property: all;
+  transition-timing-function: var(--ease-out);
+  transition-duration: 150ms;
+}
+
+@layer base {
+  button {
+    @apply transition-fast;
+  }
+  button:active {
+    @apply scale-[0.98];
+  }
+}
+
+@keyframes fade-in-zoom {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in-zoom {
+  animation: fade-in-zoom 150ms var(--ease-out) forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 150ms var(--ease-out) forwards;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 150ms var(--ease-out) forwards;
 }
 
 html {

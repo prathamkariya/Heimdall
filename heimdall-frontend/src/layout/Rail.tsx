@@ -49,11 +49,11 @@ export function Rail() {
       <div className="border-b border-line px-4 py-4">
         <button 
           onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          className="w-full flex items-center justify-between bg-void border border-line hover:border-line/80 px-2.5 py-1.5 rounded transition-colors text-ink-faint group cursor-text"
+          className="w-full flex items-center justify-between bg-void border border-line hover:border-line/80 px-2.5 py-1.5 rounded transition-fast text-ink-faint group cursor-text"
         >
           <div className="flex items-center gap-2">
-            <Search size={13} className="group-hover:text-ink transition-colors" />
-            <span className="text-[11px] font-brand group-hover:text-ink transition-colors mt-0.5">Search...</span>
+            <Search size={13} className="group-hover:text-ink transition-fast" />
+            <span className="text-[11px] font-brand group-hover:text-ink transition-fast mt-0.5">Search...</span>
           </div>
           <span className="font-mono text-[9px] bg-raised px-1.5 py-0.5 rounded border border-line/60 flex items-center gap-0.5">
             <span className="text-[10px]">⌘</span>K
@@ -73,15 +73,18 @@ export function Rail() {
               end={end}
             >
               {({ isActive }) => (
-                <div className={`group mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-brand transition-colors duration-150 ${
+                <div className={`group relative mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-brand transition-fast ${
                   isActive
                     ? 'bg-raised text-ink font-medium'
                     : 'text-ink-dim hover:bg-white/[0.03] hover:text-ink'
                 }`}>
+                  {isActive && (
+                    <div className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-sm bg-accent" />
+                  )}
                   <Icon 
                     size={16} 
                     strokeWidth={isActive ? 2 : 1.75} 
-                    className={isActive ? 'text-accent opacity-100' : 'opacity-65 group-hover:opacity-100 transition-opacity'} 
+                    className={isActive ? 'text-accent opacity-100' : 'opacity-65 group-hover:opacity-100 transition-fast'} 
                   />
                   <div className="flex flex-col">
                     <span>{label}</span>
@@ -126,21 +129,21 @@ export function Rail() {
       <div className="border-t border-line px-2 py-3 space-y-0.5">
         <button
           onClick={() => setIsSettingsOpen(true)}
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-colors hover:bg-raised/60 hover:text-ink"
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-fast hover:bg-raised/60 hover:text-ink"
         >
           <Settings size={15} strokeWidth={1.75} />
           Settings
         </button>
         <button
           onClick={logout}
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-colors hover:bg-raised/60 hover:text-ink"
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-fast hover:bg-raised/60 hover:text-ink"
         >
           <LogOut size={15} strokeWidth={1.75} />
           Sign Out
         </button>
         <button
           onClick={logoutAll}
-          className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 font-mono text-[10px] text-ink-faint transition-colors hover:text-down"
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 font-mono text-[10px] text-ink-faint transition-fast hover:text-down"
         >
           REVOKE ALL SESSIONS
         </button>

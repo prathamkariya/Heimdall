@@ -19,6 +19,7 @@ def list_anomalies(
     offset: int = Query(0, ge=0),
     symbol: str | None = Query(None, description="Filter by symbol"),
     is_anomaly: bool | None = Query(None, description="Filter by anomaly status"),
+    primary_signal: str | None = Query(None, description="Filter by primary signal"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -47,6 +48,9 @@ def list_anomalies(
     
     if is_anomaly is not None:
         query = query.filter(Anomaly.is_anomaly == is_anomaly)
+        
+    if primary_signal:
+        query = query.filter(Anomaly.primary_signal == primary_signal)
         
     total = query.count()
     results = query.order_by(Anomaly.detected_at.desc(), Anomaly.id.desc()).offset(offset).limit(limit).all()

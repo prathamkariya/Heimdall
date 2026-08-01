@@ -266,18 +266,20 @@ export function Watchlists() {
                   <h3 className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">Monitored Assets</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  <div className="grid grid-cols-[2fr_1fr_2fr_2fr_auto] gap-4 px-5 py-2 border-b border-line/30 bg-void/50 text-[10px] uppercase font-mono text-ink-faint tracking-wider sticky top-0 z-10 backdrop-blur-md">
-                    <div>Asset</div>
-                    <div>Trend</div>
-                    <div className="text-right">Price (24h)</div>
-                    <div className="text-right">Health</div>
+                  <div className="grid grid-cols-[2fr_1fr_2fr_2fr_auto] gap-4 px-5 py-2 border-b border-line bg-surface font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">
+                    <div className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Asset <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></div>
+                    <div className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Trend <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></div>
+                    <div className="group flex items-center justify-end gap-1 cursor-pointer hover:text-ink transition-colors w-full">Price (24h) <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></div>
+                    <div className="group flex items-center justify-end gap-1 cursor-pointer hover:text-ink transition-colors w-full">Health <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></div>
                     <div className="w-[14px]"></div>
                   </div>
 
                   {selected.symbols.length === 0 && (
-                    <div className="px-5 py-8 text-center text-[12px] text-ink-faint italic font-mono">
-                      No symbols in this watchlist
-                    </div>
+                    <EmptyState 
+                      title="Awaiting assets"
+                      description="Add a trading pair symbol to begin tracking its market data and anomalies."
+                      icon="info"
+                    />
                   )}
 
                   {selected.symbols.map((sym) => {
@@ -329,47 +331,40 @@ export function Watchlists() {
               </div>
 
               {/* Watchlist Dashboard Panel */}
-              <div className="w-[300px] flex flex-col shrink-0 bg-surface/50">
+              <div className="w-[300px] flex flex-col shrink-0 border-l border-line bg-surface/30">
                 <div className="p-5 space-y-6">
                   <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Latest Detection</span>
-                    <div className="bg-raised border border-line/50 p-3 rounded">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Top Risk Asset</span>
+                    <div className="bg-raised border border-line p-3 rounded">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-ink font-mono font-medium text-[12px]">DOGEUSDT</span>
+                        <span className="text-down text-[10px] font-bold bg-down/10 px-1.5 py-0.5 rounded border border-down/20">CRITICAL</span>
+                      </div>
+                      <span className="text-[11px] text-ink-faint font-mono">Anomaly Score: 0.9412</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Highest Gain (24h)</span>
+                    <div className="bg-raised border border-line p-3 rounded">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-ink font-mono font-medium text-[12px]">SOLUSDT</span>
+                        <span className="text-up font-mono text-[11px] font-medium">+12.4%</span>
+                      </div>
+                      <span className="text-[11px] text-ink-faint font-mono">Vol: 1.2M</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Most Active</span>
+                    <div className="bg-raised border border-line p-3 rounded">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-ink font-mono font-medium text-[12px]">BTCUSDT</span>
-                        <span className="text-down text-[10px] font-bold bg-down/10 px-1 rounded">HIGH</span>
+                        <span className="text-accent font-mono text-[11px] font-medium">8 Alerts</span>
                       </div>
-                      <span className="text-[11px] text-ink-faint">Volume Spike • 12 mins ago</span>
+                      <span className="text-[11px] text-ink-faint font-mono">Last alert: 4 mins ago</span>
                     </div>
                   </div>
-
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">24h Activity Overview</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-void/40 border border-line/30 p-2.5 rounded text-center">
-                        <span className="text-[18px] font-mono text-ink block">{selected.symbols.length}</span>
-                        <span className="text-[9px] uppercase font-mono text-ink-faint">Assets</span>
-                      </div>
-                      <div className="bg-void/40 border border-line/30 p-2.5 rounded text-center">
-                        <span className="text-[18px] font-mono text-accent block">3</span>
-                        <span className="text-[9px] uppercase font-mono text-ink-faint">Anomalies</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Performance & Volatility</span>
-                    <div className="bg-void/40 border border-line/30 p-3 rounded">
-                      <div className="text-[11px] font-mono text-ink-dim flex justify-between mb-1">
-                        <span>Avg Volatility</span>
-                        <span className="text-up">+2.4%</span>
-                      </div>
-                      <div className="text-[11px] font-mono text-ink-dim flex justify-between">
-                        <span>Highest Risk</span>
-                        <span className="text-down font-medium">DOGEUSDT</span>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
               </div>
             </div>

@@ -45,12 +45,12 @@ export function CaseList({
       </header>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-        <span>ID</span>
-        <span>Case Title</span>
-        <span>Status</span>
-        <span>Assignee</span>
-        <span>Created</span>
+      <div className="grid grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">ID <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Case Title <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Status <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Assignee <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
+        <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Created <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
       </div>
 
       {/* Rows container */}
@@ -83,8 +83,8 @@ export function CaseList({
 
         {!loading && !error && data && data.items.length === 0 && (
           <EmptyState 
-            title="No Investigations Found"
-            description="There are currently no investigations created."
+            title="No investigations currently assigned"
+            description="Escalate an anomaly to begin a new investigation."
             icon="database"
           />
         )}
@@ -95,11 +95,11 @@ export function CaseList({
             <button
               key={c.id}
               onClick={() => onSelect(c.id)}
-              className={`grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-all active:scale-[0.99] hover:bg-raised/60 ${
+              className={`grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-fast hover:bg-raised/60 ${
                 selectedId === c.id 
-                  ? 'bg-raised/60 border-l-2 border-l-accent' 
+                  ? 'bg-selected border-l-2 border-l-accent' 
                   : isFocused 
-                    ? 'bg-raised/30 border-l-2 border-l-ink-dim/50' 
+                    ? 'bg-raised/30 border-l-2 border-l-line' 
                     : 'border-l-2 border-l-transparent'
               }`}
             >

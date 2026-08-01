@@ -49,6 +49,7 @@ export function useMarketDataStream(isDemoMode: boolean): UseMarketDataStreamRes
           primary_signal: isAnomaly ? (Math.random() > 0.5 ? 'PUMP & DUMP' : 'WASH TRADING') : 'NORMAL',
           anomaly_score: isAnomaly ? 0.75 + (Math.random() * 0.2) : 0.1 + (Math.random() * 0.3),
           severity: isAnomaly ? (Math.random() > 0.5 ? 'HIGH' : 'MEDIUM') : undefined,
+          low_confidence: false,
           evidence: isAnomaly ? [
             { name: 'Volume_Spike', value: 3.5, threshold: 2.0, triggered: true },
             { name: 'RSI_Overbought', value: 85, threshold: 80, triggered: true }

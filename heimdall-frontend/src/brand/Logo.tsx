@@ -24,7 +24,6 @@ export const Logo: React.FC<BrandAssetProps> = ({
       className={`${animationClass} ${className}`}
       role="img"
       aria-label="Heimdall Logo"
-      title="Heimdall"
     >
       {/* 
         Observation Ring 

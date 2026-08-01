@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <img src="docs/assets/brand/heimdall_logo_lockup.png" alt="HEIMDALL Market Surveillance Platform" width="85%" style="border-radius: 8px; margin-bottom: 8px;" />
+  <img src=".pics/logo_lockup.png" alt="HEIMDALL Market Surveillance Platform" width="85%" style="border-radius: 8px; margin-bottom: 8px;" />
 </p>
 
 ### Institutional Market Surveillance & Regulatory Intelligence Platform
@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/badge/License-MIT-D4A63A?style=for-the-badge)](LICENSE)
 
 <p align="center">
-  <img src="docs/assets/brand/heimdall_pillars_banner.png" alt="Observation • Precision • Intelligence • Trust" width="95%" style="border-radius: 6px; margin-top: 12px; margin-bottom: 12px; border: 1px solid #1F2329;" />
+  <img src=".pics/pillars_banner.png" alt="Observation • Precision • Intelligence • Trust" width="95%" style="border-radius: 6px; margin-top: 12px; margin-bottom: 12px; border: 1px solid #1F2329;" />
 </p>
 
 <p align="center">
@@ -28,9 +28,9 @@
 ### ⚡ Quick Navigation
 
 [**Platform Overview**](#-platform-overview) •
-[**Brand & Design System**](#-brand--design-system) •
-[**Forensic Investigation Workspace**](#-investigation-workspace--charting) •
-[**ML Anomaly Engine**](#-algorithmic-detection-matrix) •
+[**Brand & Visual Identity**](#-brand--visual-identity) •
+[**Forensic Investigation Workspace**](#-forensic-investigation-workspace) •
+[**Algorithmic Anomaly Engine**](#-algorithmic-anomaly-engine) •
 [**Architecture**](#-architecture--data-pipeline) •
 [**Quick Start**](#-quick-start) •
 [**API Reference**](#-api-endpoints) •
@@ -42,9 +42,9 @@
 
 ## 🌐 Platform Overview
 
-Heimdall is an institutional market surveillance platform designed for high-frequency trading desks, crypto exchanges, and compliance officers. It continuously ingests order-book and trade-level market feeds, evaluates statistical and heuristic pattern models in sub-milliseconds, and dispatches actionable alerts to a real-time investigation terminal.
+Heimdall is an institutional market surveillance platform built for high-frequency trading desks, crypto exchanges, and regulatory compliance teams. It continuously ingests trade and order-book feeds, computes statistical and heuristic pattern models in sub-milliseconds, and dispatches actionable alerts directly to a high-performance analyst terminal.
 
-### 💎 Key Highlights
+### 💎 Key Capabilities
 
 - **⚡ Real-Time Streaming Ingestion**: Dual-worker pipeline consuming from **Binance WebSocket** (Crypto) and **Alpaca/Finnhub** (US Equities) via **Redis Streams 7.x**.
 - **🧠 Hybrid AI Detection Engine**: Merges unsupervised **Isolation Forest** outlier scoring with supervised **Multi-Pattern Heuristics** (Pump & Dump, Spoofing, Wash Trading, Layering, Momentum Ignition).
@@ -54,18 +54,18 @@ Heimdall is an institutional market surveillance platform designed for high-freq
 
 ---
 
-## 🎨 Brand & Design System
+## 🎨 Brand & Visual Identity
 
-Heimdall's brand identity is built around four core principles: **Observation**, **Precision**, **Intelligence**, and **Trust**. The visual system uses precise geometric lines, radar-inspired observation rings, and high-contrast dark surfaces.
+Heimdall's brand identity is anchored by four principles: **Observation**, **Precision**, **Intelligence**, and **Trust**. The visual system is rooted in high-contrast dark surfaces, geometric lines, and financial terminal minimalism.
 
 <p align="center">
-  <img src="docs/assets/brand/heimdall_icon_system.png" alt="Heimdall Icon & Geometry System" width="100%" style="border-radius: 10px; border: 1px solid #1F2329; margin-bottom: 16px;" />
+  <img src=".pics/icon_system.png" alt="Heimdall Icon & Geometry System" width="100%" style="border-radius: 10px; border: 1px solid #1F2329; margin-bottom: 16px;" />
 </p>
 
 ### 📐 Geometry & Tokens
 
 - **Icon Architecture**: Segmented outer observation ring (representing 360° radar surveillance) with a top north indicator and geometric `H` core.
-- **Color Palette**:
+- **Color Tokens**:
   - `Near Black` (`#0A0A0A`) — Deep terminal background
   - `Dark Slate` (`#1F2329`) — Structural borders, cards, and dividers
   - `Primary White` (`#FFFFFF`) — High-emphasis data text
@@ -76,44 +76,39 @@ Heimdall's brand identity is built around four core principles: **Observation**,
   - **Telemetry & Data**: `IBM Plex Mono` (Live feeds, Order books, Candlestick metrics, Timestamps, Hash digests)
 
 <details>
-<summary><b>🔍 View Full Brand Guidelines & Specification Sheet</b></summary>
+<summary><b>🔍 View Complete Brand Guidelines & Specification Board</b></summary>
 <br/>
 <p align="center">
-  <img src="docs/assets/brand/heimdall_brand_guidelines.png" alt="Heimdall Full Brand Guidelines" width="100%" style="border-radius: 8px; border: 1px solid #1F2329;" />
+  <img src=".pics/brand_guidelines.png" alt="Heimdall Brand Guidelines" width="100%" style="border-radius: 8px; border: 1px solid #1F2329;" />
 </p>
 </details>
 
 ---
 
-## 🔍 Investigation Workspace & Charting
+## 🔬 Forensic Investigation Workspace
 
-When an anomaly triggers or a case is escalated, analysts enter the **Forensic Investigation Workspace**:
+When an anomaly triggers or a case is escalated, investigators enter the dedicated **Forensic Workspace**:
 
-- **Synchronized Candlestick & Volume Charts**: Powered by Lightweight Charts v5 with custom brand themes (`#0A0A0A` obsidian surface, `#4FBF7A` / `#E8604C` OHLC candles, and institutional gold `#D4A63A` anomaly markers).
+- **Synchronized Candlestick & Volume Charts**: Powered by TradingView Lightweight Charts v5 with custom brand themes (`#0A0A0A` obsidian surface, `#4FBF7A` / `#E8604C` OHLC candles, and institutional gold `#D4A63A` anomaly markers).
 - **Relational Evidence Dossier**: Direct inspection of correlated market ticks, multi-pattern score breakdowns, and historical volatility baselines.
-- **Lifecycle State Machine**: Strict governance workflow (`OPEN` ➔ `IN_REVIEW` ➔ `ESCALATED` ➔ `RESOLVED` / `DISMISSED`).
+- **Lifecycle State Machine**: Strict governance workflow:
+  $$\text{OPEN} \longrightarrow \text{IN\_REVIEW} \longrightarrow \text{ESCALATED} \longrightarrow \text{RESOLVED} \mid \text{DISMISSED}$$
 - **Analyst Note Stream**: Timestamped, user-attributed investigation logs for multi-analyst handoffs.
 
 ---
 
-## 🧠 Algorithmic Detection Matrix
+## 🧠 Algorithmic Anomaly Engine
 
-Heimdall runs a dual-layer detection pipeline evaluating incoming ticks against historical baselines:
+Heimdall runs a multi-layered detection pipeline evaluating incoming ticks against historical rolling windows:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 HEIMDALL ANOMALY ENGINE                                     │
-├───────────────────────────────┬─────────────────────────────────────────────────────────────┤
-│ Pattern Detector              │ Detection Method & Signals                                  │
-├───────────────────────────────┼─────────────────────────────────────────────────────────────┤
-│ 🚀 Pump & Dump                │ Parabolic volume velocity + sharp price spike + sell runoff │
-│ 👻 Spoofing                   │ Extreme bid/ask size asymmetry followed by rapid cancel     │
-│ 🥞 Layering                   │ Multi-level non-bona fide orders shifting book depth        │
-│ 🔄 Wash Trading               │ High volume with near-zero net price impact (circular flow) │
-│ ⚡ Momentum Ignition          │ Aggressive aggressive market orders triggering stop losses  │
-│ 🌲 Isolation Forest           │ Unsupervised feature-space outlier isolation                │
-└───────────────────────────────┴─────────────────────────────────────────────────────────────┘
-```
+| Anomaly Pattern | Heuristic Indicators & Detection Criteria | Target Market Behavior |
+| :--- | :--- | :--- |
+| **🚀 Pump & Dump** | Sudden 3σ volume surge accompanied by sharp price acceleration, followed by rapid liquidation runoff. | Coordinated retail buying or illiquid market ramps |
+| **👻 Spoofing** | Placement and rapid cancellation of non-bona fide large orders on bid/ask book to artificially move prices. | Order book manipulation |
+| **🥞 Layering** | Submitting multiple fake limit orders at tiered price levels across the book, cancelled prior to execution. | Fake depth illusion |
+| **🔄 Wash Trading** | High turnover volume with statistically negligible net price movement (circular wallet or account transactions). | Artificial volume inflation |
+| **⚡ Momentum Ignition** | Aggressive series of rapid-fire market orders designed to hit resting stop-loss orders. | Cascading liquidation triggers |
+| **🌲 Isolation Forest** | Unsupervised partition anomaly scoring on feature vectors: $(V_{\text{ratio}}, \Delta P_{\text{1m}}, \text{Spread}, \text{OrderFlowImbalance})$. | Novel / complex market anomalies |
 
 ---
 
@@ -211,7 +206,7 @@ Navigate to: **`http://localhost:5173`**
 
 ## ⌨️ Command Palette & Keyboard Shortcuts
 
-Press <kbd>Ctrl</kbd> + <kbd>K</kbd> (or <kbd>Cmd</kbd> + <kbd>K</kbd> on macOS) anywhere to open the **Command Palette**:
+Press <kbd>Ctrl</kbd> + <kbd>K</kbd> (or <kbd>Cmd</kbd> + <kbd>K</kbd> on macOS) anywhere in the application:
 
 | Shortcut | Action | Scope |
 | :--- | :--- | :--- |
@@ -273,6 +268,12 @@ pytest ml/tests/ -v      # 300+ ML unit tests (Isolation Forest, ARIMA, LSTM, Ca
 
 ```
 market-surveillance/
+├── .pics/                          # Official brand assets, lockups, icons, and design guidelines
+│   ├── brand_guidelines.png
+│   ├── icon_system.png
+│   ├── logo_lockup.png
+│   ├── pillars_banner.png
+│   └── wordmark.png
 ├── backend/                        # FastAPI Backend & Surveillance Services
 │   ├── alembic/                    # Database migrations (001–005 + Case Management)
 │   ├── app/
@@ -285,6 +286,7 @@ market-surveillance/
 │   ├── scripts/                    # Ingestion workers (crypto_worker, us_worker), engine loop, seed scripts
 │   └── tests/                      # Pytest backend test suite
 ├── heimdall-frontend/              # React 19 + TypeScript Terminal UI
+│   ├── public/brand/               # Frontend brand assets
 │   ├── src/
 │   │   ├── brand/                  # Brand SVG components (Logo, Wordmark, LogoLockup)
 │   │   ├── components/             # AnomalyDetail, CaseWorkspace, CommandPalette, LiveEventRow
@@ -294,9 +296,6 @@ market-surveillance/
 │   │   └── theme/                  # Design tokens, color palette, typography definitions
 │   ├── package.json
 │   └── vite.config.ts
-├── docs/                           # Documentation & visual brand assets
-│   └── assets/
-│       └── brand/                  # Official brand lockups, icons, pillars banner, and guidelines
 ├── docker-compose.yml              # Local multi-service orchestration
 ├── docker-compose.prod.yml         # Production deployment configuration
 ├── nginx.conf                      # Reverse proxy & SSE streaming configuration
@@ -307,7 +306,7 @@ market-surveillance/
 
 ## 🛡️ Regulatory Compliance & Disclaimer
 
-Heimdall is designed to support surveillance obligations under **EU Market Abuse Regulation (MAR - Regulation (EU) No 596/2014)**, **MiFID II**, and **SEC/FINRA Rule 6127**. All audit records, case notes, and anomaly signals are stored with cryptographic integrity for compliance record-keeping.
+Heimdall is engineered to support surveillance mandates under **EU Market Abuse Regulation (MAR - Regulation (EU) No 596/2014)**, **MiFID II**, and **SEC/FINRA Rule 6127**. All audit records, case notes, and anomaly signals are stored with cryptographic integrity for compliance record-keeping.
 
 ---
 

@@ -1,152 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useAuth } from '../lib/auth-context'
+import { useState, useEffect, useRef } from 'react'
+import { useKeyboardNav } from '../lib/useKeyboardNav'
 import { ConnectionStatus } from '../components/ConnectionStatus'
-import type { LiveAlertEvent, EvidenceSignal } from '../lib/types'
+import type { LiveAlertEvent } from '../lib/types'
 import { isScoredAlert } from '../lib/types'
-
-const MAX_EVENTS = 200
-const BASE_URL = '/api/v1'
-
-type ConnState = 'connecting' | 'live' | 'reconnecting'
-
-export function LiveFeed() {
-  const { getSseToken } = useAuth()
-  const [events, setEvents] = useState<LiveAlertEvent[]>([])
-  const [connState, setConnState] = useState<ConnState>('connecting')
-  const [timeStr, setTimeStr] = useState('')
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const update = () => {
-      setTimeStr(new Date().toLocaleTimeString(undefined, { hour12: false }))
-    }
-    update()
-    const iv = setInterval(update, 1000)
-    return () => clearInterval(iv)
-  }, [])
-
-  const connect = useCallback(async () => {
-    // Clean up any existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-      eventSourceRef.current = null
-    }
-
-    setConnState('connecting')
-
-    try {
-      const token = await getSseToken()
-      const es = new EventSource(`${BASE_URL}/alerts/stream/live?token=${encodeURIComponent(token)}`)
-      eventSourceRef.current = es
-
-      es.onopen = () => {
-        setConnState('live')
-      }
-
-      es.onmessage = (e) => {
-        try {
-          const event: LiveAlertEvent = JSON.parse(e.data)
-          setEvents((prev) => [event, ...prev].slice(0, MAX_EVENTS))
-        } catch {
-          // Malformed SSE data — skip, don't crash
-        }
-      }
-
-      es.onerror = () => {
-        // Close the dead connection to prevent native auto-reconnect with a stale token
-        es.close()
-        setConnState('reconnecting')
-        // Reconnect manually to fetch a fresh token
-        reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
-      }
-    } catch (err) {
-      console.error('Failed to acquire SSE token', err)
-      setConnState('reconnecting')
-      // Retry after a delay
-      reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
-    }
-  }, [getSseToken])
-
-  useEffect(() => {
-    connect()
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
-    }
-  }, [connect])
-
-  return (
-    <div className="flex h-full flex-col select-none">
-      {/* Header bar */}
-      <header className="flex items-center justify-between border-b border-line px-5 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-medium text-ink">Live Feed</h1>
-          <ConnectionStatus state={connState} />
-          {connState === 'live' && (
-            <span className="font-mono text-[9px] text-up uppercase font-semibold bg-up/10 px-1.5 py-0.5 rounded border border-up/20 animate-pulse">
-              Feed is active.
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-4 font-mono text-[10px] text-ink-faint">
-          <span className="tabular">{timeStr}</span>
-          <span className="border-l border-line h-3 pl-4">
-            {events.length} event{events.length !== 1 && 's'}
-          </span>
-        </div>
-      </header>
-
-      {/* Column headers */}
-      <div className="grid grid-cols-[120px_80px_80px_120px_80px_1fr] gap-x-4 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-        <span>Symbol</span>
-        <span>Market</span>
-        <span>Score</span>
-        <span>Primary Signal</span>
-        <span>Severity</span>
-        <span>Time</span>
-      </div>
-
-      {/* Event rows */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto">
-        {events.length === 0 ? (
-          <div className="flex h-32 flex-col items-center justify-center text-ink-faint font-mono text-[11px] gap-2">
-            <p>Event stream initialized.</p>
-            <p>Awaiting incoming market data.</p>
-            <p className="text-[10px] text-ink-dim mt-2">Feed Status: {connState.toUpperCase()}</p>
-          </div>
-        ) : events.filter(isScoredAlert).length === 0 ? (
-          <div className="flex h-12 items-center justify-center text-xs text-ink-faint font-mono border-b border-line/40 bg-surface/30">
-            No anomalies requiring analyst review.
-          </div>
-        ) : null}
-
-        {events.map((event, i) => {
-          const scored = isScoredAlert(event)
-          const primarySignal = !scored ? 'COVERAGE GAP' : (event.primary_signal || 'NORMAL')
-          const evidence = event.evidence ?? event.detection_result?.evidence ?? []
-          return (
-            <EventRow
-              key={`${event.symbol}-${event.timestamp_ms || event.timestamp}-${i}`}
-              event={event}
-              scored={scored}
-              primarySignal={primarySignal}
-              evidence={evidence}
-              isNew={i === 0}
-            />
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-
+import { SignalStrength } from '../components/SignalStrength'
+import { EvidenceBar } from '../components/EvidenceBar'
+import { useMarketDataStream } from '../lib/useMarketDataStream'
+import { LiveEventRow, SeverityBadge } from '../components/LiveEventRow'
 
 function formatTimestamp(ts: string | number | undefined): string {
   if (!ts) return '—'
@@ -163,126 +23,197 @@ function formatTimestamp(ts: string | number | undefined): string {
   }
 }
 
-function SeverityBadge({ severity }: { severity: string }) {
-  const sev = severity.toUpperCase()
-  const style =
-    sev === 'CRITICAL'
-      ? 'text-down bg-down/10 border-down/25 font-bold'
-      : sev === 'HIGH'
-        ? 'text-down bg-down/10 border-down/20'
-        : sev === 'MEDIUM'
-          ? 'text-accent bg-accent/10 border-accent/20'
-          : 'text-ink-dim bg-raised border-line'
+export function LiveFeed() {
+  const [selectedEvent, setSelectedEvent] = useState<LiveAlertEvent | null>(null)
+  const [timeStr, setTimeStr] = useState('')
+  const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem('heimdall_demo_mode') === 'true')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Use our new encapsulated hook
+  const { events, connState } = useMarketDataStream(isDemoMode)
+
+  useEffect(() => {
+    const update = () => {
+      setTimeStr(new Date().toLocaleTimeString(undefined, { hour12: false }))
+    }
+    update()
+    const iv = setInterval(update, 1000)
+    return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    const handleDemoChange = () => {
+      setIsDemoMode(localStorage.getItem('heimdall_demo_mode') === 'true')
+    }
+    window.addEventListener('demo_mode_change', handleDemoChange)
+    return () => window.removeEventListener('demo_mode_change', handleDemoChange)
+  }, [])
+
+  const { focusedIndex } = useKeyboardNav({
+    itemCount: events.length,
+    onSelect: (index) => setSelectedEvent(events[index]),
+    onClose: () => setSelectedEvent(null),
+    isActive: true
+  })
+
   return (
-    <span className={`text-[9px] font-mono tracking-wider rounded px-1 py-0.5 border ${style}`}>
-      {sev}
-    </span>
-  )
-}
-
-// ── EventRow ────────────────────────────────────────────────────────────────
-
-interface EventRowProps {
-  event: LiveAlertEvent
-  scored: boolean
-  primarySignal: string
-  evidence: EvidenceSignal[]
-  isNew: boolean
-}
-
-function EventRow({ event, scored, primarySignal, evidence, isNew }: EventRowProps) {
-  const [open, setOpen] = useState(false)
-  const hasEvidence = evidence.length > 0
-
-  return (
-    <div className={`border-b border-line/40 font-mono text-[13px] transition-colors ${
-      scored ? 'text-ink hover:bg-raised/40' : 'text-ink-faint italic hover:bg-raised/20'
-    }`}>
-      {/* Main row */}
-      <div
-        className={`grid grid-cols-[120px_80px_80px_120px_80px_1fr_16px] gap-x-4 px-5 py-1.5 ${
-          isNew ? 'animate-row-flash' : ''
-        } ${hasEvidence ? 'cursor-pointer' : ''}`}
-        onClick={() => hasEvidence && setOpen(o => !o)}
-      >
-        <span className="truncate font-medium">{event.symbol}</span>
-        <span className="text-ink-dim">{event.market}</span>
-
-        {/* Score */}
-        <span>
-          {scored ? (
-            <span className={
-              (event.anomaly_score ?? 0) >= 0.8
-                ? 'text-down font-medium'
-                : (event.anomaly_score ?? 0) >= 0.5
-                  ? 'text-accent'
-                  : 'text-ink-dim'
-            }>
-              {event.anomaly_score?.toFixed(4)}
+    <div className="flex h-full flex-col select-none overflow-hidden">
+      {/* Header bar */}
+      <header className="flex items-center justify-between border-b border-line px-5 py-3 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-sm font-medium text-ink">Live Feed</h1>
+          {isDemoMode && (
+            <span className="font-mono text-[9px] text-accent uppercase font-semibold bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
+              DEMO MODE
             </span>
-          ) : (
-            <span className="text-ink-faint text-[11px]">{event.confidence ?? '—'}</span>
           )}
-        </span>
-
-        {/* Primary signal */}
-        <span>
-          {scored ? (
-            <span className={`text-[11px] rounded px-1.5 py-0.5 border ${
-              primarySignal === 'PUMP & DUMP'
-                ? 'bg-down/10 text-down border-down/20 font-medium'
-                : primarySignal === 'WASH TRADING'
-                  ? 'bg-accent/10 text-accent border-accent/20'
-                  : 'bg-raised text-ink-dim border-line'
-            }`}>
-              {primarySignal}
+          <ConnectionStatus state={connState} />
+          {connState === 'live' && !isDemoMode && (
+            <span className="font-mono text-[9px] text-up uppercase font-semibold bg-up/10 px-1.5 py-0.5 rounded border border-up/20 animate-pulse">
+              Feed is active.
             </span>
-          ) : (
-            <span className="text-ink-faint text-[11px] italic">{primarySignal}</span>
           )}
-        </span>
-
-        {/* Severity */}
-        <span>
-          {scored && event.severity
-            ? <SeverityBadge severity={event.severity} />
-            : <span className="text-ink-faint text-[11px]">—</span>}
-        </span>
-
-        {/* Timestamp */}
-        <span className="text-ink-dim tabular">
-          {formatTimestamp(event.timestamp_ms || event.timestamp)}
-        </span>
-
-        {/* Expand toggle */}
-        <span className="text-ink-faint text-[10px] self-center">
-          {hasEvidence ? (open ? '▲' : '▼') : ''}
-        </span>
-      </div>
-
-      {/* Evidence panel */}
-      {open && hasEvidence && (
-        <div className="px-5 pb-2 pt-1 grid grid-cols-[1fr_1fr_1fr_60px] gap-x-4 gap-y-1 bg-surface/60 border-t border-line/20">
-          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Signal</span>
-          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Observed</span>
-          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Threshold</span>
-          <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Status</span>
-          {evidence.map((sig) => (
-            <>
-              <span className="text-[11px] text-ink-dim font-mono">
-                {sig.name.replace(/_/g, ' ')}
-              </span>
-              <span className="text-[11px] tabular">{sig.value.toFixed(4)}</span>
-              <span className="text-[11px] tabular text-ink-dim">{sig.threshold.toFixed(4)}</span>
-              <span className={`text-[10px] font-semibold ${
-                sig.triggered ? 'text-down' : 'text-up'
-              }`}>
-                {sig.triggered ? '✓ FIRED' : '– OK'}
-              </span>
-            </>
-          ))}
         </div>
-      )}
+        <div className="flex items-center gap-4 font-mono text-[10px] text-ink-faint">
+          <span className="tabular">{timeStr}</span>
+          <span className="border-l border-line h-3 pl-4">
+            {events.length} event{events.length !== 1 && 's'}
+          </span>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main Table Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Column headers */}
+          <div className="grid grid-cols-[100px_70px_80px_80px_60px_110px_70px_1fr] gap-x-4 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint flex-shrink-0">
+            <span>Symbol</span>
+            <span>Market</span>
+            <span>Price</span>
+            <span>Volume</span>
+            <span>Score</span>
+            <span>Primary Signal</span>
+            <span>Severity</span>
+            <span>Time</span>
+          </div>
+
+          {/* Event rows */}
+          <div ref={containerRef} className="flex-1 overflow-y-auto">
+            {events.length === 0 ? (
+              <div className="flex h-32 flex-col items-center justify-center text-ink-faint font-mono text-[11px] gap-2">
+                <p>Event stream initialized.</p>
+                <p>Awaiting incoming market data.</p>
+                <p className="text-[10px] text-ink-dim mt-2">Feed Status: {connState.toUpperCase()}</p>
+              </div>
+            ) : events.filter(isScoredAlert).length === 0 ? (
+              <div className="flex h-12 items-center justify-center text-xs text-ink-faint font-mono border-b border-line/40 bg-surface/30">
+                No anomalies requiring analyst review.
+              </div>
+            ) : null}
+
+            {events.map((event, i) => {
+              const scored = isScoredAlert(event)
+              const primarySignal = !scored ? 'COVERAGE GAP' : (event.primary_signal || 'NORMAL')
+              
+              return (
+                <LiveEventRow
+                  key={`${event.symbol}-${event.timestamp_ms || event.timestamp}-${i}`}
+                  event={event}
+                  scored={scored}
+                  primarySignal={primarySignal}
+                  isNew={i === 0}
+                  isSelected={selectedEvent === event}
+                  isFocused={i === focusedIndex}
+                  onClick={() => setSelectedEvent(event)}
+                />
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Right Details Drawer */}
+        {selectedEvent && (
+          <div className="w-96 border-l border-line bg-surface flex flex-col flex-shrink-0 overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-line">
+              <h2 className="text-sm font-medium text-ink truncate">
+                Anomaly: {selectedEvent.symbol}
+              </h2>
+              <button 
+                className="text-ink-faint hover:text-ink transition-colors"
+                onClick={() => setSelectedEvent(null)}
+              >
+                <span className="text-lg">×</span>
+              </button>
+            </div>
+            
+            <div className="p-4 flex flex-col gap-6">
+              {/* Quick Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-faint font-mono">Anomaly Confidence</span>
+                  <div className="mt-1">
+                    <SignalStrength 
+                      score={selectedEvent.anomaly_score ?? 0} 
+                      label={selectedEvent.anomaly_score && selectedEvent.anomaly_score >= 0.75 ? "High Confidence" : "Standard"} 
+                      size="md"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-faint font-mono">Severity</span>
+                  <div>
+                    {selectedEvent.severity 
+                      ? <SeverityBadge severity={selectedEvent.severity} /> 
+                      : <span className="text-ink-faint text-[11px] font-mono">—</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-faint font-mono">Primary Signal</span>
+                  <span className="text-xs font-medium text-ink">{selectedEvent.primary_signal || 'NORMAL'}</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-faint font-mono">Time</span>
+                  <span className="text-[11px] font-mono text-ink-dim tabular-nums">
+                    {formatTimestamp(selectedEvent.timestamp_ms || selectedEvent.timestamp)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2">
+                <button className="w-full bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 py-2 rounded text-xs font-medium transition-colors">
+                  Create Investigation Case
+                </button>
+                <button className="w-full bg-surface hover:bg-raised text-ink-dim border border-line py-2 rounded text-xs font-medium transition-colors">
+                  View Asset Details
+                </button>
+              </div>
+
+              {/* Evidence Section */}
+              <div className="flex flex-col gap-2">
+                <h3 className="text-xs font-medium text-ink border-b border-line pb-2">Detection Evidence</h3>
+                {selectedEvent.evidence && selectedEvent.evidence.length > 0 ? (
+                  <div className="flex flex-col gap-3 pt-2">
+                    {selectedEvent.evidence.map((sig, i) => (
+                      <EvidenceBar 
+                        key={i}
+                        name={sig.name}
+                        observed={sig.value}
+                        threshold={sig.threshold}
+                        triggered={sig.triggered}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-ink-faint italic pt-2">
+                    No individual signals triggered thresholds.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

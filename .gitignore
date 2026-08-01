@@ -41,6 +41,9 @@ htmlcov/
 # Pytest cache
 .pytest_cache/
 
+# Ruff cache
+.ruff_cache/
+
 # mypy / type checkers
 .mypy_cache/
 

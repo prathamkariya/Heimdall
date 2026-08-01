@@ -13,7 +13,7 @@ import app.alias
 from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
-from app.routers import alerts, anomaly, auth, cases, market_data, reports, watchlists
+from app.routers import alerts, anomaly, auth, cases, market_data, reports, search, watchlists
 
 app = FastAPI(
     title="Market Surveillance & Anomaly Detection",
@@ -90,6 +90,7 @@ app.include_router(anomaly.router, prefix=API_PREFIX)
 app.include_router(alerts.router, prefix=API_PREFIX)
 app.include_router(watchlists.router, prefix=API_PREFIX)   # Phase 2
 app.include_router(reports.router, prefix=API_PREFIX)
+app.include_router(search.router, prefix=API_PREFIX)
 app.include_router(cases.router, prefix=API_PREFIX)
 
 # ──────────────────────────────────────────────

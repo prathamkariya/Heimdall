@@ -1,0 +1,135 @@
+import { FolderGit } from 'lucide-react'
+import { Pagination } from './Pagination'
+import { Skeleton } from './Skeleton'
+import { EmptyState } from './EmptyState'
+import { formatDate } from '../lib/utils'
+import { getStatusBadgeClass, getAssigneeUsername } from '../lib/caseUtils'
+import { useSettings } from '../lib/SettingsContext'
+import type { CasePaginatedResponse, Analyst } from '../lib/types'
+
+interface CaseListProps {
+  data: CasePaginatedResponse | null
+  loading: boolean
+  error: Error | any
+  selectedId: number | null
+  focusedIndex: number
+  analysts: Analyst[] | null
+  onSelect: (id: number) => void
+  onRetry: () => void
+  setOffset: (offset: number) => void
+}
+
+export function CaseList({
+  data,
+  loading,
+  error,
+  selectedId,
+  focusedIndex,
+  analysts,
+  onSelect,
+  onRetry,
+  setOffset
+}: CaseListProps) {
+  const { timezone } = useSettings()
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <header className="flex items-center justify-between border-b border-line px-5 py-3 bg-void">
+        <h1 className="text-sm font-medium text-ink flex items-center gap-2">
+          <FolderGit size={16} className="text-accent" />
+          Investigations
+        </h1>
+        <div className="font-mono text-[10px] text-ink-faint">
+          {data?.total || 0} ACTIVE CASE{data?.total !== 1 && 'S'}
+        </div>
+      </header>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+        <span>ID</span>
+        <span>Case Title</span>
+        <span>Status</span>
+        <span>Assignee</span>
+        <span>Created</span>
+      </div>
+
+      {/* Rows container */}
+      <div className="flex-1 overflow-y-auto">
+        {loading && (
+          <div className="space-y-0.5 pt-2">
+            {Array.from({ length: 15 }).map((_, i) => (
+              <div key={i} className="grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-5 py-2.5 items-center">
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-16 rounded" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="px-5 py-8 text-center">
+            <p className="text-sm text-down">{error.message || String(error)}</p>
+            <button
+              onClick={onRetry}
+              className="mt-3 font-mono text-[11px] text-accent hover:underline"
+            >
+              RETRY
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && data && data.items.length === 0 && (
+          <EmptyState 
+            title="No Investigations Found"
+            description="There are currently no investigations created."
+            icon="database"
+          />
+        )}
+
+        {!loading && !error && data?.items.map((c, index) => {
+          const isFocused = index === focusedIndex
+          return (
+            <button
+              key={c.id}
+              onClick={() => onSelect(c.id)}
+              className={`grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-all active:scale-[0.99] hover:bg-raised/60 ${
+                selectedId === c.id 
+                  ? 'bg-raised/60 border-l-2 border-l-accent' 
+                  : isFocused 
+                    ? 'bg-raised/30 border-l-2 border-l-ink-dim/50' 
+                    : 'border-l-2 border-l-transparent'
+              }`}
+            >
+              <span className="text-ink-faint tabular">{c.id}</span>
+              <span className="font-medium text-ink truncate pr-4">{c.title}</span>
+              <span>
+                <span className={`text-[10px] rounded px-1.5 py-0.5 border ${getStatusBadgeClass(c.status)}`}>
+                  {c.status}
+                </span>
+              </span>
+              <span className="text-ink-dim truncate">
+                {getAssigneeUsername(c.assigned_to_user_id, analysts || [])}
+              </span>
+              <span className="text-ink-faint text-[12px] tabular">
+                {formatDate(c.created_at, timezone, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Pagination footer */}
+      {data && (
+        <Pagination
+          total={data.total}
+          limit={data.limit}
+          offset={data.offset}
+          onPageChange={setOffset}
+        />
+      )}
+    </div>
+  )
+}

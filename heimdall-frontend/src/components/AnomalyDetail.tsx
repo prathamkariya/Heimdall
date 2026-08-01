@@ -3,12 +3,18 @@ import { useEffect, useRef, useState } from 'react'
 import { createChart } from 'lightweight-charts'
 import { apiFetch } from '../lib/api'
 import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
+import { SignalStrength } from './SignalStrength'
+import { EvidenceBar } from './EvidenceBar'
+import { CollapsibleSection } from './CollapsibleSection'
+import { formatDate } from '../lib/utils'
+import { useSettings } from '../lib/SettingsContext'
 
 interface AnomalyDetailProps {
   anomaly: AnomalyListItem
   cases: any[]
   onClose: () => void
   onCaseUpdated: () => void
+  onSelectAnomaly?: (anomaly: AnomalyListItem) => void
 }
 
 interface AnomalyChartProps {
@@ -33,7 +39,7 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
         if (!active) return
 
         if (!res || res.length === 0) {
-          setError('No price history available')
+          setError('No historical data')
           setLoading(false)
           return
         }
@@ -46,6 +52,8 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
             high: parseFloat(d.high),
             low: parseFloat(d.low),
             close: parseFloat(d.close),
+            value: parseFloat(d.volume || 0),
+            color: parseFloat(d.close) >= parseFloat(d.open) ? '#4fbf7a40' : '#e8604c40'
           }))
           .sort((a, b) => a.time - b.time)
 
@@ -59,6 +67,13 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
             grid: {
               vertLines: { color: '#232a31' }, // line
               horzLines: { color: '#232a31' }, // line
+            },
+            rightPriceScale: {
+              scaleMargins: {
+                top: 0.1,
+                bottom: 0.25, // leave space for volume
+              },
+              borderColor: '#232a31',
             },
             width: chartContainerRef.current.clientWidth || 340,
             height: 185,
@@ -76,8 +91,17 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
             wickUpColor: '#4fbf7a',
             wickDownColor: '#e8604c',
           })
-
           candleSeries.setData(chartData)
+
+          const volumeSeries = chart.addHistogramSeries({
+            color: '#26a69a',
+            priceFormat: { type: 'volume' },
+            priceScaleId: '', // overlay
+          })
+          volumeSeries.priceScale().applyOptions({
+            scaleMargins: { top: 0.8, bottom: 0 },
+          })
+          volumeSeries.setData(chartData)
 
           // Find closest timestamp to place marker
           const targetTime = Math.floor(new Date(marketTimestamp).getTime() / 1000)
@@ -136,8 +160,14 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
         </div>
       )}
       {error && (
-        <div className="flex h-[180px] items-center justify-center font-mono text-[11px] text-down">
-          {error}
+        <div className="relative flex h-[180px] w-full flex-col items-center justify-center overflow-hidden">
+          {/* Faint placeholder chart structure */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none flex items-end justify-between px-2 pb-4">
+             {Array.from({ length: 15 }).map((_, i) => (
+                <div key={i} className="w-[14px] bg-ink" style={{ height: `${20 + Math.random() * 60}%` }} />
+             ))}
+          </div>
+          <span className="font-mono text-[11px] text-ink-faint z-10">{error}</span>
         </div>
       )}
       <div
@@ -175,7 +205,7 @@ function parsePatternScores(raw: string | null): Record<string, number> {
   }
 }
 
-export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: AnomalyDetailProps) {
+export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelectAnomaly }: AnomalyDetailProps) {
   const patterns = parsePatternScores(anomaly.pattern_scores)
   const severity = anomaly.severity
   const [actionLoading, setActionLoading] = useState(false)
@@ -219,10 +249,12 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
   return (
     <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-line bg-surface select-none">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-line px-5 py-3">
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-medium text-ink">{anomaly.symbol}</span>
+      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          {associatedCase && <span className="font-mono text-[11px] font-semibold text-accent pr-2 border-r border-line">CASE-{associatedCase.id}</span>}
+          <span className="font-mono text-[13px] font-medium text-ink">{anomaly.symbol}</span>
           {severity && <SeverityBadge severity={severity} />}
+          <span className="font-mono text-[10px] text-ink-faint ml-1">{anomaly.market}</span>
         </div>
         <button
           onClick={onClose}
@@ -237,10 +269,15 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
         <AnomalyChart symbol={anomaly.symbol} marketTimestamp={anomaly.market_timestamp} />
 
         {/* Summary metrics */}
-        <section>
-          <SectionLabel>Detection Summary</SectionLabel>
+        <CollapsibleSection title="Detection Summary" storageKey="heimdall_col_detection_summary">
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
-            <MetricRow label="Blended Score" value={anomaly.anomaly_score.toFixed(4)} highlight />
+            <dt className="font-mono text-[11px] text-ink-faint">Anomaly Confidence</dt>
+            <dd className="font-mono text-[12px] tabular">
+              <SignalStrength 
+                score={anomaly.anomaly_score} 
+                size="sm"
+              />
+            </dd>
             <MetricRow label="Is Anomaly" value={anomaly.is_anomaly ? 'YES' : 'NO'} />
             <MetricRow
               label="Isolation Forest"
@@ -265,12 +302,11 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
               />
             )}
           </dl>
-        </section>
+        </CollapsibleSection>
 
         {/* Pattern breakdown — the "not a black box" signal */}
         {Object.keys(patterns).length > 0 && (
-          <section>
-            <SectionLabel>Pattern Scores</SectionLabel>
+          <CollapsibleSection title="Pattern Scores" storageKey="heimdall_col_pattern_scores">
             <div className="mt-2 space-y-2">
               {Object.entries(patterns)
                 .sort(([, a], [, b]) => b - a)
@@ -279,34 +315,31 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
                     <span className="w-32 truncate font-mono text-[11px] text-ink-dim">
                       {pattern}
                     </span>
-                    <div className="flex-1 h-1.5 rounded-full bg-raised overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          score >= 0.8 ? 'bg-down' : score >= 0.5 ? 'bg-accent' : 'bg-ink-faint'
-                        }`}
-                        style={{ width: `${Math.max(2, score * 100)}%` }}
-                      />
+                    <div className="flex-1 text-[11px] font-mono tracking-[0.1em] text-ink-faint select-none">
+                      {Array.from({ length: 8 }).map((_, i) => {
+                        const filled = i < Math.round(score * 8);
+                        const colorClass = score >= 0.8 ? 'text-down' : score >= 0.5 ? 'text-accent' : 'text-ink-dim';
+                        return <span key={i} className={filled ? colorClass : 'opacity-30'}>{filled ? '■' : '□'}</span>
+                      })}
                     </div>
-                    <span className="w-14 text-right font-mono text-[11px] text-ink-dim tabular">
-                      {score.toFixed(3)}
+                    <span className={`w-14 text-right font-mono text-[11px] tabular ${score >= 0.8 ? 'text-down font-bold' : score >= 0.5 ? 'text-accent font-medium' : 'text-ink-dim'}`}>
+                      {(score * 100).toFixed(1)}%
                     </span>
                   </div>
                 ))}
             </div>
-          </section>
+          </CollapsibleSection>
         )}
 
 
         {anomaly.evidence && anomaly.evidence.length > 0 && (
-          <section>
-            <SectionLabel>Evidence Signals</SectionLabel>
+          <CollapsibleSection title="Evidence Signals" storageKey="heimdall_col_evidence_signals">
             <EvidencePanel signals={anomaly.evidence} />
-          </section>
+          </CollapsibleSection>
         )}
 
         {/* Timestamps */}
-        <section>
-          <SectionLabel>Timestamps</SectionLabel>
+        <CollapsibleSection title="Timestamps" storageKey="heimdall_col_timestamps">
           <dl className="mt-2 space-y-1">
             <div className="flex justify-between font-mono text-[11px]">
               <dt className="text-ink-faint">Market</dt>
@@ -317,11 +350,15 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
               <dd className="text-ink-dim tabular">{formatDt(anomaly.detected_at)}</dd>
             </div>
           </dl>
-        </section>
+        </CollapsibleSection>
+
+        {/* Related Alerts */}
+        <CollapsibleSection title={`Related Alerts (${anomaly.symbol})`} storageKey="heimdall_col_related_alerts">
+          <RelatedAlerts currentId={anomaly.id} symbol={anomaly.symbol} onSelectAnomaly={onSelectAnomaly} />
+        </CollapsibleSection>
 
         {/* Incident Management Workflow (Phases B2-B5) */}
-        <section className="border-t border-line pt-4">
-          <SectionLabel>Incident Workflow</SectionLabel>
+        <CollapsibleSection title="Incident Workflow" storageKey="heimdall_col_incident_workflow" className="border-t border-line pt-4">
           {associatedCase ? (
             <div className="mt-2 space-y-3 font-mono text-[11px]">
               <div className="flex justify-between">
@@ -386,18 +423,18 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
               </div>
             </div>
           ) : (
-            <div className="mt-2 font-mono text-[11px] text-ink-faint">
-              <p className="mb-2">No active case is investigating this anomaly.</p>
+            <div className="mt-2 font-mono text-[11px] text-ink-faint flex flex-col gap-2">
+              <p>No active case is investigating this anomaly.</p>
               <button
                 disabled={actionLoading}
                 onClick={handleCreateCase}
-                className="rounded bg-accent text-void hover:bg-accent/90 px-3 py-1.5 text-[10px] font-semibold tracking-wider font-mono cursor-pointer disabled:opacity-50"
+                className="w-full rounded bg-accent text-void hover:bg-accent/90 px-3 py-1.5 text-[11px] font-semibold tracking-wider font-mono cursor-pointer disabled:opacity-50 transition-colors"
               >
-                + INITIATE INVESTIGATION
+                + START INVESTIGATION
               </button>
             </div>
           )}
-        </section>
+        </CollapsibleSection>
       </div>
     </div>
   )
@@ -407,24 +444,68 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated }: Anomal
 
 function EvidencePanel({ signals }: { signals: EvidenceSignal[] }) {
   return (
-    <div className="mt-2 border border-line bg-surface/50 rounded overflow-hidden">
-      <div className="grid grid-cols-[1fr_1fr_1fr_52px] gap-x-3 px-3 py-1.5 border-b border-line/60">
-        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Signal</span>
-        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Observed</span>
-        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Threshold</span>
-        <span className="text-[9px] uppercase tracking-wider text-ink-faint font-semibold">Status</span>
-      </div>
-      {signals.map((sig) => (
-        <div
-          key={sig.name}
-          className="grid grid-cols-[1fr_1fr_1fr_52px] gap-x-3 px-3 py-1.5 border-b border-line/30 last:border-0 font-mono text-[11px]"
+    <div className="mt-2 space-y-3">
+      {signals.map((sig, i) => (
+        <EvidenceBar 
+          key={i}
+          name={sig.name}
+          observed={sig.value}
+          threshold={sig.threshold}
+          triggered={sig.triggered}
+        />
+      ))}
+    </div>
+  )
+}
+
+/* ── Related Alerts panel ──────────────────────────────────────────────── */
+
+function RelatedAlerts({ currentId, symbol, onSelectAnomaly }: { currentId: number; symbol: string; onSelectAnomaly?: (anomaly: AnomalyListItem) => void }) {
+  const { timezone } = useSettings()
+  const [alerts, setAlerts] = useState<AnomalyListItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    async function fetchRelated() {
+      try {
+        const res = await apiFetch(`/anomalies?symbol=${encodeURIComponent(symbol)}&limit=6`) as any
+        if (active) {
+          // Filter out the current one
+          const related = (res.items || []).filter((a: AnomalyListItem) => a.id !== currentId).slice(0, 5)
+          setAlerts(related)
+        }
+      } catch (err) {
+        console.error('Failed to fetch related alerts', err)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    fetchRelated()
+    return () => { active = false }
+  }, [symbol, currentId])
+
+  if (loading) {
+    return <div className="mt-2 text-ink-faint font-mono text-[10px]">Finding related alerts...</div>
+  }
+
+  if (alerts.length === 0) {
+    return <div className="mt-2 text-ink-faint font-mono text-[10px]">No related alerts found for {symbol}.</div>
+  }
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {alerts.map((a) => (
+        <div 
+          key={a.id} 
+          onClick={() => onSelectAnomaly?.(a)}
+          className="flex items-center justify-between border border-line bg-surface/50 rounded px-3 py-1.5 font-mono text-[11px] hover:bg-raised/60 transition-colors cursor-pointer"
         >
-          <span className="text-ink-dim truncate">{sig.name.replace(/_/g, ' ')}</span>
-          <span className="tabular">{sig.value.toFixed(4)}</span>
-          <span className="tabular text-ink-dim">{sig.threshold.toFixed(4)}</span>
-          <span className={`font-semibold text-[10px] ${sig.triggered ? 'text-down' : 'text-up'}`}>
-            {sig.triggered ? '✓ FIRED' : '– OK'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-ink-faint">#{a.id}</span>
+            <span className="text-ink-dim truncate max-w-[150px]">{a.primary_signal || 'NORMAL'}</span>
+          </div>
+          <span className="text-ink-faint tabular text-[10px]">{formatDt(a.detected_at, timezone)}</span>
         </div>
       ))}
     </div>
@@ -433,13 +514,7 @@ function EvidencePanel({ signals }: { signals: EvidenceSignal[] }) {
 
 /* ── Tiny helpers ──────────────────────────────────────────────── */
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-      {children}
-    </h3>
-  )
-}
+
 
 function MetricRow({
   label,
@@ -460,18 +535,14 @@ function MetricRow({
   )
 }
 
-function formatDt(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString('en-GB', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-  } catch {
-    return ts
-  }
+function formatDt(ts: string, timezone: 'local' | 'utc'): string {
+  return formatDate(ts, timezone, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }

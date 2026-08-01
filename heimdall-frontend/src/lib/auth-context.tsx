@@ -50,8 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize the api fetcher with the token
   useEffect(() => {
     initializeAuth(
-      () => accessToken || '',
-      (token: string) => setAccessToken(token)
+      () => accessToken || ''
     );
   }, [accessToken]);
 

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     MAR_MAX_CONCURRENCY: int = 5
     # How long to wait for the Gemini background thread before cancelling (seconds)
     MAR_GENERATION_TIMEOUT_SECONDS: float = 30.0
+    # API Key for Gemini
+    GEMINI_API_KEY: str | None = None
 
     # ML model artifacts (Phase 7) — directory produced by
     # ml's scripts/train.py (both multi_pattern_detector

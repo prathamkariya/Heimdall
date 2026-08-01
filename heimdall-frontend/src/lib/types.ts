@@ -19,13 +19,13 @@
 /** The 4 real sentinel values the backend can put in a live event's
  *  `confidence` field. There is no 5th value and no generic fallback —
  *  treat an unrecognized string here as a contract change, not a typo. */
-export type ConfidenceSentinel =
+type ConfidenceSentinel =
   | 'model_unavailable'
   | 'no_model_high_confidence'
   | 'baseline_unavailable'
   | 'no_baseline_high_confidence'
 
-export type Market = 'CRYPTO' | 'US_EQUITY' | 'INDIA_EQUITY'
+type Market = 'CRYPTO' | 'US_EQUITY' | 'INDIA_EQUITY'
 
 /** A row from `GET /anomalies` — persisted history. */
 export interface AnomalyListItem {
@@ -66,7 +66,7 @@ export interface EvidenceSignal {
 }
 
 /** Structured prediction from the ML pipeline boundary. */
-export interface DetectionResult {
+interface DetectionResult {
   label: string
   confidence: number
   detector_score: number
@@ -80,6 +80,8 @@ export interface DetectionResult {
 export interface LiveAlertEvent {
   symbol: string
   market: Market
+  price?: number
+  volume?: number
   anomaly_score: number | null
   low_confidence: boolean
   /** Present only on a sentinel (degraded-coverage) event. */
@@ -104,7 +106,45 @@ export function isScoredAlert(e: LiveAlertEvent): boolean {
   return e.anomaly_score !== null && e.confidence === undefined
 }
 
-export interface ModelStatus {
-  market: Market
-  healthy: boolean
+export interface CaseEvent {
+  id: number
+  case_id: number
+  actor_user_id: number | null
+  event_type: string
+  detail: string | null
+  created_at: string
+}
+
+export interface CaseNote {
+  id: number
+  case_id: number
+  author_user_id: number
+  body: string
+  created_at: string
+}
+
+export interface Case {
+  id: number
+  created_by_user_id: number
+  assigned_to_user_id: number | null
+  title: string
+  status: string
+  anomaly_ids: number[]
+  created_at: string
+  updated_at: string
+  closed_at: string | null
+}
+
+export interface CasePaginatedResponse {
+  items: Case[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface Analyst {
+  id: number
+  email: string
+  username: string
+  role: string
 }

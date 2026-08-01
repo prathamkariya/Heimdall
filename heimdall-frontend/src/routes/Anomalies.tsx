@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApiFetch } from '../lib/hooks'
+import { useKeyboardNav } from '../lib/useKeyboardNav'
 import { Pagination } from '../components/Pagination'
 import { AnomalyDetail } from '../components/AnomalyDetail'
+import { EmptyState } from '../components/EmptyState'
+import { Skeleton } from '../components/Skeleton'
+import { formatDate } from '../lib/utils'
+import { useSettings } from '../lib/SettingsContext'
 import type { AnomalyListItem, AnomalyPaginatedResponse } from '../lib/types'
 
 const PAGE_SIZE = 20
 
 export function Anomalies() {
+  const { timezone } = useSettings()
   const { data, loading, error, execute: executeAnomalies } = useApiFetch<AnomalyPaginatedResponse>()
   const { data: casesResponse, execute: executeCases } = useApiFetch<{items: any[]}>()
   const cases = casesResponse?.items || []
@@ -49,6 +55,17 @@ export function Anomalies() {
     setOffset(0)
   }, [symbolFilter, anomalyOnly])
 
+  const { focusedIndex } = useKeyboardNav({
+    itemCount: data?.items.length || 0,
+    onSelect: (index) => {
+      if (data?.items[index]) {
+        setSelected(data.items[index])
+      }
+    },
+    onClose: () => setSelected(null),
+    isActive: true
+  })
+
   return (
     <div className="flex h-full">
       {/* Main list */}
@@ -89,7 +106,7 @@ export function Anomalies() {
         </header>
 
         {/* Column headers */}
-        <div className="grid grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+        <div className="grid grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
           <span>ID</span>
           <span>Symbol</span>
           <span>Market</span>
@@ -102,9 +119,17 @@ export function Anomalies() {
         {/* Rows */}
         <div className="flex-1 overflow-y-auto">
           {loading && (
-            <div className="space-y-0.5 px-5 pt-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-8 animate-pulse rounded bg-raised/50" />
+            <div className="space-y-0.5 pt-2">
+              {Array.from({ length: 15 }).map((_, i) => (
+                <div key={i} className="grid w-full grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line/40 px-5 py-2.5 items-center">
+                  <Skeleton className="h-4 w-10" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-5 w-24 rounded" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
               ))}
             </div>
           )}
@@ -122,21 +147,28 @@ export function Anomalies() {
           )}
 
           {!loading && !error && data && data.items.length === 0 && (
-            <div className="flex h-32 items-center justify-center text-sm text-ink-faint">
-              No anomalies found
-            </div>
+            <EmptyState 
+              title="No Anomalies Found"
+              description="There are currently no anomalies matching your filters."
+              icon="shield"
+            />
           )}
 
-          {!loading && !error && data?.items.map((item) => {
+          {!loading && !error && data?.items.map((item, index) => {
             const severity = item.severity
             const primarySignal = item.primary_signal || 'NORMAL'
+            const isFocused = index === focusedIndex
             return (
               <button
                 key={item.id}
                 onClick={() => setSelected(item)}
-                className={`grid w-full grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line/40 px-5 py-2 text-left font-mono text-[13px] transition-colors hover:bg-raised/40 ${
-                  selected?.id === item.id ? 'bg-raised/60' : ''
-                } ${item.model_version === null ? 'border-l-2 border-l-accent' : ''}`}
+                className={`grid w-full grid-cols-[60px_100px_85px_90px_85px_130px_1fr] gap-x-3 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-all active:scale-[0.99] hover:bg-raised/60 ${
+                  selected?.id === item.id 
+                    ? 'bg-raised/60 border-l-2 border-l-accent' 
+                    : isFocused
+                      ? 'bg-raised/30 border-l-2 border-l-ink-dim/50'
+                      : item.model_version === null ? 'border-l-2 border-l-transparent' : 'border-l-2 border-l-transparent'
+                }`}
               >
                 <span className="text-ink-faint tabular">{item.id}</span>
                 <span className="font-medium text-ink truncate">{item.symbol}</span>
@@ -176,7 +208,7 @@ export function Anomalies() {
                   </span>
                 </span>
                 <span className="text-ink-dim tabular text-[12px]">
-                  {formatDetectedAt(item.detected_at)}
+                  {formatDt(item.detected_at, timezone)}
                 </span>
               </button>
             )
@@ -201,25 +233,21 @@ export function Anomalies() {
           cases={cases}
           onClose={() => setSelected(null)}
           onCaseUpdated={handleCaseUpdated}
+          onSelectAnomaly={setSelected}
         />
       )}
     </div>
   )
 }
 
-
-
-function formatDetectedAt(ts: string): string {
-  try {
-    return new Date(ts).toLocaleString('en-GB', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    })
-  } catch {
-    return ts
-  }
+function formatDt(ts: string, timezone: 'local' | 'utc'): string {
+  return formatDate(ts, timezone, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }

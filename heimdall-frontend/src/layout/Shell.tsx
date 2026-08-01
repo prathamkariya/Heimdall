@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import { Rail } from './Rail'
+import { CommandPalette } from '../components/CommandPalette'
 
 export function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-void text-ink select-none">
+    <div className="flex h-screen w-screen overflow-hidden bg-void text-ink font-brand select-none">
       <Rail />
       <div className="flex flex-col flex-1 overflow-hidden">
         <main className="flex-1 overflow-y-auto bg-void">{children}</main>
@@ -20,6 +21,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </footer>
       </div>
+      <CommandPalette />
     </div>
   )
 }

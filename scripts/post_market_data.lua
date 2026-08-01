@@ -14,7 +14,7 @@ end
 
 request = function()
   req_counter = req_counter + 1
-  local symbol = string.format("SYM%d%05d", id, req_counter)
+  local symbol = "DOGEUSDT"
   local body = string.format('{"symbol": "%s", "open": 50000, "high": 50500, "low": 49500, "close": 50200, "volume": 1.5, "timestamp": "2026-07-30T12:00:00Z"}', symbol)
   return wrk.format(nil, nil, nil, body)
 end

@@ -14,22 +14,27 @@
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
-  --color-void: #0a0d10;
+  /* Official Brand Colors */
+  --color-void: #0a0a0a;       /* Near Black */
   --color-surface: #12161a;
   --color-raised: #1b2127;
-  --color-line: #232a31;
+  --color-line: #1f2329;       /* Dark Slate */
 
-  --color-ink: #e8e6df;
+  --color-ink: #ffffff;        /* Primary White */
   --color-ink-dim: #9fb0bc;
-  --color-ink-faint: #64748b;
+  --color-ink-faint: #687280;  /* Slate Gray */
 
   --color-up: #4fbf7a;
   --color-up-dim: #2c5b40;
   --color-down: #e8604c;
   --color-down-dim: #6b3129;
 
-  --color-accent: #d9a441;
+  --color-accent: #d4a63a;     /* Institutional Gold */
   --color-accent-dim: #3d3320;
+
+  /* Custom Easing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html {
@@ -77,7 +82,7 @@ body {
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink-faint);
+  background: var(--color-accent);
 }
 
 /* Firefox scrollbar */
@@ -99,7 +104,20 @@ body {
   to   { transform: translateX(0);    opacity: 1; }
 }
 .animate-slide-in {
-  animation: slideInRight 0.2s ease-out;
+  animation: slideInRight 0.3s var(--ease-drawer) forwards;
+}
+
+/* ── Toast Entry ── */
+.animate-toast-enter {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all 400ms var(--ease-out);
+}
+@starting-style {
+  .animate-toast-enter {
+    opacity: 0;
+    transform: translateY(16px);
+  }
 }
 
 /* ── Row flash for new live-feed events ── */
@@ -109,4 +127,46 @@ body {
 }
 .animate-row-flash {
   animation: rowFlash 1.2s ease-out;
+}
+
+@keyframes rowFlashRed {
+  0%   { background-color: rgba(232, 96, 76, 0.15); }
+  100% { background-color: transparent; }
+}
+.animate-row-flash-red {
+  animation: rowFlashRed 1.2s ease-out;
+}
+
+/* ── Loading bar slide animation ── */
+@keyframes slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* ── Compact Mode Overrides ── */
+.compact-mode table th,
+.compact-mode table td {
+  padding-top: 0.35rem !important;
+  padding-bottom: 0.35rem !important;
+  font-size: 11px !important;
+}
+
+.compact-mode .px-4,
+.compact-mode .py-4 {
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.compact-mode .text-[13px] {
+  font-size: 11px !important;
+}
+
+.compact-mode .text-[12px] {
+  font-size: 11px !important;
+}
+
+.compact-mode .h-8 {
+  height: 1.5rem !important;
 }

@@ -1,11 +1,9 @@
 const BASE_URL = '/api/v1';
 
-export let getAccessToken = () => '';
-export let setAccessToken = (_token: string) => {};
+let getAccessToken = () => '';
 
-export function initializeAuth(getter: () => string, setter: (t: string) => void) {
+export function initializeAuth(getter: () => string) {
   getAccessToken = getter;
-  setAccessToken = setter;
 }
 
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {

@@ -27,9 +27,13 @@ def create_market_data(
     return a 409 Conflict.
     """
     def infer_market(symbol: str) -> str:
+        symbol_upper = symbol.upper()
         # Crypto: typically ends in USDT, BTC, ETH, or contains a hyphen/slash
-        if any(suffix in symbol.upper() for suffix in ["USDT", "BTC", "ETH", "-", "/"]):
+        if any(suffix in symbol_upper for suffix in ["USDT", "BTC", "ETH", "-", "/"]):
             return "CRYPTO"
+        # India Equities: typically ends in .NS or .BO
+        if symbol_upper.endswith(".NS") or symbol_upper.endswith(".BO"):
+            return "INDIA_EQUITY"
         # Fallback/Equities: shorter alpha symbols
         return "US_EQUITY"
 

@@ -44,8 +44,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('heimdall_access_token');
+  });
+  const [refreshToken, setRefreshToken] = useState<string | null>(() => {
+    return localStorage.getItem('heimdall_refresh_token');
+  });
+
+  // Keep localStorage in sync
+  useEffect(() => {
+    if (accessToken) {
+      localStorage.setItem('heimdall_access_token', accessToken);
+    } else {
+      localStorage.removeItem('heimdall_access_token');
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (refreshToken) {
+      localStorage.setItem('heimdall_refresh_token', refreshToken);
+    } else {
+      localStorage.removeItem('heimdall_refresh_token');
+    }
+  }, [refreshToken]);
 
   // Initialize the api fetcher with the token
   useEffect(() => {

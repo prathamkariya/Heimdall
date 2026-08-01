@@ -130,7 +130,11 @@ export function CommandPalette() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-void/80 backdrop-blur-sm animate-fade-in">
+    <div 
+      role="dialog"
+      aria-label="Command Palette"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-void/80 backdrop-blur-sm animate-fade-in"
+    >
       <div 
         className="w-full max-w-lg bg-surface border border-line rounded-lg shadow-2xl overflow-hidden animate-fade-in-zoom"
         onClick={(e) => e.stopPropagation()}

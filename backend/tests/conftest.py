@@ -41,19 +41,25 @@ def postgres_url():
     To use testcontainers: pip install testcontainers[postgresql]
     Requires Docker to be running.
     """
+    import os
+    if os.environ.get("TEST_DATABASE_URL"):
+        yield os.environ["TEST_DATABASE_URL"]
+        return
+
     try:
         from testcontainers.postgres import PostgresContainer
         with PostgresContainer("postgres:15-alpine") as pg:
             yield pg.get_connection_url()
     except Exception:
-        # Fallback: use a local PostgreSQL test DB
-        # Set TEST_DATABASE_URL env var to override
-        import os
-        url = os.environ.get(
-            "TEST_DATABASE_URL",
-            "postgresql://postgres:password@localhost:5432/market_surveillance_test"
-        )
-        yield url
+        # Fallback: check if environment has configured database (e.g. docker or local settings)
+        if os.environ.get("POSTGRES_HOST") or settings.DATABASE_URL:
+            yield str(settings.DATABASE_URL)
+        else:
+            url = os.environ.get(
+                "TEST_DATABASE_URL",
+                "postgresql://postgres:password@localhost:5432/market_surveillance_test"
+            )
+            yield url
 
 
 @pytest.fixture(scope="session")

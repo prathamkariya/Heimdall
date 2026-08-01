@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import User, Anomaly, Case, MarketData
+from app.models import User, Anomaly, Case, CaseNote, MarketData
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -33,7 +33,7 @@ def global_search(
     if q.isdigit():
         case_filter.append(Case.id == int(q))
     case_filter.append(Case.title.ilike(query_str))
-    case_filter.append(Case.description.ilike(query_str))
+    case_filter.append(Case.notes.any(CaseNote.body.ilike(query_str)))
     
     cases = db.query(Case).filter(or_(*case_filter)).limit(limit).all()
     

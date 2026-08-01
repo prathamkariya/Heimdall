@@ -82,6 +82,61 @@ test.describe('Navigation, Command Palette & Settings', () => {
     await expect(page).toHaveURL(/.*\/audit/);
   });
 
+  test('hits backend /api/v1/search endpoint and navigates to remote results', async ({ page }) => {
+    let searchIntercepted = false;
+    let interceptedQuery = '';
+
+    await page.route('**/api/v1/search*', async (route) => {
+      searchIntercepted = true;
+      const url = new URL(route.request().url());
+      interceptedQuery = url.searchParams.get('q') || '';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          results: [
+            {
+              id: 'anomaly-42',
+              entity_id: 42,
+              type: 'anomaly',
+              title: 'Anomaly #42 (BTCUSDT)',
+              subtitle: 'PUMP AND DUMP (Score: 0.98)',
+              route: '/anomalies?selected=42',
+            },
+            {
+              id: 'case-7',
+              entity_id: 7,
+              type: 'case',
+              title: 'Case #7: Suspicious BTC volume',
+              subtitle: 'Status: OPEN',
+              route: '/investigations?selected=7',
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.goto('/');
+
+    // Trigger palette with '/'
+    await page.keyboard.press('/');
+    const palette = page.locator('[role="dialog"][aria-label="Command Palette"]');
+    await expect(palette).toBeVisible();
+
+    const searchInput = palette.locator('input[type="text"]');
+    await searchInput.fill('BTC');
+
+    // Wait for debounce and network fulfillment
+    await expect(palette.locator('text=Anomaly #42 (BTCUSDT)')).toBeVisible({ timeout: 5000 });
+    await expect(palette.locator('text=Case #7: Suspicious BTC volume')).toBeVisible();
+    expect(searchIntercepted).toBe(true);
+    expect(interceptedQuery).toBe('BTC');
+
+    // Click the anomaly result
+    await palette.locator('text=Anomaly #42 (BTCUSDT)').click();
+    await expect(page).toHaveURL(/.*\/anomalies\?selected=42/);
+  });
+
   test('toggles compact mode density and persists in DOM', async ({ page }) => {
     await page.goto('/');
 

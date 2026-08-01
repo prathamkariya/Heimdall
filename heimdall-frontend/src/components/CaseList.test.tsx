@@ -69,6 +69,6 @@ describe('CaseList', () => {
       />
     )
     
-    expect(screen.getByText('No Investigations Found')).toBeInTheDocument()
+    expect(screen.getByText('No investigations currently assigned')).toBeInTheDocument()
   })
 })

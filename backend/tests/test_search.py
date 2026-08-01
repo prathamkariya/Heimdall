@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 
 from app.models import Anomaly, Case, MarketData, User
 
-def test_search_endpoint(client: TestClient, db_session: Session, test_user: User):
+def test_search_endpoint(client: TestClient, db_session: Session, registered_user: dict, auth_headers: dict):
+    user_id = registered_user["id"]
     # Create market data
     md = MarketData(
-        user_id=test_user.id,
+        user_id=user_id,
         symbol="SEARCHBTC",
         timestamp="2026-08-01T10:00:00Z",
         open=100.0,
@@ -34,7 +35,7 @@ def test_search_endpoint(client: TestClient, db_session: Session, test_user: Use
         title="Suspicious SEARCHBTC behavior",
         description="Found some pump and dump",
         status="OPEN",
-        created_by_user_id=test_user.id,
+        created_by_user_id=user_id,
     )
     db_session.add(case)
     db_session.commit()
@@ -42,7 +43,7 @@ def test_search_endpoint(client: TestClient, db_session: Session, test_user: Use
     # Search by symbol
     response = client.get(
         "/api/v1/search?q=SEARCHBTC",
-        headers={"Authorization": f"Bearer token_{test_user.id}"}
+        headers=auth_headers
     )
     assert response.status_code == 200
     results = response.json()["results"]

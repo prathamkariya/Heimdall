@@ -205,11 +205,10 @@ body {
   padding-bottom: 0.75rem !important;
 }
 
-.compact-mode .text-[13px] {
-  font-size: 11px !important;
-}
-
-.compact-mode .text-[12px] {
+.compact-mode [class*="text-[13px]"],
+.compact-mode [class*="text-[12px]"],
+.compact-mode .text-xs,
+.compact-mode .text-sm {
   font-size: 11px !important;
 }
 

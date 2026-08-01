@@ -45,7 +45,7 @@ export function CaseList({
       </header>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">
+      <div className="grid grid-cols-[45px_1fr_85px_110px_90px] gap-x-3 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">
         <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">ID <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
         <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Case Title <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
         <span className="group flex items-center gap-1 cursor-pointer hover:text-ink transition-colors w-fit">Status <span className="opacity-0 group-hover:opacity-100 text-[8px] text-accent transition-opacity">↓</span></span>
@@ -58,12 +58,12 @@ export function CaseList({
         {loading && (
           <div className="space-y-0.5 pt-2">
             {Array.from({ length: 15 }).map((_, i) => (
-              <div key={i} className="grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-5 py-2.5 items-center">
-                <Skeleton className="h-4 w-8" />
+              <div key={i} className="grid w-full grid-cols-[45px_1fr_85px_110px_90px] gap-x-3 border-b border-line/40 px-4 py-2.5 items-center">
+                <Skeleton className="h-4 w-6" />
                 <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-5 w-16 rounded" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-14 rounded" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
               </div>
             ))}
           </div>
@@ -95,7 +95,7 @@ export function CaseList({
             <button
               key={c.id}
               onClick={() => onSelect(c.id)}
-              className={`grid w-full grid-cols-[60px_1.5fr_100px_130px_1fr] gap-x-4 border-b border-line/40 px-4 py-1.5 text-left font-mono text-[13px] transition-fast hover:bg-raised/60 ${
+              className={`grid w-full grid-cols-[45px_1fr_85px_110px_90px] gap-x-3 border-b border-line/40 px-4 py-2 text-left font-mono text-[13px] transition-fast hover:bg-raised/60 ${
                 selectedId === c.id 
                   ? 'bg-selected border-l-2 border-l-accent' 
                   : isFocused 

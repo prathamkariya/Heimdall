@@ -26,7 +26,7 @@ export function Rail() {
     const fetchOpenCases = async () => {
       try {
         const res = await apiFetch('/cases?limit=100') as any
-        const count = (res.items || []).filter((c: any) => c.status === 'OPEN').length
+        const count = (res.items || []).filter((c: any) => !['CLOSED', 'DISMISSED'].includes(c.status)).length
         setOpenCasesCount(count)
       } catch (err) {
         console.error('Failed to fetch open cases count', err)

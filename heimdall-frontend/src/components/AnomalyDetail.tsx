@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { createChart } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
 import { apiFetch } from '../lib/api'
 import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
 import { SignalStrength } from './SignalStrength'
@@ -84,7 +84,7 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
             },
           })
 
-          const candleSeries = chart.addCandlestickSeries({
+          const candleSeries = chart.addSeries(CandlestickSeries, {
             upColor: '#4fbf7a', // up
             downColor: '#e8604c', // down
             borderVisible: false,
@@ -93,7 +93,7 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
           })
           candleSeries.setData(chartData)
 
-          const volumeSeries = chart.addHistogramSeries({
+          const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat: { type: 'volume' },
             priceScaleId: '', // overlay
           })
@@ -108,12 +108,12 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
             return Math.abs(curr.time - targetTime) < Math.abs(prev.time - targetTime) ? curr : prev
           })
 
-          candleSeries.setMarkers([
+          createSeriesMarkers(candleSeries, [
             {
               time: closest.time,
               position: 'aboveBar',
               color: '#d9a441', // amber accent
-              shape: 'pin',
+              shape: 'arrowDown',
               text: 'ALERT',
             },
           ])

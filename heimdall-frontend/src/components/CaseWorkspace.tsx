@@ -254,10 +254,10 @@ export function CaseWorkspace({
             Investigation Workspace
           </span>
           <h2 className="text-sm font-semibold text-ink leading-tight truncate flex items-center gap-3">
-            <span>
-              CASE-{String(selected.id).padStart(6, '0')} <span className="text-ink-faint font-normal mx-1">/</span> Investigation <span className="text-ink-faint font-normal mx-1">/</span> {selected.title.split('for ')[1]?.split(' ')[0] || 'Unknown'}
+            <span className="truncate">
+              CASE-{String(selected.id).padStart(6, '0')} <span className="text-ink-faint font-normal mx-1">/</span> <span className="text-ink font-medium">{selected.title}</span>
             </span>
-            <span className={`text-[10px] font-mono rounded px-1.5 py-0.5 border ${getStatusBadgeClass(selected.status)}`}>
+            <span className={`text-[10px] font-mono rounded px-1.5 py-0.5 border shrink-0 ${getStatusBadgeClass(selected.status)}`}>
               {selected.status}
             </span>
           </h2>

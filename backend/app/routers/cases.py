@@ -135,8 +135,8 @@ def list_analysts(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all users with the analyst role (to populate assignees dropdown)."""
-    analysts = db.query(User).filter(User.role == "analyst").all()
+    """List all active users (to populate assignees dropdown and name lookups)."""
+    analysts = db.query(User).filter(User.is_active == True).all()
     return analysts
 
 

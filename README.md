@@ -1,11 +1,10 @@
 <div align="center">
 
-# 🛡️ HEIMDALL
-### Institutional Market Surveillance & Regulatory Intelligence Platform
-
 <p align="center">
-  <img src="docs/assets/heimdall_hero_banner.png" alt="Heimdall Market Surveillance Platform Banner" width="100%" style="border-radius: 12px; border: 1px solid #1F2329; box-shadow: 0 20px 40px rgba(0,0,0,0.8);" />
+  <img src="docs/assets/brand/heimdall_logo_lockup.png" alt="HEIMDALL Market Surveillance Platform" width="85%" style="border-radius: 8px; margin-bottom: 8px;" />
 </p>
+
+### Institutional Market Surveillance & Regulatory Intelligence Platform
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19.2+-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
@@ -17,6 +16,10 @@
 [![License](https://img.shields.io/badge/License-MIT-D4A63A?style=for-the-badge)](LICENSE)
 
 <p align="center">
+  <img src="docs/assets/brand/heimdall_pillars_banner.png" alt="Observation • Precision • Intelligence • Trust" width="95%" style="border-radius: 6px; margin-top: 12px; margin-bottom: 12px; border: 1px solid #1F2329;" />
+</p>
+
+<p align="center">
   <b>Sub-second anomaly detection</b> across high-frequency crypto and equity feeds, an institutional <b>forensic investigation workspace</b>, and automated <b>Market Abuse Regulation (MAR / MiFID II)</b> compliance audit trails.
 </p>
 
@@ -25,7 +28,8 @@
 ### ⚡ Quick Navigation
 
 [**Platform Overview**](#-platform-overview) •
-[**Live Investigation Workspace**](#-investigation-workspace--charting) •
+[**Brand & Design System**](#-brand--design-system) •
+[**Forensic Investigation Workspace**](#-investigation-workspace--charting) •
 [**ML Anomaly Engine**](#-algorithmic-detection-matrix) •
 [**Architecture**](#-architecture--data-pipeline) •
 [**Quick Start**](#-quick-start) •
@@ -50,11 +54,38 @@ Heimdall is an institutional market surveillance platform designed for high-freq
 
 ---
 
-## 🔍 Investigation Workspace & Charting
+## 🎨 Brand & Design System
+
+Heimdall's brand identity is built around four core principles: **Observation**, **Precision**, **Intelligence**, and **Trust**. The visual system uses precise geometric lines, radar-inspired observation rings, and high-contrast dark surfaces.
 
 <p align="center">
-  <img src="docs/assets/workspace_mockup.png" alt="Heimdall Forensic Investigation Workspace" width="100%" style="border-radius: 10px; border: 1px solid #232A31; box-shadow: 0 16px 32px rgba(0,0,0,0.6);" />
+  <img src="docs/assets/brand/heimdall_icon_system.png" alt="Heimdall Icon & Geometry System" width="100%" style="border-radius: 10px; border: 1px solid #1F2329; margin-bottom: 16px;" />
 </p>
+
+### 📐 Geometry & Tokens
+
+- **Icon Architecture**: Segmented outer observation ring (representing 360° radar surveillance) with a top north indicator and geometric `H` core.
+- **Color Palette**:
+  - `Near Black` (`#0A0A0A`) — Deep terminal background
+  - `Dark Slate` (`#1F2329`) — Structural borders, cards, and dividers
+  - `Primary White` (`#FFFFFF`) — High-emphasis data text
+  - `Institutional Gold` (`#D4A63A`) — Active alerts, high-confidence anomalies, and key interactions
+  - `Slate Gray` (`#687280`) — Metadata, timestamps, and secondary labels
+- **Typography Tokens**:
+  - **Brand & Headings**: `IBM Plex Sans` (Navigation, Dialogs, Logos, Action Buttons)
+  - **Telemetry & Data**: `IBM Plex Mono` (Live feeds, Order books, Candlestick metrics, Timestamps, Hash digests)
+
+<details>
+<summary><b>🔍 View Full Brand Guidelines & Specification Sheet</b></summary>
+<br/>
+<p align="center">
+  <img src="docs/assets/brand/heimdall_brand_guidelines.png" alt="Heimdall Full Brand Guidelines" width="100%" style="border-radius: 8px; border: 1px solid #1F2329;" />
+</p>
+</details>
+
+---
+
+## 🔍 Investigation Workspace & Charting
 
 When an anomaly triggers or a case is escalated, analysts enter the **Forensic Investigation Workspace**:
 
@@ -66,10 +97,6 @@ When an anomaly triggers or a case is escalated, analysts enter the **Forensic I
 ---
 
 ## 🧠 Algorithmic Detection Matrix
-
-<p align="center">
-  <img src="docs/assets/detection_matrix.png" alt="Heimdall Anomaly Detection Matrix" width="100%" style="border-radius: 10px; border: 1px solid #232A31; box-shadow: 0 16px 32px rgba(0,0,0,0.6);" />
-</p>
 
 Heimdall runs a dual-layer detection pipeline evaluating incoming ticks against historical baselines:
 
@@ -268,7 +295,8 @@ market-surveillance/
 │   ├── package.json
 │   └── vite.config.ts
 ├── docs/                           # Documentation & visual brand assets
-│   └── assets/                     # Hero banners, workspace mockups, detection matrix
+│   └── assets/
+│       └── brand/                  # Official brand lockups, icons, pillars banner, and guidelines
 ├── docker-compose.yml              # Local multi-service orchestration
 ├── docker-compose.prod.yml         # Production deployment configuration
 ├── nginx.conf                      # Reverse proxy & SSE streaming configuration

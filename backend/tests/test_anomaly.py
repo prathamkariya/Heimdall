@@ -268,3 +268,19 @@ class TestDetectAnomaly:
         )
         assert resp.status_code == 400
         assert "Market classification missing" in resp.json()["detail"]
+
+    def test_health_models_endpoint(self, client):
+        resp = client.get("/health/models")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        assert "markets" in data
+        assert "CRYPTO" in data["markets"]
+        assert "US_EQUITY" in data["markets"]
+
+    def test_anomalies_models_status_endpoint(self, client, auth_headers):
+        resp = client.get("/api/v1/anomalies/models/status", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        assert "markets" in data

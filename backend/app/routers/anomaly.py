@@ -149,3 +149,12 @@ def run_anomaly_detection(
         user_id=current_user.id,
         threshold=payload.threshold,
     )
+
+
+@router.get("/models/status")
+def get_model_status(
+    current_user: User = Depends(get_current_user),
+):
+    """Return runtime model telemetry and active detectors for authenticated analysts."""
+    from app.services.anomaly_service import get_models_health_status
+    return get_models_health_status()

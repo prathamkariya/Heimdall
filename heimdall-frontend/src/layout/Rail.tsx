@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Activity, TriangleAlert, Eye, LogOut, FolderGit, Search, Archive, Settings } from 'lucide-react'
+import { Activity, TriangleAlert, Eye, LogOut, FolderGit, Search, Archive, Settings, Cpu } from 'lucide-react'
 import { useAuth } from '../lib/auth-context'
 import { apiFetch } from '../lib/api'
 import { LogoLockup } from '../brand'
 import { SettingsModal } from '../components/SettingsModal'
+import { ModelStatusModal } from '../components/ModelStatusModal'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Live Feed', icon: Activity, end: true },
@@ -19,6 +20,7 @@ export function Rail() {
   const [openCasesCount, setOpenCasesCount] = useState<number | null>(null)
   const [demoMode, setDemoMode] = useState(() => localStorage.getItem('heimdall_demo_mode') === 'true')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isModelStatusOpen, setIsModelStatusOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -125,8 +127,15 @@ export function Rail() {
         </label>
       </div>
 
-      {/* Session controls */}
+      {/* Session & Engine controls */}
       <div className="border-t border-line px-2 py-3 space-y-0.5">
+        <button
+          onClick={() => setIsModelStatusOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-fast hover:bg-raised/60 hover:text-ink"
+        >
+          <Cpu size={15} strokeWidth={1.75} className="text-accent" />
+          Model Engine
+        </button>
         <button
           onClick={() => setIsSettingsOpen(true)}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[13px] text-ink-dim transition-fast hover:bg-raised/60 hover:text-ink"
@@ -150,6 +159,7 @@ export function Rail() {
       </div>
 
       {isSettingsOpen && <SettingsModal onClose={() => setIsSettingsOpen(false)} />}
+      {isModelStatusOpen && <ModelStatusModal onClose={() => setIsModelStatusOpen(false)} />}
     </nav>
   )
 }

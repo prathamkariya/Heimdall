@@ -148,3 +148,19 @@ export interface Analyst {
   username: string
   role: string
 }
+
+export interface MarketModelStatus {
+  loaded: boolean
+  has_isolation_forest: boolean
+  has_multi_pattern: boolean
+  patterns: string[]
+  has_lof: boolean
+  baseline_symbols_count: number
+  feature_columns: string[]
+  min_raw_rows_required: number
+}
+
+export interface ModelTelemetryResponse {
+  status: 'healthy' | 'degraded' | 'offline'
+  markets: Record<Market, MarketModelStatus>
+}

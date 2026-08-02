@@ -45,6 +45,7 @@ from ml.serving.model_registry import ModelLoadError, ModelRegistry
 from ml.types import DetectionResult, EvidenceSignal
 from sqlalchemy.orm import Session
 
+import app.alias
 from app.config import settings
 from app.models import Anomaly, MarketData
 from app.services.severity import severity_for_score
@@ -149,6 +150,40 @@ def get_lof_model(market: str = "CRYPTO"):
             if market not in _lof_models:
                 _lof_models[market] = _get_lof_model(market)
     return _lof_models[market]
+
+
+def get_models_health_status() -> dict:
+    """Return real-time diagnostic status of loaded surveillance models across all supported markets."""
+    market_statuses = {}
+    for market in _KNOWN_MARKETS:
+        reg = get_model_registry(market)
+        mp = reg.multi_pattern_detector
+        patterns = []
+        if mp is not None:
+            if hasattr(mp, "models_") and mp.models_:
+                patterns = [p.value if hasattr(p, "value") else str(p) for p in mp.models_]
+            elif hasattr(mp, "patterns"):
+                patterns = [p.value if hasattr(p, "value") else str(p) for p in mp.patterns]
+
+        market_statuses[market] = {
+            "loaded": reg.has_any_model,
+            "has_isolation_forest": reg.has_isolation_forest,
+            "has_multi_pattern": reg.has_multi_pattern,
+            "patterns": patterns,
+            "has_lof": get_lof_model(market) is not None,
+            "baseline_symbols_count": len(reg.symbol_baselines),
+            "feature_columns": list(BASE_FEATURE_COLUMNS),
+            "min_raw_rows_required": MIN_RAW_ROWS_FOR_FEATURES,
+        }
+
+    all_ready = all(s["loaded"] for s in market_statuses.values())
+    any_ready = any(s["loaded"] for s in market_statuses.values())
+    overall_status = "healthy" if all_ready else ("degraded" if any_ready else "offline")
+
+    return {
+        "status": overall_status,
+        "markets": market_statuses,
+    }
 
 
 # ──────────────────────────────────────────────

@@ -111,3 +111,10 @@ def health_check(db: Session = Depends(get_db)):
             status_code=503,
             content={"status": "degraded", "version": "2.0.0", "detail": str(e)},
         )
+
+
+@app.get("/health/models", tags=["health"])
+def models_health_check():
+    """Live telemetry on ML model registries, active detector patterns, and feature configurations."""
+    from app.services.anomaly_service import get_models_health_status
+    return get_models_health_status()

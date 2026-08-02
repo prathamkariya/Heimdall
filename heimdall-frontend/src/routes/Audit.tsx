@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FileText, Search, User } from 'lucide-react'
+import { FileText, Search, User, Download } from 'lucide-react'
 import { useApiFetch } from '../lib/hooks'
 import { EmptyState } from '../components/EmptyState'
 import { Pagination } from '../components/Pagination'
@@ -70,6 +70,7 @@ export function Audit() {
     executeAllAnomalies('/anomalies?limit=100')
   }, [fetchAnalysts, fetchClosedCases, executeCurrentUser, executeAllAnomalies])
 
+
   // Local filter for CLOSED/DISMISSED since MVP backend might lack the status query param
   const allClosedCases = (casesData?.items || []).filter(
     (c) => c.status === 'CLOSED' || c.status === 'DISMISSED'
@@ -106,10 +107,11 @@ export function Audit() {
     toast({ title: `Generating MAR...`, message: `Fetching historical report for Case #${caseId}`, variant: 'info' })
     try {
       const blob = await apiFetch(`/reports/mar/case/${caseId}`) as Blob
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `mar-case-${caseId}.md`
+      a.download = `MAR_Case_${caseId}_${dateStr}.md`
       a.click()
       window.URL.revokeObjectURL(url)
       toast({ title: `MAR Generated`, message: `Report downloaded successfully.`, variant: 'success' })
@@ -117,6 +119,72 @@ export function Audit() {
       toast({ title: `MAR Failed`, message: err.message || 'Failed to generate MAR', variant: 'error' })
     }
   }
+
+  /** Export all filtered closed cases as a SHA-256 verified CSV audit package. */
+  const exportAuditCSV = async () => {
+    if (allClosedCases.length === 0) {
+      toast({ title: 'No Records', message: 'No archived cases to export.', variant: 'info' })
+      return
+    }
+
+    const rows: string[][] = [
+      ['Case ID', 'Title', 'Status', 'Assignee', 'Anomaly Count', 'Created At', 'Closed At', 'Duration (h)'],
+    ]
+
+    for (const c of allClosedCases) {
+      const assignee = getAssigneeUsername(c.assigned_to_user_id)
+      const anomalyCount = c.anomaly_ids?.length ?? 0
+      let durationH = '-'
+      if (c.created_at && c.closed_at) {
+        const ms = new Date(c.closed_at).getTime() - new Date(c.created_at).getTime()
+        durationH = (ms / 3_600_000).toFixed(2)
+      }
+      rows.push([
+        String(c.id),
+        c.title,
+        c.status,
+        assignee,
+        String(anomalyCount),
+        c.created_at,
+        c.closed_at ?? '-',
+        durationH,
+      ])
+    }
+
+    const csvContent = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+
+    // SHA-256 integrity checksum
+    const msgBuffer = new TextEncoder().encode(csvContent)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const exportContent = `${csvContent}\n\n# HEIMDALL Audit Export — ${new Date().toISOString()}\n# SHA-256: ${hashHex}\n# Records: ${allClosedCases.length}`
+
+    const blob = new Blob([exportContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `HEIMDALL_Audit_${dateStr}_${hashHex.slice(0, 8)}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    toast({
+      title: 'Audit CSV Exported',
+      message: `${allClosedCases.length} records · SHA-256: ${hashHex.slice(0, 16)}…`,
+      variant: 'success',
+    })
+  }
+
+  // Allow CommandPalette to remotely trigger CSV export from any route
+  useEffect(() => {
+    const handler = () => { exportAuditCSV() }
+    window.addEventListener('trigger_audit_export', handler)
+    return () => window.removeEventListener('trigger_audit_export', handler)
+  // exportAuditCSV captures allClosedCases and analysts via closure;
+  // re-register whenever those stabilize.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [casesData, analysts])
 
   return (
     <div className="flex h-full w-full select-none overflow-hidden bg-void">
@@ -148,6 +216,14 @@ export function Audit() {
               className="bg-surface border border-line pl-8 pr-3 py-1.5 rounded text-[11px] font-mono text-ink outline-none focus:border-accent w-64 placeholder:text-ink-faint/50 transition-colors"
             />
           </div>
+          <button
+            onClick={exportAuditCSV}
+            title="Export verified CSV audit package with SHA-256 checksum"
+            className="flex items-center gap-1.5 border border-line bg-surface hover:bg-raised hover:border-accent/50 text-ink-dim hover:text-ink px-3 py-1.5 rounded font-mono text-[10px] uppercase tracking-wider transition-colors"
+          >
+            <Download size={12} />
+            Export CSV
+          </button>
         </div>
       </header>
 

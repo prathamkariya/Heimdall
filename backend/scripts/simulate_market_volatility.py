@@ -58,7 +58,7 @@ def _make_tick(t: float) -> dict:
     market, source = SYMBOL_MARKET_MAP[symbol]
     base_price = {
         "BTCUSDT": 65000, "ETHUSDT": 3200, "SOLUSDT": 145, "BNBUSDT": 580,
-        "AAPL": 195, "TSLA": 250, "RELIANCE": 2900, "INFY": 1600,
+        "AAPL": 195, "TSLA": 250,
     }[symbol]
     price = round(base_price * (1 + random.gauss(0, 0.002)), 4)
     # Occasionally inject a pump-and-dump-like volume spike for realism

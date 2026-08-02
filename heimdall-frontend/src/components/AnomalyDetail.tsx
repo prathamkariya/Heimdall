@@ -1,6 +1,6 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { createChart, CandlestickSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts'
 import { apiFetch } from '../lib/api'
 import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
 import { SignalStrength } from './SignalStrength'
@@ -17,15 +17,56 @@ interface AnomalyDetailProps {
   onSelectAnomaly?: (anomaly: AnomalyListItem) => void
 }
 
+/** Map pattern_scores keys → human labels shown on chart markers */
+const PATTERN_LABELS: Record<string, string> = {
+  pump_and_dump:      'PUMP & DUMP',
+  wash_trading:       'WASH TRADING',
+  spoofing:           'SPOOFING',
+  layering:           'LAYERING',
+}
+
+/** Severity → hex color (matches design tokens) */
+function severityColor(severity: string | undefined): string {
+  switch ((severity ?? '').toUpperCase()) {
+    case 'CRITICAL': return '#e8604c'
+    case 'HIGH':     return '#ea8c55'
+    case 'MEDIUM':   return '#d9a441'
+    default:         return '#7c8790'
+  }
+}
+
+/** Compute the primary pattern label from pattern_scores JSON string */
+function primaryPatternLabel(patternScoresRaw: string | null): string {
+  if (!patternScoresRaw) return 'ANOMALY'
+  try {
+    const scores: Record<string, number> = JSON.parse(patternScoresRaw)
+    const top = Object.entries(scores).sort((a, b) => b[1] - a[1])[0]
+    return top ? (PATTERN_LABELS[top[0]] ?? top[0].toUpperCase().replace(/_/g, ' ')) : 'ANOMALY'
+  } catch {
+    return 'ANOMALY'
+  }
+}
+
+/** Compute a simple N-period SMA over an array of close prices. */
+function computeSMA(closes: number[], period: number): (number | null)[] {
+  return closes.map((_, i) => {
+    if (i < period - 1) return null
+    const slice = closes.slice(i - period + 1, i + 1)
+    return slice.reduce((s, v) => s + v, 0) / period
+  })
+}
+
 interface AnomalyChartProps {
   symbol: string
   marketTimestamp: string
+  anomaly?: AnomalyListItem
 }
 
-export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
+export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [callout, setCallout] = useState<{ close: number; volumeSurge: number } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -34,6 +75,7 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
     async function loadChartData() {
       setLoading(true)
       setError(null)
+      setCallout(null)
       try {
         const res = await apiFetch(`/market-data?symbol=${encodeURIComponent(symbol)}&limit=100`) as any[]
         if (!active) return
@@ -44,35 +86,54 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
           return
         }
 
-        // Lightweight charts requires ascending order
-        const chartData = res
-          .map((d) => ({
-            time: Math.floor(new Date(d.timestamp).getTime() / 1000) as any,
-            open: parseFloat(d.open),
-            high: parseFloat(d.high),
-            low: parseFloat(d.low),
-            close: parseFloat(d.close),
-            value: parseFloat(d.volume || 0),
-            color: parseFloat(d.close) >= parseFloat(d.open) ? '#4fbf7a40' : '#e8604c40'
-          }))
-          .sort((a, b) => a.time - b.time)
+        // Sort ascending — lightweight-charts requirement
+        const sorted = [...res].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
 
-        if (chartContainerRef.current) {
+        const chartData = sorted.map((d) => ({
+          time: Math.floor(new Date(d.timestamp).getTime() / 1000) as any,
+          open:  parseFloat(d.open),
+          high:  parseFloat(d.high),
+          low:   parseFloat(d.low),
+          close: parseFloat(d.close),
+          value: parseFloat(d.volume || 0),
+          color: parseFloat(d.close) >= parseFloat(d.open) ? '#4fbf7a40' : '#e8604c40',
+        }))
+
+        // ── 20-period SMA computation ──────────────────────────────────
+        const closes = chartData.map(d => d.close)
+        const smaValues = computeSMA(closes, 20)
+        const smaLineData = chartData
+          .map((d, i) => smaValues[i] !== null ? { time: d.time, value: smaValues[i] as number } : null)
+          .filter(Boolean) as { time: any; value: number }[]
+
+        // ── Volume surge factor for callout ────────────────────────────
+        const targetTime = Math.floor(new Date(marketTimestamp).getTime() / 1000)
+        const closestIdx = chartData.reduce((bestI, curr, i) =>
+          Math.abs(curr.time - targetTime) < Math.abs(chartData[bestI].time - targetTime) ? i : bestI
+        , 0)
+        const closest = chartData[closestIdx]
+        const avgVol = chartData.reduce((s, d) => s + d.value, 0) / chartData.length
+        const surgeFactor = avgVol > 0 ? Math.round((closest.value / avgVol) * 10) / 10 : 1.0
+
+        if (active && closest) {
+          setCallout({ close: closest.close, volumeSurge: surgeFactor })
+        }
+
+        if (chartContainerRef.current && active) {
           chart = createChart(chartContainerRef.current, {
             layout: {
-              background: { type: 'solid' as any, color: '#12161a' }, // surface
-              textColor: '#7c8790', // ink-dim
+              background: { type: 'solid' as any, color: '#12161a' },
+              textColor: '#7c8790',
               fontFamily: 'IBM Plex Mono, monospace',
             },
             grid: {
-              vertLines: { color: '#232a31' }, // line
-              horzLines: { color: '#232a31' }, // line
+              vertLines: { color: '#232a31' },
+              horzLines: { color: '#232a31' },
             },
             rightPriceScale: {
-              scaleMargins: {
-                top: 0.1,
-                bottom: 0.25, // leave space for volume
-              },
+              scaleMargins: { top: 0.1, bottom: 0.25 },
               borderColor: '#232a31',
             },
             width: chartContainerRef.current.clientWidth || 340,
@@ -85,36 +146,44 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
           })
 
           const candleSeries = chart.addSeries(CandlestickSeries, {
-            upColor: '#4fbf7a', // up
-            downColor: '#e8604c', // down
+            upColor:      '#4fbf7a',
+            downColor:    '#e8604c',
             borderVisible: false,
-            wickUpColor: '#4fbf7a',
-            wickDownColor: '#e8604c',
+            wickUpColor:  '#4fbf7a',
+            wickDownColor:'#e8604c',
           })
           candleSeries.setData(chartData)
 
           const volumeSeries = chart.addSeries(HistogramSeries, {
             priceFormat: { type: 'volume' },
-            priceScaleId: '', // overlay
+            priceScaleId: '',
           })
-          volumeSeries.priceScale().applyOptions({
-            scaleMargins: { top: 0.8, bottom: 0 },
-          })
+          volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } })
           volumeSeries.setData(chartData)
 
-          // Find closest timestamp to place marker
-          const targetTime = Math.floor(new Date(marketTimestamp).getTime() / 1000)
-          const closest = chartData.reduce((prev, curr) => {
-            return Math.abs(curr.time - targetTime) < Math.abs(prev.time - targetTime) ? curr : prev
-          })
+          // ── SMA baseline overlay ─────────────────────────────────────
+          if (smaLineData.length > 0) {
+            const smaSeries = chart.addSeries(LineSeries, {
+              color:       '#7c8790',
+              lineWidth:   1,
+              lineStyle:   2, // dashed
+              priceScaleId: 'right',
+              lastValueVisible: false,
+              priceLineVisible: false,
+            })
+            smaSeries.setData(smaLineData)
+          }
 
+          // ── Pattern-aware anomaly marker ──────────────────────────────
+          const markerColor = severityColor(anomaly?.severity)
+          const markerLabel = primaryPatternLabel(anomaly?.pattern_scores ?? null)
           createSeriesMarkers(candleSeries, [
             {
-              time: closest.time,
+              time:     closest.time,
               position: 'aboveBar',
-              color: '#d9a441', // amber accent
-              shape: 'arrowDown',
-              text: 'ALERT',
+              color:    markerColor,
+              shape:    'arrowDown',
+              text:     markerLabel,
             },
           ])
 
@@ -131,7 +200,6 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
 
     loadChartData()
 
-    // Handle resize
     const handleResize = () => {
       if (chart && chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth })
@@ -142,16 +210,39 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
     return () => {
       active = false
       window.removeEventListener('resize', handleResize)
-      if (chart) {
-        chart.remove()
-      }
+      if (chart) chart.remove()
     }
-  }, [symbol, marketTimestamp])
+  }, [symbol, marketTimestamp, anomaly])
+
+  const markerColor = severityColor(anomaly?.severity)
+  const patternLabel = primaryPatternLabel(anomaly?.pattern_scores ?? null)
 
   return (
     <div className="relative border border-line bg-surface p-2 rounded">
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-        Price History ({symbol})
+      {/* Header row */}
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+          Price History ({symbol})
+        </span>
+        {callout && !loading && !error && (
+          <div className="flex items-center gap-2 font-mono text-[10px]">
+            <span
+              className="rounded border px-1.5 py-0.5 font-semibold uppercase tracking-wider"
+              style={{ color: markerColor, borderColor: `${markerColor}40`, background: `${markerColor}10` }}
+            >
+              {patternLabel}
+            </span>
+            <span className="text-ink-faint">
+              Close <span className="text-ink tabular">{callout.close.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+            </span>
+            {callout.volumeSurge > 1.5 && (
+              <span className="text-ink-faint">
+                Vol <span style={{ color: markerColor }} className="tabular">{callout.volumeSurge}×</span>
+              </span>
+            )}
+            <span className="text-ink-faint/50">· SMA-20</span>
+          </div>
+        )}
       </div>
       {loading && (
         <div className="flex h-[180px] items-center justify-center font-mono text-[11px] text-ink-faint">
@@ -160,11 +251,10 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
       )}
       {error && (
         <div className="relative flex h-[180px] w-full flex-col items-center justify-center overflow-hidden">
-          {/* Faint placeholder chart structure */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none flex items-end justify-between px-2 pb-4">
-             {Array.from({ length: 15 }).map((_, i) => (
-                <div key={i} className="w-[14px] bg-ink" style={{ height: `${20 + Math.random() * 60}%` }} />
-             ))}
+            {Array.from({ length: 15 }).map((_, i) => (
+              <div key={i} className="w-[14px] bg-ink" style={{ height: `${20 + Math.random() * 60}%` }} />
+            ))}
           </div>
           <span className="font-mono text-[11px] text-ink-faint z-10">{error}</span>
         </div>
@@ -176,6 +266,7 @@ export function AnomalyChart({ symbol, marketTimestamp }: AnomalyChartProps) {
     </div>
   )
 }
+
 
 /** Severity badge — color coded per Phase 0 tokens */
 function SeverityBadge({ severity }: { severity: string }) {
@@ -266,7 +357,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-        <AnomalyChart symbol={anomaly.symbol} marketTimestamp={anomaly.market_timestamp} />
+        <AnomalyChart symbol={anomaly.symbol} marketTimestamp={anomaly.market_timestamp} anomaly={anomaly} />
 
         {/* Summary metrics */}
         <CollapsibleSection title="Detection Summary" storageKey="heimdall_col_detection_summary">

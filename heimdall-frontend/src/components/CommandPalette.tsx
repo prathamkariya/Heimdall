@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, FileText, ArrowUp, ArrowDown, CornerDownLeft } from 'lucide-react'
+import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, FileText, ArrowUp, ArrowDown, CornerDownLeft, Cpu, Download, Filter } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 type CommandItem = {
@@ -46,13 +46,35 @@ export function CommandPalette() {
   }, [isOpen])
 
   const actions: CommandItem[] = [
+    // Navigation
     { id: 'nav-live', group: 'NAVIGATION', label: 'Live Feed', desc: 'Real-time monitoring', icon: Activity, typeLabel: 'Navigation', onSelect: () => navigate('/') },
     { id: 'nav-anomalies', group: 'NAVIGATION', label: 'Anomalies', desc: 'Detected suspicious activity', icon: TriangleAlert, typeLabel: 'Navigation', onSelect: () => navigate('/anomalies') },
     { id: 'nav-watchlists', group: 'NAVIGATION', label: 'Watchlists', desc: 'Tracked assets', icon: Eye, typeLabel: 'Navigation', onSelect: () => navigate('/watchlists') },
     { id: 'nav-investigations', group: 'NAVIGATION', label: 'Investigations', desc: 'Active cases', icon: FolderGit, typeLabel: 'Navigation', onSelect: () => navigate('/investigations') },
     { id: 'nav-audit', group: 'NAVIGATION', label: 'Audit & Reports', desc: 'Exported findings', icon: Archive, typeLabel: 'Navigation', onSelect: () => navigate('/audit') },
-    { id: 'cmd-report', group: 'COMMANDS', label: 'Generate Report', desc: 'Create a new MAR', icon: FileText, typeLabel: 'Command', onSelect: () => navigate('/audit') },
-    { id: 'cmd-demo', group: 'COMMANDS', label: 'Toggle Demo Mode', desc: 'Switch to simulated data', icon: Settings, typeLabel: 'System', onSelect: () => {
+    // Commands — high-frequency analyst actions
+    { id: 'cmd-models', group: 'COMMANDS', label: 'Inspect ML Model Engine', desc: 'View detector health & telemetry', icon: Cpu, typeLabel: 'System', onSelect: () => {
+        setIsOpen(false)
+        window.dispatchEvent(new CustomEvent('open_model_status'))
+    }},
+    { id: 'cmd-critical', group: 'COMMANDS', label: 'Jump to Critical Anomalies', desc: 'Filter to highest severity alerts', icon: TriangleAlert, typeLabel: 'Quick Filter', onSelect: () => {
+        navigate('/anomalies')
+        setTimeout(() => window.dispatchEvent(new CustomEvent('filter_anomalies', { detail: { severity: 'CRITICAL' } })), 100)
+    }},
+    { id: 'cmd-crypto', group: 'COMMANDS', label: 'Filter: Crypto Market', desc: 'BTCUSDT · ETHUSDT · SOLUSDT · BNBUSDT', icon: Filter, typeLabel: 'Quick Filter', onSelect: () => {
+        navigate('/anomalies')
+        setTimeout(() => window.dispatchEvent(new CustomEvent('filter_anomalies', { detail: { market: 'CRYPTO' } })), 100)
+    }},
+    { id: 'cmd-equity', group: 'COMMANDS', label: 'Filter: US Equities', desc: 'AAPL · TSLA', icon: Filter, typeLabel: 'Quick Filter', onSelect: () => {
+        navigate('/anomalies')
+        setTimeout(() => window.dispatchEvent(new CustomEvent('filter_anomalies', { detail: { market: 'US_EQUITY' } })), 100)
+    }},
+    { id: 'cmd-export-audit', group: 'COMMANDS', label: 'Export Audit Log', desc: 'Download SHA-256 verified CSV package', icon: Download, typeLabel: 'Export', onSelect: () => {
+        navigate('/audit')
+        setTimeout(() => window.dispatchEvent(new CustomEvent('trigger_audit_export')), 150)
+    }},
+    { id: 'cmd-report', group: 'COMMANDS', label: 'Generate MAR Dossier', desc: 'Create a new Market Abuse Report', icon: FileText, typeLabel: 'Command', onSelect: () => navigate('/audit') },
+    { id: 'cmd-demo', group: 'COMMANDS', label: 'Toggle Demo Mode', desc: 'Switch to simulated live data', icon: Settings, typeLabel: 'System', onSelect: () => {
         const current = localStorage.getItem('heimdall_demo_mode') === 'true'
         localStorage.setItem('heimdall_demo_mode', (!current).toString())
         window.dispatchEvent(new Event('demo_mode_change'))

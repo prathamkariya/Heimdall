@@ -22,6 +22,14 @@ export function Rail() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isModelStatusOpen, setIsModelStatusOpen] = useState(false)
 
+  // Listen for the 'open_model_status' custom event so CommandPalette (or any
+  // route) can trigger the Model Engine modal without drilling props.
+  useEffect(() => {
+    const handler = () => setIsModelStatusOpen(true)
+    window.addEventListener('open_model_status', handler)
+    return () => window.removeEventListener('open_model_status', handler)
+  }, [])
+
   useEffect(() => {
     if (!isAuthenticated) return
 

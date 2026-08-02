@@ -14,6 +14,7 @@ from app.config import settings
 from app.database import get_db
 from app.limiter import limiter
 from app.routers import alerts, anomaly, auth, cases, market_data, reports, search, watchlists
+from app.routers import telemetry as telemetry_router
 
 app = FastAPI(
     title="Market Surveillance & Anomaly Detection",
@@ -92,6 +93,35 @@ app.include_router(watchlists.router, prefix=API_PREFIX)   # Phase 2
 app.include_router(reports.router, prefix=API_PREFIX)
 app.include_router(search.router, prefix=API_PREFIX)
 app.include_router(cases.router, prefix=API_PREFIX)
+app.include_router(telemetry_router.router)  # /metrics + /api/v1/telemetry/status + /api/v1/market-data/correlation
+
+# ──────────────────────────────────────────────
+# Request-timing middleware (feeds Prometheus counters)
+# ──────────────────────────────────────────────
+@app.middleware("http")
+async def _request_metrics_middleware(request: Request, call_next):
+    """Record endpoint, method, status code, and duration for every request.
+
+    Intentionally does NOT touch the database or any blocking resource.
+    The telemetry store is in-process (thread-safe dict), so this adds < 1µs overhead.
+    """
+    t0 = time.monotonic()
+    response = await call_next(request)
+    duration = time.monotonic() - t0
+
+    # Normalize the path to remove path-param values (avoid high cardinality)
+    path = request.url.path
+    # Replace numeric segments to keep cardinality bounded
+    import re
+    normalized = re.sub(r'/\d+', '/{id}', path)
+
+    telemetry_router.record_request(
+        endpoint=normalized,
+        method=request.method,
+        status_code=response.status_code,
+        duration_s=duration,
+    )
+    return response
 
 # ──────────────────────────────────────────────
 # Health check

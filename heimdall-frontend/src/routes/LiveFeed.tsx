@@ -5,6 +5,7 @@ import type { LiveAlertEvent } from '../lib/types'
 import { isScoredAlert } from '../lib/types'
 import { SignalStrength } from '../components/SignalStrength'
 import { EvidenceBar } from '../components/EvidenceBar'
+import { CorrelationMatrix } from '../components/CorrelationMatrix'
 import { useMarketDataStream } from '../lib/useMarketDataStream'
 import { LiveEventRow, SeverityBadge } from '../components/LiveEventRow'
 
@@ -27,6 +28,7 @@ export function LiveFeed() {
   const [selectedEvent, setSelectedEvent] = useState<LiveAlertEvent | null>(null)
   const [timeStr, setTimeStr] = useState('')
   const [isDemoMode, setIsDemoMode] = useState(() => localStorage.getItem('heimdall_demo_mode') === 'true')
+  const [showCorrelation, setShowCorrelation] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Use our new encapsulated hook
@@ -75,6 +77,16 @@ export function LiveFeed() {
           )}
         </div>
         <div className="flex items-center gap-4 font-mono text-[10px] text-ink-faint">
+          <button
+            onClick={() => setShowCorrelation(p => !p)}
+            className={`font-mono text-[10px] px-2.5 py-1 rounded border transition-fast cursor-pointer ${
+              showCorrelation
+                ? 'bg-accent/15 border-accent/30 text-accent'
+                : 'bg-surface border-line text-ink-faint hover:text-ink hover:border-line/80'
+            }`}
+          >
+            Cross-Asset Matrix
+          </button>
           <span className="tabular">{timeStr}</span>
           <span className="border-l border-line h-3 pl-4">
             {events.length} event{events.length !== 1 && 's'}
@@ -214,6 +226,13 @@ export function LiveFeed() {
           </div>
         )}
       </div>
+
+      {/* Correlation Matrix Panel */}
+      {showCorrelation && !selectedEvent && (
+        <div className="border-t border-line p-4 bg-void/30 shrink-0 animate-fade-in">
+          <CorrelationMatrix />
+        </div>
+      )}
     </div>
   )
 }

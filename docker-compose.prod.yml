@@ -1,90 +1,203 @@
-version: "3.8"
+version: '3.8'
+
+# HEIMDALL — Production Docker Compose Configuration
+# Use: docker compose -f docker-compose.prod.yml up -d
+#
+# Services:
+#   db        — TimescaleDB 15 (PostgreSQL with time-series extensions)
+#   redis     — Redis 7 with LRU eviction (Streams-based ingestion queue)
+#   api       — FastAPI backend (uvicorn, multi-worker)
+#   engine    — ML detection engine (consumes Redis Streams)
+#   nginx     — Reverse proxy (routes /api → backend, static → frontend build)
+#   crypto_worker  — Binance adapter (live crypto ticks → Redis)
+#   us_worker      — Alpaca/Finnhub adapter (US equities → Redis)
 
 services:
-  nginx:
-    image: nginx:alpine
+  # ─────────────────────────────────────────────────────
+  # Database — TimescaleDB (PostgreSQL 15 + time-series)
+  # ─────────────────────────────────────────────────────
+  db:
+    image: timescale/timescaledb:latest-pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-market_surveillance}
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    depends_on:
-      - api
-    restart: always
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-market_surveillance}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
 
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  # ─────────────────────────────────────────────────────
+  # Redis — Streams + LRU eviction
+  # ─────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly no
+      --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 600m
 
+  # ─────────────────────────────────────────────────────
+  # FastAPI Backend (multi-worker production mode)
+  # ─────────────────────────────────────────────────────
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "8000:8000"
-    env_file:
-      - .env.prod
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    restart: always
+      - "127.0.0.1:8000:8000"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
+      - POSTGRES_HOST=db
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
+      - MODEL_DIR=/models
+      - REDIS_URL=redis://redis:6379/0
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - MAR_MAX_CONCURRENCY=${MAR_MAX_CONCURRENCY:-3}
+      - MAR_GENERATION_TIMEOUT_SECONDS=${MAR_GENERATION_TIMEOUT_SECONDS:-45}
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 4
+      --proxy-headers
+      --forwarded-allow-ips=*
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./trained_models:/models:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # ─────────────────────────────────────────────────────
+  # ML Detection Engine
+  # ─────────────────────────────────────────────────────
+  engine:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python scripts/run_engine.py
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-market_surveillance}
+      - POSTGRES_HOST=db
+      - SECRET_KEY=${SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_DIR=/models
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./trained_models:/models:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # ─────────────────────────────────────────────────────
+  # Crypto Market Adapter (Binance → Redis Streams)
+  # ─────────────────────────────────────────────────────
+  crypto_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python scripts/market_adapters/crypto_worker.py
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - BINANCE_API_KEY=${BINANCE_API_KEY:-}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET:-}
     depends_on:
       redis:
         condition: service_healthy
-      db:
-        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
-  redis:
-    image: redis:alpine
-    restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD?Error: REDIS_PASSWORD must be provided}
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 5s
-      retries: 5
-
-  db:
-    image: timescale/timescaledb:latest-pg15
+  # ─────────────────────────────────────────────────────
+  # US Equity Adapter (Alpaca + Finnhub → Redis Streams)
+  # ─────────────────────────────────────────────────────
+  us_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python scripts/market_adapters/us_worker.py
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?Error: POSTGRES_PASSWORD must be explicitly provided in the environment}
-      POSTGRES_DB: market_surveillance
+      - REDIS_URL=redis://redis:6379/0
+      - ALPACA_API_KEY=${ALPACA_API_KEY:-}
+      - ALPACA_API_SECRET=${ALPACA_API_SECRET:-}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ─────────────────────────────────────────────────────
+  # Nginx Reverse Proxy
+  # Routes: /api/ and /metrics -> api:8000
+  #         / -> static frontend build
+  # ─────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
     volumes:
-      - prod_postgres_data:/var/lib/postgresql/data
-    restart: always
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      retries: 5
-
-  ml_engine:
-    build: ./backend
-    env_file:
-      - .env.prod
-    command: python scripts/run_engine.py
-    restart: always
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./heimdall-frontend/dist:/usr/share/nginx/html:ro
     depends_on:
-      - redis
-      - db
-
-  crypto_worker:
-    build: ./backend
-    env_file:
-      - .env.prod
-    command: python -m scripts.market_adapters.crypto_worker
-    restart: always
-    depends_on:
-      - redis
-
-  sentiment_worker:
-    build: ./backend
-    env_file:
-      - .env.prod
-    command: python -m scripts.market_adapters.sentiment_worker
-    restart: always
-    depends_on:
-      - redis
+      - api
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
 volumes:
-  prod_postgres_data:
+  postgres_data:
+    driver: local

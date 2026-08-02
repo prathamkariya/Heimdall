@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { User, Clock, X, FileText } from 'lucide-react'
+import { User, Clock, X, FileText, Zap, Hash } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 import { useToast } from '../lib/ToastContext'
 import { useSettings } from '../lib/SettingsContext'
@@ -8,7 +8,8 @@ import { getStatusBadgeClass, getAssigneeUsername, getAllowedTransitions } from 
 import { Skeleton } from './Skeleton'
 import { AnomalyChart } from './AnomalyDetail'
 import { CollapsibleSection } from './CollapsibleSection'
-import type { Case, CaseEvent, CaseNote, Analyst, AnomalyListItem } from '../lib/types'
+import { EvidenceInspectorDrawer } from './EvidenceInspectorDrawer'
+import type { Case, CaseEvent, CaseNote, Analyst, AnomalyListItem, EvidenceSignal } from '../lib/types'
 
 interface CorrelatedAlertsProps {
   caseAnomalies: number[]
@@ -74,6 +75,9 @@ export function CaseWorkspace({
   
   const [newNote, setNewNote] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
+
+  // Evidence inspector state
+  const [inspectorSignal, setInspectorSignal] = useState<(EvidenceSignal & { symbol: string }) | null>(null)
   
   const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'timeline' | 'notes' | 'audit'>('overview')
 
@@ -247,6 +251,7 @@ export function CaseWorkspace({
   if (!selected) {
     return null
   } return (
+    <>
     <div className="w-[750px] border-l border-line bg-surface flex flex-col shrink-0 overflow-hidden relative z-20 shadow-2xl animate-slide-in">
       <header className="flex items-center justify-between border-b border-line px-6 py-4 bg-void/50">
         <div>
@@ -381,11 +386,17 @@ export function CaseWorkspace({
               {activeTab === 'evidence' && (
                 <div>
                   <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
-                    Primary Evidence ({selected.anomaly_ids.length})
+                    Primary Evidence ({selected.anomaly_ids.length}) — Click any signal to inspect
                   </h3>
                   <div className="space-y-6">
                     {selected.anomaly_ids.map((id) => {
                       const anomaly = allAnomalies?.find((a) => a.id === id)
+                      let parsedEvidence: EvidenceSignal[] = []
+                      if (anomaly?.evidence) {
+                        parsedEvidence = anomaly.evidence
+                      } else if (anomaly?.detection_result?.evidence) {
+                        parsedEvidence = anomaly.detection_result.evidence
+                      }
                       return (
                         <div key={id} className="flex flex-col border border-line bg-void rounded p-4 transition-colors">
                           <div className="flex items-center justify-between mb-4">
@@ -397,10 +408,53 @@ export function CaseWorkspace({
                                 {anomaly ? anomaly.primary_signal || 'Isolation Forest Trigger' : 'Isolation Forest Trigger'}
                               </span>
                             </div>
+                            {anomaly && (
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                                  (anomaly.anomaly_score ?? 0) >= 0.85
+                                    ? 'bg-down/10 border-down/30 text-down'
+                                    : (anomaly.anomaly_score ?? 0) >= 0.6
+                                      ? 'bg-accent/10 border-accent/30 text-accent'
+                                      : 'bg-up/10 border-up/30 text-up'
+                                }`}>
+                                  Score: {((anomaly.anomaly_score ?? 0) * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Evidence Signal Pills */}
+                          {parsedEvidence.length > 0 && (
+                            <div className="mb-4">
+                              <div className="text-[10px] font-mono uppercase tracking-widest text-ink-faint mb-2 flex items-center gap-1.5">
+                                <Zap size={10} />
+                                Detection Signals — Click to inspect
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {parsedEvidence.map((sig) => (
+                                  <button
+                                    key={sig.name}
+                                    onClick={() => setInspectorSignal({ ...sig, symbol: anomaly?.symbol ?? '' })}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-[11px] font-mono cursor-pointer transition-fast hover:scale-[1.03] ${
+                                      sig.triggered
+                                        ? 'bg-down/10 border-down/30 text-down hover:bg-down/20'
+                                        : 'bg-line/30 border-line/60 text-ink-dim hover:bg-raised hover:text-ink'
+                                    }`}
+                                  >
+                                    {sig.triggered && <span className="w-1.5 h-1.5 rounded-full bg-down animate-pulse" />}
+                                    {sig.name.replace(/_/g, ' ')}
+                                    <span className="opacity-60">→</span>
+                                    <span className={sig.triggered ? 'text-down font-semibold' : 'text-ink-faint'}>
+                                      {sig.value.toFixed(2)}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           
                           {anomaly ? (
-                            <div className="mt-2 border-t border-line/30 pt-4">
+                            <div className="border-t border-line/30 pt-4">
                               <AnomalyChart symbol={anomaly.symbol} marketTimestamp={anomaly.market_timestamp} />
                             </div>
                           ) : (
@@ -418,6 +472,20 @@ export function CaseWorkspace({
                   <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
                     Analyst Notes
                   </h3>
+
+                  {/* Quick tags */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {['#ESCALATE', '#FALSE_POSITIVE', '#RESOLVED', '#MONITOR', '#REFER_REGULATOR'].map(tag => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setNewNote(prev => prev ? `${prev} ${tag}` : tag)}
+                        className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border border-line/60 bg-raised hover:border-accent/50 hover:text-accent text-ink-faint transition-fast cursor-pointer"
+                      >
+                        <Hash size={9} />{tag.slice(1)}
+                      </button>
+                    ))}
+                  </div>
               
               <div className="bg-void rounded border border-line/50 p-4 mb-4">
                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
@@ -426,24 +494,38 @@ export function CaseWorkspace({
                       No notes added to this investigation yet.
                     </div>
                   )}
-                  {notes.map((note) => (
-                    <div key={note.id} className="bg-surface border border-line/60 p-3.5 rounded shadow-sm">
-                      <div className="flex items-center justify-between font-mono text-[10px] text-ink-faint mb-2">
-                        <span className="flex items-center gap-1.5 font-medium text-ink">
-                          <User size={12} /> {getAssigneeUsername(note.author_user_id, analysts || [])}
-                        </span>
-                        <span>{formatDate(note.created_at, timezone)}</span>
+                  {notes.map((note) => {
+                    // Extract hashtags from body for tag pill display
+                    const tags = note.body.match(/#[A-Z_]+/g) || []
+                    const bodyWithoutTags = note.body.replace(/#[A-Z_]+/g, '').trim()
+                    return (
+                      <div key={note.id} className="bg-surface border border-line/60 p-3.5 rounded shadow-sm">
+                        <div className="flex items-center justify-between font-mono text-[10px] text-ink-faint mb-2">
+                          <span className="flex items-center gap-1.5 font-medium text-ink">
+                            <User size={12} /> {getAssigneeUsername(note.author_user_id, analysts || [])}
+                          </span>
+                          <span>{formatDate(note.created_at, timezone)}</span>
+                        </div>
+                        {tags.length > 0 && (
+                          <div className="flex gap-1.5 mb-2 flex-wrap">
+                            {tags.map(tag => (
+                              <span key={tag} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-accent/10 border border-accent/20 text-accent">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[13px] text-ink-dim leading-relaxed">{bodyWithoutTags || note.body}</p>
                       </div>
-                      <p className="text-[13px] text-ink-dim leading-relaxed">{note.body}</p>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
               <form onSubmit={handleAddNote} className="flex gap-3">
                 <input
                   type="text"
-                  placeholder="Add investigation logs, observations, or conclusions…"
+                  placeholder="Add investigation notes… use #ESCALATE #FALSE_POSITIVE etc."
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   className="flex-1 rounded border border-line bg-void px-4 py-2 text-[13px] text-ink outline-none focus:border-accent transition-colors placeholder:text-ink-faint/50"
@@ -464,14 +546,42 @@ export function CaseWorkspace({
                   <h3 className="font-mono text-[11px] uppercase tracking-widest text-ink-faint mb-4 border-b border-line/50 pb-2">
                     Investigation Timeline
                   </h3>
+                  {events.length === 0 && (
+                    <div className="text-[12px] text-ink-faint italic font-mono py-6 text-center">
+                      No events recorded for this case yet.
+                    </div>
+                  )}
                   <div className="relative pl-4 mt-2 border-l border-line/50 space-y-6 font-mono">
-                  {events.map((e) => {
+                  {events.map((e, idx) => {
                     const isStatus = e.event_type === 'STATUS_CHANGED'
                     const isCreation = e.event_type === 'CASE_CREATED'
                     const isNote = e.event_type === 'NOTE_ADDED'
 
+                    // Compute delta from previous event
+                    const prevEvent = events[idx - 1]
+                    let deltaLabel = ''
+                    if (prevEvent) {
+                      const diffMs = new Date(e.created_at).getTime() - new Date(prevEvent.created_at).getTime()
+                      const diffMin = Math.floor(diffMs / 60000)
+                      const diffSec = Math.floor((diffMs % 60000) / 1000)
+                      if (diffMin > 60) {
+                        const hrs = Math.floor(diffMin / 60)
+                        deltaLabel = `+${hrs}h ${diffMin % 60}m`
+                      } else if (diffMin > 0) {
+                        deltaLabel = `+${diffMin}m ${diffSec}s`
+                      } else {
+                        deltaLabel = `+${diffSec}s`
+                      }
+                    }
+
                     return (
                       <div key={e.id} className="relative group pb-4 last:pb-0">
+                        {/* Delta label */}
+                        {deltaLabel && (
+                          <div className="absolute -left-[80px] top-0.5 text-[9px] font-mono text-ink-faint/60 w-[68px] text-right">
+                            {deltaLabel}
+                          </div>
+                        )}
                         {/* Connector Node */}
                         <span className={`absolute -left-[23px] top-0.5 h-4 w-4 rounded-full flex items-center justify-center border bg-void ${isCreation ? 'border-up text-up' : isStatus ? 'border-accent text-accent' : isNote ? 'border-ink text-ink' : 'border-ink-dim text-ink-dim'}`}>
                           {isNote ? <User size={9} /> : <div className="h-1.5 w-1.5 rounded-full bg-current" />}
@@ -573,5 +683,15 @@ export function CaseWorkspace({
         </div>
       </div>
     </div>
+
+    {/* Evidence Inspector Drawer — global portal */}
+    {inspectorSignal && (
+      <EvidenceInspectorDrawer
+        signal={inspectorSignal}
+        symbol={inspectorSignal.symbol}
+        onClose={() => setInspectorSignal(null)}
+      />
+    )}
+  </>
   )
 }

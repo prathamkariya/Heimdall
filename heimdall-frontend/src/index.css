@@ -215,3 +215,32 @@ body {
 .compact-mode .h-8 {
   height: 1.5rem !important;
 }
+
+/* ── Notification Center slide-up ── */
+@keyframes slideInBottom {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-in-bottom {
+  animation: slideInBottom 0.22s var(--ease-drawer) forwards;
+}
+
+/* ── Notification bell pulse ── */
+@keyframes bellPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.15); }
+}
+.animate-bell-pulse {
+  animation: bellPulse 0.4s var(--ease-out);
+}
+
+/* ── Correlation matrix cell hover ── */
+.correlation-cell {
+  transition: filter 120ms ease, box-shadow 120ms ease;
+}
+.correlation-cell:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 0 8px rgba(212,166,58,0.3);
+  z-index: 10;
+  position: relative;
+}

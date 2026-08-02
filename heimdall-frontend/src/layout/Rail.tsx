@@ -6,6 +6,7 @@ import { apiFetch } from '../lib/api'
 import { LogoLockup } from '../brand'
 import { SettingsModal } from '../components/SettingsModal'
 import { ModelStatusModal } from '../components/ModelStatusModal'
+import { NotificationCenter } from '../components/NotificationCenter'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Live Feed', icon: Activity, end: true },
@@ -50,9 +51,10 @@ export function Rail() {
 
   return (
     <nav className="flex h-full w-56 shrink-0 flex-col border-r border-line bg-surface select-none">
-      {/* Brand */}
-      <div className="border-b border-line px-5 py-5 flex items-center justify-start">
+      {/* Brand + Notification Bell */}
+      <div className="border-b border-line px-5 py-5 flex items-center justify-between">
         <LogoLockup size={24} orientation="horizontal" variant="gold-accent" showTagline={false} />
+        <NotificationCenter />
       </div>
 
       {/* Command Palette Trigger */}

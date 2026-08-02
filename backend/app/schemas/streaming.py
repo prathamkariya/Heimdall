@@ -1,6 +1,6 @@
 """app/schemas/streaming.py — Unified event schema for all live market adapters.
 
-Every market adapter (Binance, Alpaca, Upstox, Reddit) must convert its raw
+Every market adapter (Binance, Alpaca, Reddit) must convert its raw
 payload into one of these two schemas before publishing to Redis Streams.
 This guarantees that anomaly_service.py and run_engine.py deal with one
 canonical data structure regardless of source.
@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field, field_validator
 class Market(str, Enum):
     CRYPTO = "CRYPTO"
     US_EQUITY = "US_EQUITY"
-    INDIA_EQUITY = "INDIA_EQUITY"
 
 
 class UnifiedTradeEvent(BaseModel):
@@ -29,8 +28,8 @@ class UnifiedTradeEvent(BaseModel):
         event_id        — Globally unique: "<SOURCE>_<SYMBOL>_<timestamp_ms>"
         timestamp_ms    — Unix epoch in milliseconds (UTC).  Always integer.
         market          — Which asset class this tick belongs to.
-        symbol          — Normalised ticker: "BTCUSDT", "AAPL", "RELIANCE.NS".
-        source          — Raw source name: "BINANCE", "ALPACA", "UPSTOX", etc.
+        symbol          — Normalised ticker: "BTCUSDT", "AAPL", "MSFT".
+        source          — Raw source name: "BINANCE", "ALPACA", etc.
         price           — Last traded price (float).
         volume          — Trade quantity (float).
         notional_value  — price × volume, pre-computed so the engine doesn't
@@ -44,7 +43,7 @@ class UnifiedTradeEvent(BaseModel):
     timestamp_ms: int = Field(..., gt=0, description="Unix epoch milliseconds (UTC)")
     market: Market
     symbol: str = Field(..., min_length=1, max_length=30)
-    source: str = Field(..., description="e.g. BINANCE, BYBIT, ALPACA, UPSTOX")
+    source: str = Field(..., description="e.g. BINANCE, BYBIT, ALPACA")
     price: float = Field(..., gt=0)
     volume: float = Field(..., ge=0)
     notional_value: float = Field(..., ge=0)

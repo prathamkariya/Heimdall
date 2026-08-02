@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Training entrypoint for mkt-surveillance-ml.
 

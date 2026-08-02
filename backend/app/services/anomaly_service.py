@@ -67,7 +67,7 @@ HISTORICAL_FETCH_LIMIT = 30
 # Model loading — per-market lazy singletons.
 #
 # Each market gets its own ModelRegistry keyed by market string
-# ("CRYPTO", "US_EQUITY", "INDIA_EQUITY"). Each registry looks in
+# ("CRYPTO", "US_EQUITY"). Each registry looks in
 # trained_models/<market_lowercase>/ first, then falls back to the
 # root MODEL_DIR so backward-compat is preserved if only one shared
 # model directory exists.
@@ -82,7 +82,7 @@ HISTORICAL_FETCH_LIMIT = 30
 #   fix — two threads could simultaneously try to create the lock for
 #   the same market and race on who publishes it.
 # ──────────────────────────────────────────────
-_KNOWN_MARKETS = ("CRYPTO", "US_EQUITY", "INDIA_EQUITY")
+_KNOWN_MARKETS = ("CRYPTO", "US_EQUITY")
 
 _registries: dict[str, ModelRegistry] = {}
 # Pre-initialize one lock per known market at import time, eliminating
@@ -438,8 +438,8 @@ def score_live_trade(
         historical_trades: The last 20 ticks for this symbol from Redis.
         sentiment_score:  Fused sentiment score from the live_sentiment stream.
         threshold:        Anomaly score threshold. Callers may override for testing.
-        market:           Which market model to load ("CRYPTO", "US_EQUITY",
-                          "INDIA_EQUITY"). Used to key the per-market ModelRegistry.
+        market:           Which market model to load ("CRYPTO", "US_EQUITY").
+                          Used to key the per-market ModelRegistry.
 
     Low-confidence handling:
         Ticks where source="YFINANCE" represent 30-second polling fallback, not
@@ -451,7 +451,7 @@ def score_live_trade(
     source_raw = trade.get("source")
     source: str = source_raw.upper() if isinstance(source_raw, str) else "UNKNOWN"
     # Polling fallbacks (YFINANCE) and malformed/missing sources (UNKNOWN) are marked low-confidence
-    is_low_confidence: bool = source not in {"BINANCE", "BYBIT", "UPSTOX", "ALPACA", "FINNHUB"}
+    is_low_confidence: bool = source not in {"BINANCE", "BYBIT", "ALPACA", "FINNHUB"}
 
     # 1. Feature engineering
     all_records = historical_trades + [trade]
@@ -486,10 +486,9 @@ def score_live_trade(
     # 2. Score with the correct per-market model registry
     registry = get_model_registry(market=market)
     if not registry.has_any_model:
-        # No trained model for this market yet. For India, this is expected until
-        # Phase 7. Return a sentinel so callers know coverage is missing rather
-        # than silently producing zero alerts.
-        if is_low_confidence or market == "INDIA_EQUITY":
+        # No trained model for this market yet. Return a sentinel so callers know
+        # coverage is missing rather than silently producing zero alerts.
+        if is_low_confidence:
             return _make_unavailable_sentinel(
                 trade=trade,
                 market=market,
@@ -515,7 +514,7 @@ def score_live_trade(
     if baselines:
         norm_features = _apply_zscores(raw_features, trade["symbol"], registry)
         if norm_features is None:
-            if is_low_confidence or market == "INDIA_EQUITY":
+            if is_low_confidence:
                 return _make_unavailable_sentinel(
                     trade=trade,
                     market=market,

@@ -38,9 +38,9 @@ logger = logging.getLogger("load_spammer")
 STREAM_TRADES = "live_trades"
 STREAM_MAXLEN = 200_000  # Approximate cap — prevents OOM even at extreme rates
 
-SYMBOLS = ["BTCUSDT", "ETHUSDT", "AAPL", "TSLA", "RELIANCE", "INFY", "SOLUSDT", "BNBUSDT"]
-MARKETS = ["crypto", "us_equity", "india_equity"]
-SOURCES = ["binance", "alpaca", "upstox"]
+SYMBOLS = ["BTCUSDT", "ETHUSDT", "AAPL", "TSLA", "SOLUSDT", "BNBUSDT"]
+MARKETS = ["crypto", "us_equity"]
+SOURCES = ["binance", "alpaca"]
 
 SYMBOL_MARKET_MAP = {
     "BTCUSDT": ("crypto", "binance"),
@@ -49,8 +49,6 @@ SYMBOL_MARKET_MAP = {
     "BNBUSDT": ("crypto", "binance"),
     "AAPL":    ("us_equity", "alpaca"),
     "TSLA":    ("us_equity", "alpaca"),
-    "RELIANCE":("india_equity", "upstox"),
-    "INFY":    ("india_equity", "upstox"),
 }
 
 

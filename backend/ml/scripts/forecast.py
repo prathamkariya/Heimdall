@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Forecasting entrypoint for mkt-surveillance-ml (files 28-30: stationarity,
 ARIMA/Prophet, LSTM).

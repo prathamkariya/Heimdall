@@ -25,7 +25,7 @@ type ConfidenceSentinel =
   | 'baseline_unavailable'
   | 'no_baseline_high_confidence'
 
-type Market = 'CRYPTO' | 'US_EQUITY' | 'INDIA_EQUITY'
+type Market = 'CRYPTO' | 'US_EQUITY'
 
 /** A row from `GET /anomalies` — persisted history. */
 export interface AnomalyListItem {

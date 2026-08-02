@@ -34,8 +34,6 @@ python-binance==1.0.37    # Binance WebSocket & REST (Primary crypto)
 alpaca-py==0.26.1         # Alpaca WebSocket & REST (Primary US equities)
 finnhub-python==2.4.19    # Finnhub REST + WebSocket (US fallback & news)
 
-# Indian equities
-upstox-python-sdk==2.13.0 # Upstox WebSocket & REST (Primary India)
 
 # Sentiment / News
 praw==7.7.1               # Reddit API (Python Reddit API Wrapper)

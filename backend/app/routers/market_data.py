@@ -31,10 +31,7 @@ def create_market_data(
         # Crypto: typically ends in USDT, BTC, ETH, or contains a hyphen/slash
         if any(suffix in symbol_upper for suffix in ["USDT", "BTC", "ETH", "-", "/"]):
             return "CRYPTO"
-        # India Equities: typically ends in .NS or .BO
-        if symbol_upper.endswith(".NS") or symbol_upper.endswith(".BO"):
-            return "INDIA_EQUITY"
-        # Fallback/Equities: shorter alpha symbols
+        # Fallback/Equities: US Equities
         return "US_EQUITY"
 
     record = MarketData(

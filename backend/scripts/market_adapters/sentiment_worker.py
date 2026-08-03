@@ -2,12 +2,11 @@
 
 Sources:
   • Finnhub News WebSocket — company news in real-time.
-  • Reddit PRAW (r/wallstreetbets, r/stocks, r/IndiaInvestments) — retail sentiment.
+  • Reddit PRAW (r/wallstreetbets, r/stocks) — retail sentiment.
 
-Design (inspired by ARGUS/market-surveillance approach of fusing news with price data):
+Design:
   - Publishes to Redis Stream "live_sentiment" via redis_service.publish_sentiment.
-  - Sentiment score: naive keyword-based scoring (-1.0 to +1.0).
-    Replace with a proper FinBERT model in Phase 3 for production quality.
+  - Sentiment score: keyword-based scoring (-1.0 to +1.0).
 
 Usage:
     python -m scripts.market_adapters.sentiment_worker
@@ -16,7 +15,7 @@ Environment variables:
     FINNHUB_API_KEY       — Free tier provides news.
     REDDIT_CLIENT_ID      — From https://www.reddit.com/prefs/apps
     REDDIT_CLIENT_SECRET  — From Reddit app settings.
-    REDDIT_USER_AGENT     — e.g. "MarketSurveillance/1.0"
+    REDDIT_USER_AGENT     — e.g. "Heimdall/1.0"
     REDIS_URL             — Defaults to redis://localhost:6379/0.
 """
 from __future__ import annotations

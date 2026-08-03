@@ -5,7 +5,7 @@ payload into one of these two schemas before publishing to Redis Streams.
 This guarantees that anomaly_service.py and run_engine.py deal with one
 canonical data structure regardless of source.
 
-Design note (inspired by aryan1078/indian-equities-market-surveillance-platform):
+Design note:
   The schema is intentionally flat — no nested objects — so it can be
   serialised to a Redis Stream field-value pair with a single json.dumps().
 """

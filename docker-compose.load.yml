@@ -16,7 +16,7 @@ version: '3.8'
 services:
   db_load:
     image: timescale/timescaledb:latest-pg15
-    container_name: market-surveillance-db_load-1
+    container_name: heimdall-db_load-1
     command: postgres -c max_connections=1000
     environment:
       POSTGRES_USER: postgres

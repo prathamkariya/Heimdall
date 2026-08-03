@@ -3,7 +3,7 @@
 Primary feed   : Alpaca WebSocket (IEX real-time, free tier) via alpaca-py.
 Fallback feed  : Finnhub WebSocket (60 req/min free tier).
 
-Design (inspired by sushi1507/market-surveillance-demo):
+Design:
   - Normalises Alpaca trade events → UnifiedTradeEvent.
   - Normalises Finnhub trade events → UnifiedTradeEvent.
   - Publishes to Redis Stream "live_trades" via redis_service.publish_trade_sync.

@@ -103,7 +103,7 @@ def _log_eval_metrics(eval_result: pd.DataFrame) -> None:
 def train_synthetic(args: argparse.Namespace) -> None:
     from ml.data.synthetic import PatternInjectionConfig
 
-    use_mlflow = _setup_mlflow("market-surveillance-synthetic")
+    use_mlflow = _setup_mlflow("heimdall-synthetic")
 
     # The library's built-in DEFAULT_PATTERN_CONFIGS uses small, fixed
     # absolute day-counts (12-25 days) -- deliberately tiny so the test
@@ -192,7 +192,7 @@ def train_real_supervised(args: argparse.Namespace) -> None:
         print("ERROR: --csv is required for real-supervised mode.", file=sys.stderr)
         sys.exit(1)
 
-    use_mlflow = _setup_mlflow("market-surveillance-supervised")
+    use_mlflow = _setup_mlflow("heimdall-supervised")
 
     df = _load_real_csv(args.csv)
 
@@ -271,7 +271,7 @@ def train_real_unsupervised(args: argparse.Namespace) -> None:
         print("ERROR: --csv is required for real-unsupervised mode.", file=sys.stderr)
         sys.exit(1)
 
-    use_mlflow = _setup_mlflow("market-surveillance-unsupervised")
+    use_mlflow = _setup_mlflow("heimdall-unsupervised")
 
     df = _load_real_csv(args.csv)
     X = df[BASE_FEATURE_COLUMNS].values

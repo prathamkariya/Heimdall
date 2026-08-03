@@ -29,7 +29,6 @@
   <a href="#-detection-engine--abuse-heuristics"><b>Detection Engine</b></a> •
   <a href="#-forensic-investigation-workspace"><b>Forensic Workspace</b></a> •
   <a href="#-quick-start"><b>Quick Start</b></a> •
-  <a href="#-api-reference"><b>API Reference</b></a> •
   <a href="#-testing-suite"><b>Testing</b></a>
 </p>
 
@@ -146,8 +145,8 @@ When an anomaly triggers or a case is escalated, compliance officers navigate th
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/prathamkariya/market-surveillance.git
-cd market-surveillance
+git clone https://github.com/prathamkariya/heimdall.git
+cd heimdall
 
 # Initialize environment variables
 cp .env.example .env
@@ -189,44 +188,6 @@ Navigate to: **`http://localhost:5173`**
 | **Lead Analyst** | `analyst_1` (`analyst@heimdall.io`) | `Password123!` | Triage anomalies, manage cases, create watchlists, append notes |
 | **Compliance Admin** | `admin` (`admin@heimdall.io`) | `AdminPassword123!` | Full audit access, MAR report generation, user access management |
 
----
-
-## 📡 API Reference
-
-### Authentication (`/api/v1/auth`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `POST` | `/api/v1/auth/register` | Register a new analyst or compliance user | No |
-| `POST` | `/api/v1/auth/login` | Exchange credentials for JWT access + refresh tokens | No |
-| `POST` | `/api/v1/auth/refresh` | Rotate access token via valid refresh token | No |
-| `POST` | `/api/v1/auth/logout` | Invalidate current session refresh token | Yes |
-
-### Market Data & Real-Time Telemetry (`/api/v1`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `GET` | `/api/v1/market-data` | Query OHLCV candle series with symbol & timeframe filters | Yes |
-| `GET` | `/api/v1/anomalies` | Query detected market anomalies with confidence scoring | Yes |
-| `GET` | `/api/v1/alerts/stream` | **Server-Sent Events (SSE)** real-time alert feed | Yes |
-
-### Case Management & Forensics (`/api/v1/cases`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `GET` | `/api/v1/cases` | List investigations with status, priority, and assignee filters | Yes |
-| `POST` | `/api/v1/cases` | Escalate an anomaly into a formal investigation dossier | Yes |
-| `GET` | `/api/v1/cases/{id}` | Fetch full case dossier with correlated anomalies & notes | Yes |
-| `PATCH` | `/api/v1/cases/{id}` | Transition case status (`OPEN`, `IN_REVIEW`, `ESCALATED`, etc.) | Yes |
-| `POST` | `/api/v1/cases/{id}/notes` | Append an investigation note with user attribution | Yes |
-| `GET` | `/api/v1/cases/analysts` | List assignable compliance analysts | Yes |
-
-### Search & Compliance Reports (`/api/v1`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :---: |
-| `GET` | `/api/v1/search?q={query}` | Unified search across cases, tickers, and anomalies | Yes |
-| `GET` | `/api/v1/reports/mar` | Generate automated Market Abuse Regulation (MAR) audit report | Yes (Admin) |
 
 ---
 
@@ -264,7 +225,7 @@ pytest ml/tests/ -v
 ## 📂 Repository Structure
 
 ```
-market-surveillance/
+heimdall/
 ├── .pics/                          # Official brand assets and design sheets
 │   ├── brand_guidelines.png
 │   ├── icon_system.png
@@ -298,7 +259,7 @@ market-surveillance/
 │   └── vite.config.ts
 ├── docker-compose.yml              # Local multi-service orchestration
 ├── docker-compose.prod.yml         # Production deployment configuration
-├── nginx.conf                      # Reverse proxy & SSE streaming configuration
+├── nginx/                          # Nginx reverse proxy & production TLS configs
 └── README.md
 ```
 

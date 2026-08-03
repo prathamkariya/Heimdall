@@ -6,7 +6,7 @@ a real GEMINI_API_KEY available -- this is not a mock-everything unit test,
 it is meant to exercise the real, wired-together system exactly as a live
 trade would move through it.
 
-    docker exec -it market-surveillance-api-1 python scripts/verify_e2e_lifecycle.py
+    docker exec -it heimdall-api-1 python scripts/verify_e2e_lifecycle.py
 
 What this proves, hop by hop, with concrete printed evidence at each step
 (not just "no exception was raised" -- each step asserts something specific

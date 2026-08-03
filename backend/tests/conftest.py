@@ -36,10 +36,7 @@ limiter.enabled = False
 def postgres_url():
     """
     Start a PostgreSQL 15 container for the entire test run.
-    Falls back to a local test database if Docker is unavailable.
-
-    To use testcontainers: pip install testcontainers[postgresql]
-    Requires Docker to be running.
+    Falls back to a reachable local PostgreSQL or SQLite memory DB if Docker is unavailable.
     """
     import os
     if os.environ.get("TEST_DATABASE_URL"):
@@ -50,26 +47,47 @@ def postgres_url():
         from testcontainers.postgres import PostgresContainer
         with PostgresContainer("postgres:15-alpine") as pg:
             yield pg.get_connection_url()
+            return
     except Exception:
-        # Fallback: check if environment has configured database (e.g. docker or local settings)
-        if os.environ.get("POSTGRES_HOST") or settings.DATABASE_URL:
-            yield str(settings.DATABASE_URL)
-        else:
-            url = os.environ.get(
-                "TEST_DATABASE_URL",
-                "postgresql://postgres:password@localhost:5432/market_surveillance_test"
-            )
-            yield url
+        pass
+
+    # Check if configured PostgreSQL is actually reachable
+    candidates = []
+    if os.environ.get("POSTGRES_HOST") or settings.DATABASE_URL:
+        candidates.append(str(settings.DATABASE_URL))
+    candidates.append("postgresql://postgres:password@localhost:5432/market_surveillance_test")
+
+    for u in candidates:
+        try:
+            probe_engine = create_engine(u)
+            with probe_engine.connect():
+                pass
+            probe_engine.dispose()
+            yield u
+            return
+        except Exception:
+            continue
+
+    # Fallback: SQLite in-memory for zero-dependency local testing
+    yield "sqlite:///:memory:"
 
 
 @pytest.fixture(scope="session")
 def test_engine(postgres_url):
     """
-    Create SQLAlchemy engine connected to the test PostgreSQL instance.
-    NullPool: no connection pooling in tests (connections are managed per-test).
+    Create SQLAlchemy engine connected to the test database.
+    Uses StaticPool for SQLite memory DB so tables persist across sessions.
     """
-    from sqlalchemy.pool import NullPool
-    engine = create_engine(postgres_url, poolclass=NullPool, echo=False)
+    from sqlalchemy.pool import NullPool, StaticPool
+    if "sqlite" in postgres_url:
+        engine = create_engine(
+            postgres_url,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+            echo=False,
+        )
+    else:
+        engine = create_engine(postgres_url, poolclass=NullPool, echo=False)
     yield engine
     engine.dispose()
 

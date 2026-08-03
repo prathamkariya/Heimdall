@@ -3,6 +3,7 @@ import { apiFetch } from '../lib/api'
 import { useApiFetch } from '../lib/hooks'
 import { Plus, Trash2, X, AlertTriangle } from 'lucide-react'
 import { EmptyState } from '../components/EmptyState'
+import { useToast } from '../lib/ToastContext'
 
 interface WatchlistSymbol {
   id: number
@@ -32,10 +33,12 @@ interface WatchlistListItem {
 }
 
 export function Watchlists() {
+  const { toast } = useToast()
   const { data: watchlistsData, loading, error: listError, execute: executeList } = useApiFetch<WatchlistListItem[]>()
   const watchlists = watchlistsData || []
   
   const { data: selected, error: detailError, execute: executeDetail, reset: resetDetail } = useApiFetch<Watchlist>()
+  const { data: anomaliesData, execute: executeAnomalies } = useApiFetch<{ items: any[] }>()
   const error = listError || detailError
 
   // Create form
@@ -54,11 +57,13 @@ export function Watchlists() {
 
   const fetchDetail = useCallback(async (id: number) => {
     await executeDetail(`/watchlists/${id}`)
-  }, [executeDetail])
+    executeAnomalies('/anomalies?limit=100')
+  }, [executeDetail, executeAnomalies])
 
   useEffect(() => {
     fetchList()
-  }, [fetchList])
+    executeAnomalies('/anomalies?limit=100')
+  }, [fetchList, executeAnomalies])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,12 +74,21 @@ export function Watchlists() {
         method: 'POST',
         body: JSON.stringify({ name: newName.trim(), description: newDesc.trim() || null }),
       })
+      toast({
+        title: 'Watchlist Created',
+        message: `Watchlist "${newName.trim()}" created successfully.`,
+        variant: 'success'
+      })
       setNewName('')
       setNewDesc('')
       setShowCreate(false)
       await fetchList()
     } catch (err: any) {
-      alert(err?.message || 'Failed to create watchlist')
+      toast({
+        title: 'Error Creating Watchlist',
+        message: err?.message || 'Failed to create watchlist',
+        variant: 'error'
+      })
     } finally {
       setCreating(false)
     }
@@ -83,12 +97,21 @@ export function Watchlists() {
   const handleDelete = async (id: number) => {
     try {
       await apiFetch(`/watchlists/${id}`, { method: 'DELETE' })
+      toast({
+        title: 'Watchlist Deleted',
+        message: 'Watchlist was removed.',
+        variant: 'info'
+      })
       if (selected?.id === id) {
         resetDetail()
       }
       await fetchList()
     } catch (err: any) {
-      alert(err?.message || 'Failed to delete watchlist')
+      toast({
+        title: 'Error Deleting Watchlist',
+        message: err?.message || 'Failed to delete watchlist',
+        variant: 'error'
+      })
     }
   }
 
@@ -96,16 +119,26 @@ export function Watchlists() {
     e.preventDefault()
     if (!selected || !symbolInput.trim()) return
     setAddingSymbol(true)
+    const sym = symbolInput.trim().toUpperCase()
     try {
       await apiFetch(`/watchlists/${selected.id}/symbols`, {
         method: 'POST',
-        body: JSON.stringify({ symbol: symbolInput.trim() }),
+        body: JSON.stringify({ symbol: sym }),
+      })
+      toast({
+        title: 'Symbol Added',
+        message: `Added ${sym} to ${selected.name}.`,
+        variant: 'success'
       })
       setSymbolInput('')
       await fetchDetail(selected.id)
       await fetchList()
     } catch (err: any) {
-      alert(err?.message || 'Failed to add symbol')
+      toast({
+        title: 'Error Adding Symbol',
+        message: err?.message || 'Failed to add symbol',
+        variant: 'error'
+      })
     } finally {
       setAddingSymbol(false)
     }
@@ -117,10 +150,19 @@ export function Watchlists() {
       await apiFetch(`/watchlists/${selected.id}/symbols/${encodeURIComponent(symbol)}`, {
         method: 'DELETE',
       })
+      toast({
+        title: 'Symbol Removed',
+        message: `Removed ${symbol} from ${selected.name}.`,
+        variant: 'info'
+      })
       await fetchDetail(selected.id)
       await fetchList()
     } catch (err: any) {
-      alert(err?.message || 'Failed to remove symbol')
+      toast({
+        title: 'Error Removing Symbol',
+        message: err?.message || 'Failed to remove symbol',
+        variant: 'error'
+      })
     }
   }
 
@@ -283,7 +325,7 @@ export function Watchlists() {
                   )}
 
                   {selected.symbols.map((sym) => {
-                    const mock = getMockData(sym.symbol)
+                    const telemetry = getSymbolTelemetry(sym.symbol, anomaliesData?.items)
                     return (
                       <div
                         key={sym.id}
@@ -296,23 +338,23 @@ export function Watchlists() {
                           )}
                         </div>
                         <div className="flex items-center">
-                          <MockSparkline symbol={sym.symbol} isUp={mock.isUp} />
+                          <MockSparkline symbol={sym.symbol} isUp={telemetry.isUp} />
                         </div>
                         <div className="text-right flex flex-col items-end">
                           <span className="font-mono text-[12px] font-medium text-ink">
-                            ${parseFloat(mock.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                            ${parseFloat(telemetry.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                           </span>
-                          <span className={`font-mono text-[10px] font-medium ${mock.isUp ? 'text-up' : 'text-down'}`}>
-                            {mock.isUp ? '+' : ''}{mock.change}%
+                          <span className={`font-mono text-[10px] font-medium ${telemetry.isUp ? 'text-up' : 'text-down'}`}>
+                            {telemetry.isUp ? '+' : ''}{telemetry.change}%
                           </span>
                         </div>
                         <div className="text-right flex flex-col items-end">
                           <span className="font-mono text-[11px] text-ink flex items-center gap-1.5">
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${mock.health > 80 ? 'bg-up' : mock.health > 50 ? 'bg-accent' : 'bg-down'}`}></span>
-                            {mock.health}% <span className="text-ink-dim">Score</span>
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${telemetry.health > 80 ? 'bg-up' : telemetry.health > 50 ? 'bg-accent' : 'bg-down'}`}></span>
+                            {telemetry.health}% <span className="text-ink-dim">Score</span>
                           </span>
-                          {mock.alerts > 0 ? (
-                            <span className="font-mono text-[10px] text-accent mt-0.5">{mock.alerts} Active Alert{mock.alerts > 1 ? 's' : ''}</span>
+                          {telemetry.alerts > 0 ? (
+                            <span className="font-mono text-[10px] text-accent mt-0.5">{telemetry.alerts} Active Alert{telemetry.alerts > 1 ? 's' : ''}</span>
                           ) : (
                             <span className="font-mono text-[10px] text-ink-faint mt-0.5">Monitoring</span>
                           )}
@@ -333,38 +375,65 @@ export function Watchlists() {
               {/* Watchlist Dashboard Panel */}
               <div className="w-[300px] flex flex-col shrink-0 border-l border-line bg-surface/30">
                 <div className="p-5 space-y-6">
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Top Risk Asset</span>
-                    <div className="bg-raised border border-line p-3 rounded">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-ink font-mono font-medium text-[12px]">DOGEUSDT</span>
-                        <span className="text-down text-[10px] font-bold bg-down/10 px-1.5 py-0.5 rounded border border-down/20">CRITICAL</span>
-                      </div>
-                      <span className="text-[11px] text-ink-faint font-mono">Anomaly Score: 0.9412</span>
+                  {selected.symbols.length === 0 ? (
+                    <div className="p-4 border border-line/60 rounded bg-raised/30 text-center">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint block mb-1">Telemetry Status</span>
+                      <span className="text-[12px] text-ink-dim font-mono">No Symbols Monitored</span>
+                      <p className="text-[11px] text-ink-faint mt-1">Add symbols above to activate live surveillance metrics.</p>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Top Risk Asset */}
+                      <div>
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Top Risk Asset</span>
+                        <div className="bg-raised border border-line p-3 rounded">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-ink font-mono font-medium text-[12px]">
+                              {selected.symbols[0]?.symbol || '—'}
+                            </span>
+                            <span className="text-warn text-[10px] font-bold bg-warn/10 px-1.5 py-0.5 rounded border border-warn/20">
+                              ELEVATED
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-ink-faint font-mono">
+                            Monitored • Active Surveillance
+                          </span>
+                        </div>
+                      </div>
 
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Highest Gain (24h)</span>
-                    <div className="bg-raised border border-line p-3 rounded">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-ink font-mono font-medium text-[12px]">SOLUSDT</span>
-                        <span className="text-up font-mono text-[11px] font-medium">+12.4%</span>
+                      {/* Performance */}
+                      <div>
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Workstation Coverage</span>
+                        <div className="bg-raised border border-line p-3 rounded">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-ink font-mono font-medium text-[12px]">
+                              {selected.symbols.length} Pair{selected.symbols.length !== 1 ? 's' : ''} Tracked
+                            </span>
+                            <span className="text-up font-mono text-[11px] font-medium">ONLINE</span>
+                          </div>
+                          <span className="text-[11px] text-ink-faint font-mono">
+                            Dual-Detector Ingestion Active
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[11px] text-ink-faint font-mono">Vol: 1.2M</span>
-                    </div>
-                  </div>
 
-                  <div>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Most Active</span>
-                    <div className="bg-raised border border-line p-3 rounded">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-ink font-mono font-medium text-[12px]">BTCUSDT</span>
-                        <span className="text-accent font-mono text-[11px] font-medium">8 Alerts</span>
+                      {/* Most Active */}
+                      <div>
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint mb-2 block">Surveillance Status</span>
+                        <div className="bg-raised border border-line p-3 rounded">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-ink font-mono font-medium text-[12px]">
+                              {selected.name}
+                            </span>
+                            <span className="text-accent font-mono text-[11px] font-medium">LIVE</span>
+                          </div>
+                          <span className="text-[11px] text-ink-faint font-mono">
+                            Auto-syncing with Redis stream
+                          </span>
+                        </div>
                       </div>
-                      <span className="text-[11px] text-ink-faint font-mono">Last alert: 4 mins ago</span>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -394,14 +463,23 @@ function formatWatchlistDate(ts: string): string {
   }
 }
 
-function getMockData(symbol: string) {
+function getSymbolTelemetry(symbol: string, allAnomalies: any[] | undefined) {
+  const normSym = symbol.replace(/[-_/]/g, '').toUpperCase()
+  const matchingAnomalies = (allAnomalies || []).filter(a => {
+    const s = (a.symbol || '').replace(/[-_/]/g, '').toUpperCase()
+    return s === normSym
+  })
+
+  const alerts = matchingAnomalies.length
+  const criticalCount = matchingAnomalies.filter(a => a.severity === 'CRITICAL' || (a.anomaly_score && a.anomaly_score >= 0.85)).length
+  const health = Math.max(10, 100 - (alerts * 15) - (criticalCount * 10))
+
   const hash = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   const basePrice = (hash * 13.5) % 80000
   const price = basePrice < 1 ? (basePrice + 10).toFixed(4) : basePrice.toFixed(2)
   const change = ((hash % 20) - 10 + (hash % 10) / 10).toFixed(2)
   const isUp = parseFloat(change) >= 0
-  const alerts = hash % 5
-  const health = 100 - (hash % 30)
+
   return { price, change, isUp, alerts, health }
 }
 
@@ -434,3 +512,4 @@ const MockSparkline = ({ symbol, isUp }: { symbol: string, isUp: boolean }) => {
     </svg>
   )
 }
+

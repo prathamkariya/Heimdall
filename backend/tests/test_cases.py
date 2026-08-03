@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.models import Anomaly, CaseStatus, MarketData, User
 from app.services.auth_service import create_access_token, hash_password
 from fastapi.testclient import TestClient
@@ -18,7 +20,7 @@ def test_case_creation_and_visibility(client: TestClient, db_session: Session, a
     client2 = TestClient(client.app)
 
     # 2. Seed an anomaly for user 1
-    md1 = MarketData(user_id=test_user.id, symbol="BTC", open=1, high=2, low=1, close=1.5, volume=100, timestamp="2023-01-01T00:00:00Z", market="CRYPTO")
+    md1 = MarketData(user_id=test_user.id, symbol="BTC", open=1, high=2, low=1, close=1.5, volume=100, timestamp=datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), market="CRYPTO")
     db_session.add(md1)
     db_session.commit()
     db_session.refresh(md1)
@@ -66,7 +68,7 @@ def test_analyst_assignment_and_notes(client: TestClient, db_session: Session, a
     client_analyst = TestClient(client.app)
 
     # User 1 creates a case (needs an anomaly)
-    md = MarketData(user_id=test_user.id, symbol="ETH", open=1, high=2, low=1, close=1.5, volume=100, timestamp="2023-01-01T00:00:00Z", market="CRYPTO")
+    md = MarketData(user_id=test_user.id, symbol="ETH", open=1, high=2, low=1, close=1.5, volume=100, timestamp=datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), market="CRYPTO")
     db_session.add(md)
     db_session.commit()
     db_session.refresh(md)
@@ -116,7 +118,7 @@ def test_case_audit_trail_timeline(client: TestClient, db_session: Session, auth
     test_user.role = "analyst"
     db_session.commit()
 
-    md = MarketData(user_id=test_user.id, symbol="SOL", open=1, high=2, low=1, close=1.5, volume=100, timestamp="2023-01-01T00:00:00Z", market="CRYPTO")
+    md = MarketData(user_id=test_user.id, symbol="SOL", open=1, high=2, low=1, close=1.5, volume=100, timestamp=datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), market="CRYPTO")
     db_session.add(md)
     db_session.commit()
     db_session.refresh(md)
@@ -165,7 +167,7 @@ def test_case_audit_trail_timeline(client: TestClient, db_session: Session, auth
 def test_link_anomalies(client: TestClient, db_session: Session, auth_headers: dict, registered_user: dict):
     test_user = db_session.query(User).filter(User.id == registered_user["id"]).first()
 
-    md = MarketData(user_id=test_user.id, symbol="LINK", open=1, high=2, low=1, close=1.5, volume=100, timestamp="2023-01-01T00:00:00Z", market="CRYPTO")
+    md = MarketData(user_id=test_user.id, symbol="LINK", open=1, high=2, low=1, close=1.5, volume=100, timestamp=datetime(2023, 1, 1, 0, 0, tzinfo=timezone.utc), market="CRYPTO")
     db_session.add(md)
     db_session.commit()
     db_session.refresh(md)

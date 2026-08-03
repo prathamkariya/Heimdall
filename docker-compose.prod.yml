@@ -179,7 +179,7 @@ services:
           memory: 256m
 
   # ─────────────────────────────────────────────────────
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy (TLS Termination + Static + SSE)
   # Routes: /api/ and /metrics -> api:8000
   #         / -> static frontend build
   # ─────────────────────────────────────────────────────
@@ -188,9 +188,12 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./heimdall-frontend/dist:/usr/share/nginx/html:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_certs:/etc/letsencrypt:ro
     depends_on:
       - api
     deploy:
@@ -198,6 +201,22 @@ services:
         limits:
           memory: 128m
 
+  # ─────────────────────────────────────────────────────
+  # Certbot — Automated Let's Encrypt TLS Renewal
+  # ─────────────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot_www:/var/www/certbot:rw
+      - certbot_certs:/etc/letsencrypt:rw
+    entrypoint: >
+      /bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'
+
 volumes:
   postgres_data:
+    driver: local
+  certbot_www:
+    driver: local
+  certbot_certs:
     driver: local

@@ -82,6 +82,74 @@ def list_market_data(
     return query.order_by(MarketData.timestamp.desc()).limit(limit).all()
 
 
+@router.get("/correlation")
+def get_correlation_matrix(
+    symbols: str | None = None,
+    limit: int = 60,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Compute the Pearson correlation matrix for a set of symbols.
+
+    Query params:
+      symbols: comma-separated list of symbols (default: all tracked symbols)
+      limit:   number of recent candles to use per symbol (default 60 ≈ 1h of 1m bars)
+
+    Returns:
+      { "symbols": [...], "matrix": [[...], ...], "sample_count": N }
+    """
+    import math
+
+    DEFAULT_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'AAPL', 'TSLA', 'NVDA']
+    target_symbols = [s.strip().upper() for s in symbols.split(',')] if symbols else DEFAULT_SYMBOLS
+
+    # Fetch close prices for each symbol
+    prices: dict[str, list[float]] = {}
+    for sym in target_symbols:
+        alt_syms = {sym, sym.replace('-', ''), sym.replace('/', ''), sym.replace('_', '')}
+        rows = (
+            db.query(MarketData.close)
+            .filter(MarketData.symbol.in_(alt_syms))
+            .order_by(MarketData.timestamp.desc())
+            .limit(limit)
+            .all()
+        )
+        if rows:
+            prices[sym] = [float(r.close) for r in reversed(rows) if r.close is not None]
+
+    available = [s for s in target_symbols if s in prices and len(prices[s]) >= 3]
+    if len(available) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Insufficient market data. Need at least 2 symbols with >= 3 data points each.",
+        )
+
+    def pearson(xs: list[float], ys: list[float]) -> float:
+        n = min(len(xs), len(ys))
+        if n < 3:
+            return 0.0
+        xs, ys = xs[-n:], ys[-n:]
+        mx = sum(xs) / n
+        my = sum(ys) / n
+        num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+        dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+        dy = math.sqrt(sum((y - my) ** 2 for y in ys))
+        if dx == 0 or dy == 0:
+            return 0.0
+        return round(num / (dx * dy), 4)
+
+    matrix = [
+        [pearson(prices[a], prices[b]) for b in available]
+        for a in available
+    ]
+
+    return {
+        "symbols": available,
+        "matrix": matrix,
+        "sample_count": limit,
+    }
+
+
 @router.get("/{record_id}", response_model=MarketDataResponse)
 def get_market_data(
     record_id: int,

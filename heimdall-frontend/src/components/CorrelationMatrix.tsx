@@ -50,38 +50,6 @@ function getCellIntensity(r: number): string {
   return 'opacity-40'
 }
 
-/** Compute Pearson correlation from arrays of numbers */
-function pearson(xs: number[], ys: number[]): number {
-  if (xs.length < 3 || xs.length !== ys.length) return 0
-  const n = xs.length
-  const mx = xs.reduce((a, b) => a + b) / n
-  const my = ys.reduce((a, b) => a + b) / n
-  const num = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0)
-  const dx = Math.sqrt(xs.reduce((s, x) => s + (x - mx) ** 2, 0))
-  const dy = Math.sqrt(ys.reduce((s, y) => s + (y - my) ** 2, 0))
-  if (dx === 0 || dy === 0) return 0
-  return num / (dx * dy)
-}
-
-/** Build a correlation matrix from historical price data by symbol */
-function buildMatrix(pricesBySymbol: Record<string, number[]>): CorrelationMatrix {
-  const matrix: CorrelationMatrix = {}
-  const symbols = Object.keys(pricesBySymbol)
-  for (const a of symbols) {
-    matrix[a] = {}
-    for (const b of symbols) {
-      if (a === b) {
-        matrix[a][b] = 1
-      } else if (matrix[b]?.[a] !== undefined) {
-        matrix[a][b] = matrix[b][a]
-      } else {
-        matrix[a][b] = pearson(pricesBySymbol[a], pricesBySymbol[b])
-      }
-    }
-  }
-  return matrix
-}
-
 /** Fallback: generate plausible synthetic correlation matrix when no live data available */
 function syntheticMatrix(): CorrelationMatrix {
   const base: Record<string, Record<string, number>> = {
@@ -111,32 +79,29 @@ export function CorrelationMatrix({ className = '' }: CorrelationMatrixProps) {
   const buildFromApi = async () => {
     setLoading(true)
     try {
-      // Try to get historical prices from our market data endpoint
-      const pricesBySymbol: Record<string, number[]> = {}
-      let anyData = false
-      for (const sym of SYMBOLS) {
-        try {
-          const data = await apiFetch(`/market-data?symbol=${encodeURIComponent(sym)}&limit=50`) as any[]
-          if (data && data.length >= 3) {
-            pricesBySymbol[sym] = data.map((d: any) => parseFloat(d.close)).filter(Boolean)
-            anyData = true
-          }
-        } catch {
-          // symbol not available
-        }
+      // Direct call to backend correlation endpoint
+      const res = await apiFetch(`/market-data/correlation?symbols=${encodeURIComponent(SYMBOLS.join(','))}&limit=60`) as {
+        symbols: string[]
+        matrix: number[][]
+        sample_count: number
       }
-      if (anyData && Object.keys(pricesBySymbol).length >= 2) {
-        // Fill missing symbols with synthetic
-        for (const sym of SYMBOLS) {
-          if (!pricesBySymbol[sym]) pricesBySymbol[sym] = []
-        }
-        setMatrix(buildMatrix(pricesBySymbol))
+
+      if (res && res.symbols && res.matrix && res.symbols.length >= 2) {
+        const matrixObj: CorrelationMatrix = {}
+        res.symbols.forEach((symA, i) => {
+          matrixObj[symA] = {}
+          res.symbols.forEach((symB, j) => {
+            matrixObj[symA][symB] = res.matrix[i][j]
+          })
+        })
+        setMatrix(matrixObj)
         setIsSynthetic(false)
       } else {
         setMatrix(syntheticMatrix())
         setIsSynthetic(true)
       }
     } catch {
+      // Fallback to client-side synthesis when DB has sparse records
       setMatrix(syntheticMatrix())
       setIsSynthetic(true)
     } finally {

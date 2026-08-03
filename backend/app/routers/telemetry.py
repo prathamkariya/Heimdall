@@ -180,14 +180,23 @@ def telemetry_status(
     cutoff = datetime.now(tz.utc) - timedelta(hours=24)
 
     try:
-        anomaly_counts = (
-            db.query(Anomaly.market_data.has(), func.count(Anomaly.id))  # type: ignore[attr-defined]
+        total_anomalies = (
+            db.query(func.count(Anomaly.id))
             .filter(Anomaly.detected_at >= cutoff)
-            .group_by(text("1"))
+            .scalar()
+        ) or 0
+
+        anomaly_counts_raw = (
+            db.query(MarketData.market, func.count(Anomaly.id))
+            .join(MarketData, Anomaly.market_data_id == MarketData.id)
+            .filter(Anomaly.detected_at >= cutoff)
+            .group_by(MarketData.market)
             .all()
         )
+        anomalies_by_market = {market: count for market, count in anomaly_counts_raw}
     except Exception:
-        anomaly_counts = []
+        total_anomalies = 0
+        anomalies_by_market = {}
 
     try:
         md_counts_raw = (
@@ -207,76 +216,7 @@ def telemetry_status(
         "uptime_seconds": round(time.time() - START_TIME),
         "active_subscribers": subs,
         "market_data_last_24h": md_counts,
-        "anomalies_last_24h": len(anomaly_counts),
+        "anomalies_last_24h": total_anomalies,
+        "anomalies_by_market_last_24h": anomalies_by_market,
     }
 
-
-@router.get("/api/v1/market-data/correlation", tags=["Telemetry"])
-def get_correlation_matrix(
-    symbols: Optional[str] = None,
-    limit: int = 60,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Compute the Pearson correlation matrix for a set of symbols.
-
-    Query params:
-      symbols: comma-separated list of symbols (default: all tracked symbols)
-      limit:   number of recent candles to use per symbol (default 60 ≈ 1h of 1m bars)
-
-    Returns:
-      { "symbols": [...], "matrix": [[...], ...], "sample_count": N }
-
-    The matrix is symmetric. matrix[i][j] is the Pearson r between
-    the close prices of symbols[i] and symbols[j] over the last `limit` candles.
-    Values range from -1 (perfect inverse) to +1 (perfect positive).
-    """
-    import math
-
-    DEFAULT_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'AAPL', 'TSLA', 'NVDA']
-    target_symbols = [s.strip().upper() for s in symbols.split(',')] if symbols else DEFAULT_SYMBOLS
-
-    # Fetch close prices for each symbol
-    prices: dict[str, list[float]] = {}
-    for sym in target_symbols:
-        rows = (
-            db.query(MarketData.close)
-            .filter(MarketData.symbol == sym)
-            .order_by(MarketData.timestamp.desc())
-            .limit(limit)
-            .all()
-        )
-        if rows:
-            prices[sym] = [float(r.close) for r in reversed(rows) if r.close is not None]
-
-    available = [s for s in target_symbols if s in prices and len(prices[s]) >= 3]
-    if len(available) < 2:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Insufficient market data. Need at least 2 symbols with ≥3 data points each.",
-        )
-
-    def pearson(xs: list[float], ys: list[float]) -> float:
-        n = min(len(xs), len(ys))
-        if n < 3:
-            return 0.0
-        xs, ys = xs[-n:], ys[-n:]
-        mx = sum(xs) / n
-        my = sum(ys) / n
-        num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-        dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
-        dy = math.sqrt(sum((y - my) ** 2 for y in ys))
-        if dx == 0 or dy == 0:
-            return 0.0
-        return round(num / (dx * dy), 4)
-
-    matrix = [
-        [pearson(prices[a], prices[b]) for b in available]
-        for a in available
-    ]
-
-    return {
-        "symbols": available,
-        "matrix": matrix,
-        "sample_count": limit,
-    }

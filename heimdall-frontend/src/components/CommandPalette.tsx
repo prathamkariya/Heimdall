@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, FileText, ArrowUp, ArrowDown, CornerDownLeft, Cpu, Download, Filter } from 'lucide-react'
+import { Search, Loader2, Activity, TriangleAlert, FolderGit, Eye, Archive, Settings, ArrowUp, ArrowDown, CornerDownLeft, Cpu, Download, Filter } from 'lucide-react'
 import { apiFetch } from '../lib/api'
 
 type CommandItem = {
@@ -73,7 +73,10 @@ export function CommandPalette() {
         navigate('/audit')
         setTimeout(() => window.dispatchEvent(new CustomEvent('trigger_audit_export')), 150)
     }},
-    { id: 'cmd-report', group: 'COMMANDS', label: 'Generate MAR Dossier', desc: 'Create a new Market Abuse Report', icon: FileText, typeLabel: 'Command', onSelect: () => navigate('/audit') },
+    { id: 'cmd-shortcuts', group: 'COMMANDS', label: 'Keyboard Shortcuts', desc: 'Display operator hotkey reference [?]', icon: Settings, typeLabel: 'Help', onSelect: () => {
+        setIsOpen(false)
+        window.dispatchEvent(new CustomEvent('open_keyboard_shortcuts'))
+    }},
     { id: 'cmd-demo', group: 'COMMANDS', label: 'Toggle Demo Mode', desc: 'Switch to simulated live data', icon: Settings, typeLabel: 'System', onSelect: () => {
         const current = localStorage.getItem('heimdall_demo_mode') === 'true'
         localStorage.setItem('heimdall_demo_mode', (!current).toString())
@@ -81,12 +84,54 @@ export function CommandPalette() {
     }},
   ]
 
-  const recentMocks: CommandItem[] = [
-    { id: 'rec-1', group: 'RECENT', label: 'DOGEUSDT', desc: 'Asset • High Risk', icon: Activity, typeLabel: 'Asset', onSelect: () => navigate('/anomalies') },
-    { id: 'rec-2', group: 'RECENT', label: 'Case #1837', desc: 'Open Investigation', icon: FolderGit, typeLabel: 'Case', onSelect: () => navigate('/investigations') },
-    { id: 'rec-3', group: 'RECENT', label: 'BTCUSDT', desc: 'Asset', icon: Activity, typeLabel: 'Asset', onSelect: () => navigate('/anomalies') },
-    { id: 'rec-4', group: 'RECENT', label: 'Audit Report', desc: 'Exported findings', icon: Archive, typeLabel: 'Report', onSelect: () => navigate('/audit') },
-  ]
+  // Dynamic recent searches persisted in localStorage
+  const [recentItems, setRecentItems] = useState<CommandItem[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('heimdall_recent_searches')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecentItems(
+            parsed.slice(0, 5).map((item: any) => ({
+              id: item.id || `rec-${item.label}`,
+              group: 'RECENT',
+              label: item.label,
+              desc: item.desc || 'Recent Activity',
+              icon: item.type === 'case' ? FolderGit : Activity,
+              typeLabel: item.type || 'Recent',
+              onSelect: () => {
+                if (item.route) navigate(item.route)
+              }
+            }))
+          )
+          return
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    // Default institutional quick starts when history is clean
+    setRecentItems([
+      { id: 'rec-live', group: 'QUICK START', label: 'Live Surveillance Feed', desc: 'Active ingestion stream', icon: Activity, typeLabel: 'Stream', onSelect: () => navigate('/') },
+      { id: 'rec-anom', group: 'QUICK START', label: 'Critical Anomaly Inbox', desc: 'Unresolved elevated risks', icon: TriangleAlert, typeLabel: 'Anomalies', onSelect: () => navigate('/anomalies') },
+      { id: 'rec-audit', group: 'QUICK START', label: 'Audit & Regulatory Dossiers', desc: 'Compliance archives', icon: Archive, typeLabel: 'Compliance', onSelect: () => navigate('/audit') },
+    ])
+  }, [isOpen, navigate])
+
+  const saveRecentSearch = (item: { id: string; label: string; desc?: string; type: string; route: string }) => {
+    try {
+      const raw = localStorage.getItem('heimdall_recent_searches')
+      const existing: any[] = raw ? JSON.parse(raw) : []
+      const filtered = existing.filter((x: any) => x.id !== item.id)
+      const updated = [item, ...filtered].slice(0, 8)
+      localStorage.setItem('heimdall_recent_searches', JSON.stringify(updated))
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -112,7 +157,7 @@ export function CommandPalette() {
   }, [query])
 
   const filteredActions: CommandItem[] = query.trim() === '' 
-    ? [...recentMocks, ...actions.filter(a => a.group === 'COMMANDS')]
+    ? [...recentItems, ...actions.filter(a => a.group === 'COMMANDS')]
     : [
         ...actions.filter(a => a.label.toLowerCase().includes(query.toLowerCase()) || (a.desc && a.desc.toLowerCase().includes(query.toLowerCase()))),
         ...remoteResults.map((r: any) => ({
@@ -122,7 +167,16 @@ export function CommandPalette() {
           desc: r.subtitle,
           icon: r.type === 'case' ? FolderGit : Activity,
           typeLabel: r.type,
-          onSelect: () => navigate(r.route)
+          onSelect: () => {
+            saveRecentSearch({
+              id: r.id,
+              label: r.title,
+              desc: r.subtitle,
+              type: r.type,
+              route: r.route
+            })
+            navigate(r.route)
+          }
         }))
       ]
 

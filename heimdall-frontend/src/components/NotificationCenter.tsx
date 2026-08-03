@@ -178,6 +178,7 @@ export function NotificationCenter() {
       {/* Bell trigger */}
       <button
         id="notification-center-trigger"
+        aria-label="Open notifications"
         onClick={() => {
           setOpen(prev => !prev)
           if (!open) markAllRead()
@@ -234,6 +235,7 @@ export function NotificationCenter() {
                 )}
                 <button
                   onClick={() => setOpen(false)}
+                  aria-label="Close notifications"
                   className="text-ink-faint hover:text-ink transition-fast cursor-pointer rounded-full p-0.5 hover:bg-raised"
                 >
                   <X size={14} />

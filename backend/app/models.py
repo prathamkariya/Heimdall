@@ -282,7 +282,12 @@ class RefreshToken(Base):
     @property
     def is_expired(self) -> bool:
         from datetime import timezone
-        return datetime.now(timezone.utc) > self.expires_at
+        exp = self.expires_at
+        if exp is None:
+            return True
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) > exp
 
     @property
     def is_valid(self) -> bool:

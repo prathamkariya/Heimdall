@@ -132,6 +132,7 @@ export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceIns
             </span>
             <button
               onClick={onClose}
+              aria-label="Close Inspector"
               className="text-ink-faint hover:text-ink transition-fast cursor-pointer rounded-full p-1 hover:bg-raised"
             >
               <X size={16} />

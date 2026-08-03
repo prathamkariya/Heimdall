@@ -40,6 +40,33 @@ interface Analyst {
   role: string
 }
 
+function computeDuration(createdAt: string, closedAt: string | null, updatedAt: string): string {
+  const start = new Date(createdAt).getTime()
+  const end = new Date(closedAt || updatedAt).getTime()
+  if (isNaN(start) || isNaN(end) || end <= start) return '< 1m'
+  const diffMinutes = Math.round((end - start) / 60000)
+  if (diffMinutes < 60) return `${diffMinutes}m`
+  const hours = (diffMinutes / 60).toFixed(1)
+  return `${hours}h`
+}
+
+function computeCaseRisk(anomalyIds: number[] | undefined, allAnomalies: any[] | undefined): { label: string; color: string } {
+  if (!anomalyIds || anomalyIds.length === 0 || !allAnomalies) {
+    return { label: 'LOW', color: 'text-ink-dim bg-raised border-line' }
+  }
+  const related = allAnomalies.filter(a => anomalyIds.includes(a.id))
+  if (related.some(a => a.severity === 'CRITICAL' || (a.anomaly_score && a.anomaly_score >= 0.85))) {
+    return { label: 'CRITICAL', color: 'text-down bg-down/10 border-down/30' }
+  }
+  if (related.some(a => a.severity === 'HIGH' || (a.anomaly_score && a.anomaly_score >= 0.70))) {
+    return { label: 'HIGH', color: 'text-warn bg-warn/10 border-warn/30' }
+  }
+  if (related.some(a => a.severity === 'MEDIUM' || (a.anomaly_score && a.anomaly_score >= 0.50))) {
+    return { label: 'MEDIUM', color: 'text-accent bg-accent/10 border-accent/30' }
+  }
+  return { label: 'LOW', color: 'text-ink-dim bg-raised border-line' }
+}
+
 export function Audit() {
   const { timezone } = useSettings()
   
@@ -288,10 +315,21 @@ export function Audit() {
                   {c.status}
                 </span>
               </span>
-              {/* Mock Risk for now */}
-              <span className="text-[11px] text-ink-dim">Medium</span>
-              {/* Mock Duration for now */}
-              <span className="text-[11px] tabular text-ink-dim">1.2h</span>
+              {/* Real Computed Risk */}
+              <span>
+                {(() => {
+                  const risk = computeCaseRisk(c.anomaly_ids, anomaliesData?.items)
+                  return (
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${risk.color}`}>
+                      {risk.label}
+                    </span>
+                  )
+                })()}
+              </span>
+              {/* Real Computed Duration */}
+              <span className="text-[11px] tabular text-ink-dim font-mono">
+                {computeDuration(c.created_at, c.closed_at, c.updated_at)}
+              </span>
               <span className="text-ink-dim text-[12px] tabular">
                 {c.closed_at ? formatDate(c.closed_at, timezone, { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
               </span>

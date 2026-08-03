@@ -1,8 +1,35 @@
-import type { ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Rail } from './Rail'
 import { CommandPalette } from '../components/CommandPalette'
+import { KeyboardShortcutsModal } from '../components/KeyboardShortcutsModal'
 
 export function Shell({ children }: { children: ReactNode }) {
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  useEffect(() => {
+    const handleOpen = () => setShowShortcuts(true)
+    window.addEventListener('open_keyboard_shortcuts', handleOpen)
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If typing in input or textarea, ignore
+      const target = e.target as HTMLElement
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return
+      }
+
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault()
+        setShowShortcuts(prev => !prev)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('open_keyboard_shortcuts', handleOpen)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-void text-ink font-brand select-none">
       <Rail />
@@ -22,6 +49,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </footer>
       </div>
       <CommandPalette />
+      {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
     </div>
   )
 }

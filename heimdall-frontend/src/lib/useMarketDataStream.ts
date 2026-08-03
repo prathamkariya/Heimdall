@@ -10,19 +10,71 @@ const BASE_URL = '/api/v1'
 interface UseMarketDataStreamResult {
   events: LiveAlertEvent[]
   connState: ConnState
+  isPaused: boolean
+  bufferedCount: number
+  velocity: number // events per minute
+  togglePause: () => void
+  flushBuffer: () => void
 }
 
 export function useMarketDataStream(isDemoMode: boolean): UseMarketDataStreamResult {
   const { getSseToken } = useAuth()
   const [events, setEvents] = useState<LiveAlertEvent[]>([])
+  const [bufferedEvents, setBufferedEvents] = useState<LiveAlertEvent[]>([])
+  const [isPaused, setIsPaused] = useState(false)
   const [connState, setConnState] = useState<ConnState>('connecting')
-  
+  const [velocity, setVelocity] = useState(0)
+
+  const isPausedRef = useRef(isPaused)
+  isPausedRef.current = isPaused
+
+  const eventTimestampsRef = useRef<number[]>([])
   const eventSourceRef = useRef<EventSource | null>(null)
   const demoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Track velocity (rolling 15 seconds window converted to events/min)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const cutoff = now - 15000
+      eventTimestampsRef.current = eventTimestampsRef.current.filter(ts => ts > cutoff)
+      const count = eventTimestampsRef.current.length
+      setVelocity(Math.round((count / 15) * 60))
+    }, 1500)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleIncomingEvent = useCallback((event: LiveAlertEvent) => {
+    eventTimestampsRef.current.push(Date.now())
+    if (isPausedRef.current) {
+      setBufferedEvents(prev => [event, ...prev].slice(0, MAX_EVENTS))
+    } else {
+      setEvents(prev => [event, ...prev].slice(0, MAX_EVENTS))
+    }
+  }, [])
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => {
+      const next = !prev
+      if (!next) {
+        // Unpausing: flush buffered items
+        setEvents(current => {
+          const combined = [...bufferedEvents, ...current].slice(0, MAX_EVENTS)
+          return combined
+        })
+        setBufferedEvents([])
+      }
+      return next
+    })
+  }, [bufferedEvents])
+
+  const flushBuffer = useCallback(() => {
+    setEvents(current => [...bufferedEvents, ...current].slice(0, MAX_EVENTS))
+    setBufferedEvents([])
+  }, [bufferedEvents])
+
   const connect = useCallback(async () => {
-    // Clean up any existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null
@@ -34,35 +86,32 @@ export function useMarketDataStream(isDemoMode: boolean): UseMarketDataStreamRes
 
     if (isDemoMode) {
       setConnState('live')
-      // Synthesize events
       const generateEvent = () => {
         const isAnomaly = Math.random() > 0.8
-        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'DOGEUSDT']
+        const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AAPL', 'NVDA', 'TSLA']
         const symbol = symbols[Math.floor(Math.random() * symbols.length)]
+        const isCrypto = symbol.includes('USDT')
         
         const syntheticEvent: LiveAlertEvent = {
           symbol,
-          market: 'CRYPTO',
-          price: 50000 * Math.random(),
+          market: isCrypto ? 'CRYPTO' : 'US_EQUITY',
+          price: isCrypto ? (50000 * Math.random()) : (150 + Math.random() * 200),
           volume: 100 * Math.random(),
           timestamp_ms: Date.now(),
           primary_signal: isAnomaly ? (Math.random() > 0.5 ? 'PUMP & DUMP' : 'WASH TRADING') : 'NORMAL',
           anomaly_score: isAnomaly ? 0.75 + (Math.random() * 0.2) : 0.1 + (Math.random() * 0.3),
-          severity: isAnomaly ? (Math.random() > 0.5 ? 'HIGH' : 'MEDIUM') : undefined,
+          severity: isAnomaly ? (Math.random() > 0.6 ? 'CRITICAL' : 'HIGH') : undefined,
           low_confidence: false,
           evidence: isAnomaly ? [
             { name: 'Volume_Spike', value: 3.5, threshold: 2.0, triggered: true },
             { name: 'RSI_Overbought', value: 85, threshold: 80, triggered: true }
           ] : []
         }
-        
-        setEvents(prev => [syntheticEvent, ...prev].slice(0, MAX_EVENTS))
+        handleIncomingEvent(syntheticEvent)
       }
       
-      // Generate some initial events
       for (let i = 0; i < 5; i++) generateEvent()
-      
-      demoIntervalRef.current = setInterval(generateEvent, 3000)
+      demoIntervalRef.current = setInterval(generateEvent, 2500)
       return
     }
 
@@ -80,41 +129,40 @@ export function useMarketDataStream(isDemoMode: boolean): UseMarketDataStreamRes
       es.onmessage = (e) => {
         try {
           const event: LiveAlertEvent = JSON.parse(e.data)
-          setEvents((prev) => [event, ...prev].slice(0, MAX_EVENTS))
+          handleIncomingEvent(event)
         } catch {
-          // Malformed SSE data — skip, don't crash
+          // skip malformed
         }
       }
 
       es.onerror = () => {
-        // Close the dead connection to prevent native auto-reconnect with a stale token
         es.close()
         setConnState('reconnecting')
-        // Reconnect manually to fetch a fresh token
         reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
       }
     } catch (err) {
       console.error('Failed to acquire SSE token', err)
       setConnState('reconnecting')
-      // Retry after a delay
       reconnectTimeoutRef.current = setTimeout(() => connect(), 5000)
     }
-  }, [getSseToken, isDemoMode])
+  }, [getSseToken, isDemoMode, handleIncomingEvent])
 
   useEffect(() => {
     connect()
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
-      if (demoIntervalRef.current) {
-        clearInterval(demoIntervalRef.current)
-      }
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+      if (eventSourceRef.current) eventSourceRef.current.close()
+      if (demoIntervalRef.current) clearInterval(demoIntervalRef.current)
     }
   }, [connect])
 
-  return { events, connState }
+  return {
+    events,
+    connState,
+    isPaused,
+    bufferedCount: bufferedEvents.length,
+    velocity,
+    togglePause,
+    flushBuffer,
+  }
 }

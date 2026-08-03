@@ -14,6 +14,27 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react'
+            }
+            if (id.includes('lightweight-charts')) {
+              return 'vendor-charts'
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons'
+            }
+            return 'vendor-libs'
+          }
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
@@ -22,3 +43,4 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/e2e/**'],
   },
 })
+

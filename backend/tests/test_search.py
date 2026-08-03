@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ def test_search_endpoint(client: TestClient, db_session: Session, registered_use
     md = MarketData(
         user_id=user_id,
         symbol="SEARCHBTC",
-        timestamp="2026-08-01T10:00:00Z",
+        timestamp=datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc),
         open=100.0,
         high=105.0,
         low=95.0,

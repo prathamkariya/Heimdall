@@ -54,6 +54,7 @@ export const LiveEventRow = React.memo(function LiveEventRow({
 }: LiveEventRowProps) {
   return (
     <div 
+      data-testid="live-event-row"
       className={`border-b border-line/40 font-mono text-[13px] transition-all active:scale-[0.99] cursor-pointer ${
         isSelected 
           ? 'bg-raised/40 border-l-2 border-l-accent'
@@ -69,14 +70,16 @@ export const LiveEventRow = React.memo(function LiveEventRow({
     >
       {/* Main row */}
       <div
-        className={`grid grid-cols-[100px_70px_80px_80px_60px_110px_70px_1fr_16px] gap-x-4 px-5 py-1.5 pl-[18px] ${
+        className={`grid grid-cols-[110px_90px_95px_75px_60px_120px_75px_1fr_16px] gap-x-4 px-5 py-1.5 pl-[18px] items-center ${
           isNew && !isSelected ? (scored && (event.anomaly_score ?? 0) >= 0.7 ? 'animate-row-flash-red' : 'animate-row-flash') : ''
         }`}
       >
-        <span className="truncate font-medium">{event.symbol}</span>
-        <span className="text-ink-dim">{event.market}</span>
+        <span className="truncate font-semibold text-ink">{event.symbol}</span>
+        <span className="text-ink-dim text-[11px]">
+          {event.market === 'US_EQUITY' || event.market === 'US_EQUITIES' ? 'EQUITY' : event.market}
+        </span>
         <span className="tabular-nums font-medium">
-          {event.price != null ? event.price.toFixed(4) : '—'}
+          {event.price != null ? event.price.toFixed(2) : '—'}
         </span>
         <span className="tabular-nums text-ink-dim">{event.volume != null ? (event.volume > 1000 ? (event.volume/1000).toFixed(1)+'k' : event.volume.toFixed(1)) : '—'}</span>
 

@@ -128,6 +128,8 @@ def _get_lof_model(market: str):
     market_subdir = Path(settings.MODEL_DIR) / market.lower()
     model_dir = market_subdir if market_subdir.exists() else Path(settings.MODEL_DIR)
     lof_path = model_dir / "local_outlier_factor.joblib"
+    if not lof_path.exists() and (model_dir.parent / "crypto" / "local_outlier_factor.joblib").exists():
+        lof_path = model_dir.parent / "crypto" / "local_outlier_factor.joblib"
     if lof_path.exists():
         try:
             return joblib.load(lof_path)

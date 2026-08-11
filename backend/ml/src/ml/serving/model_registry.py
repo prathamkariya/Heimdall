@@ -29,7 +29,11 @@ class ModelRegistry:
 
         # Try to load Isolation Forest
         iforest_path = self.model_dir / "isolation_forest_scratch.joblib"
+        if not iforest_path.exists() and (self.model_dir.parent / "crypto" / "isolation_forest_scratch.joblib").exists():
+            iforest_path = self.model_dir.parent / "crypto" / "isolation_forest_scratch.joblib"
         iforest_meta = self.model_dir / "isolation_forest_metadata.json"
+        if not iforest_meta.exists() and (self.model_dir.parent / "crypto" / "isolation_forest_metadata.json").exists():
+            iforest_meta = self.model_dir.parent / "crypto" / "isolation_forest_metadata.json"
         if iforest_path.exists():
             try:
                 self.isolation_forest = joblib.load(iforest_path)
@@ -41,7 +45,11 @@ class ModelRegistry:
 
         # Try to load Multi Pattern Detector
         mp_path = self.model_dir / "multi_pattern_detector.joblib"
+        if not mp_path.exists() and (self.model_dir.parent / "crypto" / "multi_pattern_detector.joblib").exists():
+            mp_path = self.model_dir.parent / "crypto" / "multi_pattern_detector.joblib"
         mp_meta = self.model_dir / "multi_pattern_detector_metadata.json"
+        if not mp_meta.exists() and (self.model_dir.parent / "crypto" / "multi_pattern_detector_metadata.json").exists():
+            mp_meta = self.model_dir.parent / "crypto" / "multi_pattern_detector_metadata.json"
         if mp_path.exists():
             try:
                 self.multi_pattern_detector = joblib.load(mp_path)

@@ -60,26 +60,28 @@ def create_case(
     ).first()
     system_user_id = system_user.id if system_user else None
 
-    # B2: Visibility check for every anomaly ID
-    anomalies = (
-        db.query(Anomaly)
-        .join(MarketData, Anomaly.market_data_id == MarketData.id)
-        .filter(Anomaly.id.in_(payload.anomaly_ids))
-        .filter(
-            or_(
-                MarketData.user_id == current_user.id,
-                MarketData.user_id == system_user_id
+    # B2: Visibility check for anomaly IDs if provided
+    anomalies = []
+    if payload.anomaly_ids:
+        anomalies = (
+            db.query(Anomaly)
+            .join(MarketData, Anomaly.market_data_id == MarketData.id)
+            .filter(Anomaly.id.in_(payload.anomaly_ids))
+            .filter(
+                or_(
+                    MarketData.user_id == current_user.id,
+                    MarketData.user_id == system_user_id
+                )
             )
+            .all()
         )
-        .all()
-    )
-    
-    if len(anomalies) != len(payload.anomaly_ids):
-        # 403 as specifically requested by Phase B2 if visibility check fails
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Forbidden: One or more anomalies are not owned by you or system."
-        )
+        
+        if len(anomalies) != len(payload.anomaly_ids):
+            # 403 as specifically requested by Phase B2 if visibility check fails
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Forbidden: One or more anomalies are not owned by you or system."
+            )
 
     case = Case(
         title=payload.title,

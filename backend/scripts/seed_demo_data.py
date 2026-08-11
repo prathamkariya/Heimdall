@@ -50,6 +50,20 @@ def seed():
                 db.add(ws)
             print(f"Created watchlist: {wl.name}")
 
+        admin_wl = db.query(Watchlist).filter(Watchlist.user_id == admin.id).first()
+        if not admin_wl:
+            admin_wl = Watchlist(
+                user_id=admin.id,
+                name="Global Risk Feed",
+                description="Default surveillance watchlist for administrator.",
+            )
+            db.add(admin_wl)
+            db.flush()
+            for sym in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "NVDA", "AAPL"]:
+                ws = WatchlistSymbol(watchlist_id=admin_wl.id, symbol=sym)
+                db.add(ws)
+            print(f"Created admin watchlist: {admin_wl.name}")
+
         # 4. Market Data & Anomalies
         now = datetime.now(timezone.utc)
         symbols_data = [
@@ -138,6 +152,42 @@ def seed():
             print("Created initial investigation case.")
 
         db.commit()
+
+        # 6. Seed Redis live_alerts stream with recent anomalies so live feed is immediately populated
+        try:
+            from app.services.redis_service import get_sync_redis, STREAM_ALERTS
+            r = get_sync_redis()
+            for sym, price, market, score, patterns in symbols_data:
+                if score >= 0.7:
+                    sev = "CRITICAL" if score >= 0.9 else ("HIGH" if score >= 0.8 else "MEDIUM")
+                    pat_dict = json.loads(patterns)
+                    primary_sig = max(pat_dict.items(), key=lambda x: x[1])[0].upper().replace("_", " ") if pat_dict else "ANOMALY"
+                    alert_payload = {
+                        "event_id": f"SEED_{sym}_{int(now.timestamp()*1000)}",
+                        "symbol": sym,
+                        "timestamp_ms": int(now.timestamp() * 1000),
+                        "price": price,
+                        "volume": 250000.0,
+                        "market": market,
+                        "source": "SEED_GENERATOR",
+                        "anomaly_score": score,
+                        "severity": sev,
+                        "primary_signal": primary_sig,
+                        "low_confidence": False,
+                        "sentiment_score": 0.0,
+                        "isolation_forest_score": score * 0.9,
+                        "multi_pattern_max_score": score,
+                        "pattern_scores": pat_dict,
+                        "features": {"volatility_20d": 0.08, "volume_ratio_20d": 3.4},
+                        "model_version": "v1.0.0-seed",
+                        "detector_agreement": 1.0,
+                        "weak_label_confidence": score,
+                    }
+                    r.xadd(STREAM_ALERTS, {"data": json.dumps(alert_payload)}, maxlen=1000)
+            print("Seeded Redis live_alerts stream.")
+        except Exception as re_err:
+            print(f"Warning: Could not seed Redis stream: {re_err}")
+
         print("Demo seed complete!")
     except Exception as e:
         db.rollback()

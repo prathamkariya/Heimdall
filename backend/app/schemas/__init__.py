@@ -276,7 +276,7 @@ class WatchlistListResponse(OrmBase):
 # ══════════════════════════════════════════════════════════════
 class CaseCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
-    anomaly_ids: list[int] = Field(..., min_length=1)
+    anomaly_ids: list[int] = Field(default_factory=list)
 
 
 class CaseUpdate(BaseModel):
@@ -305,12 +305,8 @@ class CaseResponse(OrmBase):
     @model_validator(mode="before")
     @classmethod
     def populate_anomaly_ids(cls, data: any) -> any:
-        if hasattr(data, "anomalies") and data.anomalies is not None:
-            # Handle SQLAlchemy models
-            data.anomaly_ids = [a.id for a in data.anomalies]
-        elif isinstance(data, dict) and "anomalies" in data:
-            # Handle dicts
-            data["anomaly_ids"] = [a.id for a in data["anomalies"]]
+        if isinstance(data, dict) and "anomalies" in data and "anomaly_ids" not in data:
+            data["anomaly_ids"] = [a["id"] if isinstance(a, dict) else getattr(a, "id", None) for a in data["anomalies"]]
         return data
 
 

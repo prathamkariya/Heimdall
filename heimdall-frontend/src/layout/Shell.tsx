@@ -38,7 +38,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <footer className="h-6 shrink-0 bg-surface border-t border-line px-4 flex items-center justify-between font-mono text-[9px] text-ink-faint select-none">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up"></span>NYSE FEED</span>
-            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up"></span>NSE FEED</span>
+            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up"></span>NASDAQ FEED</span>
             <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up"></span>BINANCE WS</span>
           </div>
           <div className="flex items-center gap-4">

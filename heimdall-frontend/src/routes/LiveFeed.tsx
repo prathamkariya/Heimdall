@@ -47,9 +47,7 @@ export function LiveFeed() {
       const anomalyId = (selectedEvent as any).id || (selectedEvent as any).anomaly_id
       const payload: any = {
         title: `Surveillance Alert: ${selectedEvent.symbol} ${selectedEvent.primary_signal || 'Anomaly'}`,
-      }
-      if (anomalyId) {
-        payload.anomaly_ids = [anomalyId]
+        anomaly_ids: anomalyId ? [anomalyId] : []
       }
       const res: any = await apiFetch('/cases', {
         method: 'POST',
@@ -252,7 +250,7 @@ export function LiveFeed() {
         {/* Main Table Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Column headers */}
-          <div className="grid grid-cols-[100px_70px_80px_80px_60px_110px_70px_1fr] gap-x-4 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint flex-shrink-0">
+          <div className="grid grid-cols-[110px_90px_95px_75px_60px_120px_75px_1fr_16px] gap-x-4 border-b border-line bg-surface px-5 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint flex-shrink-0">
             <span>Symbol</span>
             <span>Market</span>
             <span>Price</span>
@@ -261,6 +259,7 @@ export function LiveFeed() {
             <span>Primary Signal</span>
             <span>Severity</span>
             <span>Time</span>
+            <span></span>
           </div>
 
           {/* Event rows */}

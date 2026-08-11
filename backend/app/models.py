@@ -342,6 +342,10 @@ class Case(Base):
     notes = relationship("CaseNote", back_populates="case", cascade="all, delete-orphan")
     events = relationship("CaseEvent", back_populates="case", cascade="all, delete-orphan")
 
+    @property
+    def anomaly_ids(self) -> list[int]:
+        return [a.id for a in self.anomalies] if self.anomalies else []
+
     def __repr__(self) -> str:
         return f"<Case(id={self.id}, status='{self.status}')>"
 

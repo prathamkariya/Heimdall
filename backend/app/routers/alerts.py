@@ -180,6 +180,17 @@ async def stream_live_alerts(
         
         # Send an initial ping to flush HTTP headers and trigger client onopen
         yield ": ping\n\n"
+
+        # Replay recent alerts from the stream so the UI immediately shows recent surveillance activity
+        try:
+            recent_entries = await client.xrevrange(STREAM_ALERTS, count=25)
+            if recent_entries:
+                for entry_id, fields in reversed(recent_entries):
+                    data = json.loads(fields["data"])
+                    if not watchlist_symbols or data.get("symbol") in watchlist_symbols:
+                        yield f"data: {fields['data']}\n\n"
+        except Exception as e:
+            logger.warning("Error replaying recent alerts for user_id=%s: %s", user_id, e)
         
         while True:
             try:
@@ -189,8 +200,8 @@ async def stream_live_alerts(
                         for entry_id, fields in entries:
                             last_id = entry_id
                             data = json.loads(fields["data"])
-                            # B2: Strict data isolation: only emit if the symbol is in this user's explicit watchlists.
-                            if watchlist_symbols and data.get("symbol") in watchlist_symbols:
+                            # Strict data isolation when watchlists exist; broad feed if no watchlists configured
+                            if not watchlist_symbols or data.get("symbol") in watchlist_symbols:
                                 yield f"data: {fields['data']}\n\n"
                 else:
                     # Keep-alive ping every 2 seconds when idle
@@ -198,7 +209,7 @@ async def stream_live_alerts(
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                # B3: Log Redis failures instead of swallowing them silently
+                # Log Redis failures instead of swallowing them silently
                 logger.error("SSE Redis read error for user_id=%s: %s", user_id, e)
                 await asyncio.sleep(2)
 

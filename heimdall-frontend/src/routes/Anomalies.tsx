@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Columns } from 'lucide-react'
 import { useApiFetch } from '../lib/hooks'
 import { useKeyboardNav } from '../lib/useKeyboardNav'
@@ -16,14 +17,23 @@ const ALL_COLUMNS = ['ID', 'Symbol', 'Market', 'Score', 'Severity', 'Primary Sig
 
 export function Anomalies() {
   const { timezone } = useSettings()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlSymbol = searchParams.get('symbol') || ''
+
   const { data, loading, error, execute: executeAnomalies } = useApiFetch<AnomalyPaginatedResponse>()
   const { data: casesResponse, execute: executeCases } = useApiFetch<{items: any[]}>()
   const cases = casesResponse?.items || []
 
   // Filters
-  const [symbolFilter, setSymbolFilter] = useState('')
+  const [symbolFilter, setSymbolFilter] = useState(urlSymbol)
   const [anomalyOnly, setAnomalyOnly] = useState(false)
   const [offset, setOffset] = useState(0)
+
+  // Keep symbol filter in sync with URL searchParams
+  useEffect(() => {
+    const sym = searchParams.get('symbol') || ''
+    setSymbolFilter(sym)
+  }, [searchParams])
 
   // Columns state
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
@@ -98,10 +108,28 @@ export function Anomalies() {
   useEffect(() => {
     fetchAnomalies()
   }, [fetchAnomalies])
+
   // Reset offset when filters change
   useEffect(() => {
     setOffset(0)
   }, [symbolFilter, anomalyOnly])
+
+  // Auto-select anomaly when symbol filter is present
+  useEffect(() => {
+    if (data?.items && data.items.length > 0 && symbolFilter.trim()) {
+      const match = data.items.find(item => item.symbol.toUpperCase() === symbolFilter.trim().toUpperCase())
+      setSelected(match || data.items[0])
+    }
+  }, [data, symbolFilter])
+
+  const handleSymbolChange = (val: string) => {
+    setSymbolFilter(val)
+    if (val.trim()) {
+      setSearchParams({ symbol: val.trim() }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }
 
   const { focusedIndex } = useKeyboardNav({
     itemCount: data?.items.length || 0,
@@ -138,7 +166,7 @@ export function Anomalies() {
                 type="text"
                 placeholder="BTC, ETH…"
                 value={symbolFilter}
-                onChange={(e) => setSymbolFilter(e.target.value)}
+                onChange={(e) => handleSymbolChange(e.target.value)}
                 className="w-24 border border-line bg-raised px-2 py-1 font-mono text-[12px] text-ink outline-none transition-colors focus:border-accent"
               />
             </div>

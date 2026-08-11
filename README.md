@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A0A0A,50:1F1B12,100:0D1F18&height=190&section=header&text=HEIMDALL&fontSize=68&fontColor=D4A63A&fontAlignY=42&desc=Institutional%20AI%20Market%20Surveillance%20and%20Regulatory%20Intelligence&descSize=17&descAlignY=64&descColor=A5D6A7&animation=twinkling" width="100%" alt="Heimdall banner" />
-
 <img src=".pics/logo_lockup.png" alt="HEIMDALL — Market Surveillance Platform" width="65%" style="max-width: 560px; margin: 4px 0 10px;" />
 
 <a href="#-quick-start">

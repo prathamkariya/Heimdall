@@ -39,7 +39,7 @@ export function Anomalies() {
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem('heimdall_visible_columns')
     if (saved) {
-      try { return JSON.parse(saved) } catch (e) {}
+      try { return JSON.parse(saved) } catch (e) { console.warn("Failed to parse saved column visibility", e) }
     }
     return ALL_COLUMNS
   })

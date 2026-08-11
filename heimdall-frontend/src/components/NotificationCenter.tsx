@@ -33,6 +33,7 @@ let _notifs: Notification[] = []
 let _nextId = 1
 
 /** Push a new notification globally from any module */
+// eslint-disable-next-line react-refresh/only-export-components
 export function pushNotification(notif: Omit<Notification, 'id' | 'timestamp' | 'read'>) {
   _notifs = [
     { ...notif, id: `notif-${_nextId++}`, timestamp: new Date(), read: false },

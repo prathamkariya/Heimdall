@@ -121,6 +121,7 @@ export function CaseWorkspace({
     setNotes([])
     setEvents([])
     fetchDetailData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId]) // Intentionally not including fetchDetailData because selected triggers it
 
   useEffect(() => {

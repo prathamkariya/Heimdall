@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await apiFetch('/auth/refresh', { method: 'POST' }) as TokenResponse;
         if (mounted) setAccessToken(res.access_token);
       } catch (err) {
-        // Expected if no cookie or cookie expired
+        console.debug("Silent refresh failed (expected if no cookie or expired)", err)
         console.debug('No valid session cookie found');
       } finally {
         if (mounted) setIsLoading(false);
@@ -145,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

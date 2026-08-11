@@ -67,7 +67,7 @@ The platform ingests live order-book and transaction telemetry across multi-asse
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Building%20Construction.png" alt="Architecture" width="28" height="28" style="vertical-align: middle;" /> Architecture & Data Pipeline
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Building%20Construction.png" alt="Architecture" width="28" height="28" style="vertical-align: middle;" /> Architecture & Data Pipeline
 
 Heimdall decouples stream ingestion, real-time feature extraction, anomaly evaluation, and stateful case management into an event-driven architecture.
 
@@ -123,7 +123,7 @@ flowchart TD
 
 ---
 
-## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Brain.png" alt="Brain" width="28" height="28" style="vertical-align: middle;" /> Detection Engine & Abuse Heuristics
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Microscope.png" alt="Microscope" width="28" height="28" style="vertical-align: middle;" /> Detection Engine & Abuse Heuristics
 
 Heimdall runs a multi-layered detection pipeline evaluating incoming ticks against historical rolling baselines:
 
@@ -195,52 +195,53 @@ Every status transition, priority change, and investigation note is recorded wit
 
 ## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/High%20Voltage.png" alt="Quick Start" width="28" height="28" style="vertical-align: middle;" /> Quick Start
 
-### Prerequisites
-
+### 📋 Prerequisites
+Before you begin, ensure you have the following installed:
 - **Docker Engine** 24.0+ & **Docker Compose** v2.20+
 - **Node.js** 20.x+ & **npm** 10.x+
-- **Python** 3.11+ (for local native development)
+- **Python** 3.11+ (only if running the backend natively outside Docker)
 
-<table>
-<tr><td>
+---
 
-### 1️⃣ Clone & Configure
+### 1️⃣ Clone & Configure Environment
+
+Start by cloning the repository and setting up your environment variables.
 
 ```bash
 git clone https://github.com/prathamkariya/heimdall.git
 cd heimdall
 
-# Initialize environment variables
+# Copy the example environment file
 cp .env.example .env
 ```
 
-</td></tr>
-<tr><td>
+> **Note on Configuration:** 
+> Open the `.env` file and configure any necessary API keys (like your Alpaca or Finnhub keys if you want live US Equity data). The default settings will work out-of-the-box for crypto feeds (Binance).
 
-### 2️⃣ Start Services with Docker Compose
+### 2️⃣ Start Backend Services
+
+Use Docker Compose to spin up the database (PostgreSQL 15), Redis, the FastAPI server, and the background surveillance engine.
 
 ```bash
-# Start TimescaleDB, Redis, FastAPI Backend, and Surveillance Engine
+# Build and start all backend containers in detached mode
 docker-compose up --build -d
 ```
 
-</td></tr>
-<tr><td>
+### 3️⃣ Setup Database & Seed Demo Data
 
-### 3️⃣ Apply Migrations & Seed Demo Data
+Once the containers are running, you need to apply the database migrations and populate the system with some initial data to explore the dashboard.
 
 ```bash
-# Apply database schema migrations
+# Apply Alembic schema migrations
 docker-compose exec api alembic upgrade head
 
-# Seed demo accounts, watchlists, historical OHLCV data, and active investigations
+# Seed demo accounts, watchlists, historical data, and test cases
 docker-compose exec api python scripts/seed_demo_data.py
 ```
 
-</td></tr>
-<tr><td>
+### 4️⃣ Launch the Frontend Terminal
 
-### 4️⃣ Launch Frontend Terminal
+Finally, start the React 19 frontend application.
 
 ```bash
 cd heimdall-frontend
@@ -248,10 +249,11 @@ npm install
 npm run dev
 ```
 
-📍 Navigate to **`http://localhost:5173`**
+### 5️⃣ Access the Application
 
-</td></tr>
-</table>
+📍 **Navigate to [http://localhost:5173](http://localhost:5173)** in your browser. 
+
+You can log in using the demo credentials provided below!
 
 <div align="right"><a href="#heimdall">↑ back to top</a></div>
 

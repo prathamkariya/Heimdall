@@ -1,11 +1,11 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A0A0A,50:1F1B12,100:0D1F18&height=190&section=header&text=HEIMDALL&fontSize=68&fontColor=D4A63A&fontAlignY=42&desc=Institutional%20AI%20Market%20Surveillance%20%26%20Regulatory%20Intelligence&descSize=17&descAlignY=64&descColor=A5D6A7&animation=fadeIn" width="100%" alt="Heimdall banner" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A0A0A,50:1F1B12,100:0D1F18&height=190&section=header&text=HEIMDALL&fontSize=68&fontColor=D4A63A&fontAlignY=42&desc=Institutional%20AI%20Market%20Surveillance%20and%20Regulatory%20Intelligence&descSize=17&descAlignY=64&descColor=A5D6A7&animation=twinkling" width="100%" alt="Heimdall banner" />
 
 <img src=".pics/logo_lockup.png" alt="HEIMDALL — Market Surveillance Platform" width="65%" style="max-width: 560px; margin: 4px 0 10px;" />
 
 <a href="#-quick-start">
-  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=500&size=18&duration=2600&pause=900&color=D4A63A&center=true&vCenter=true&width=680&lines=Real-time+order-book+%26+tick+telemetry+ingestion;Hybrid+Isolation+Forest+%2B+multi-pattern+heuristics;Spoofing+%C2%B7+Layering+%C2%B7+Wash+Trading+%C2%B7+Pump+%26+Dump;Sub-second+SSE+alert+streaming+to+the+analyst+desk;Forensic+case+workspace+with+tamper-evident+audit+trail;Automated+MAR+%2F+MiFID+II+compliance+report+generation" alt="Typing SVG" />
+  <img src="https://readme-typing-svg.demolab.com?font=JetBrains+Mono&weight=500&size=18&duration=2600&pause=900&color=D4A63A&center=true&vCenter=true&width=680&lines=Real-Time+Order-Book+%26+Tick+Telemetry+Ingestion;Hybrid+Isolation+Forest+%2B+Multi-Pattern+Heuristics;Spoofing+%C2%B7+Layering+%C2%B7+Wash+Trading+%C2%B7+Pump+%26+Dump;Sub-Second+SSE+Alert+Streaming+To+The+Analyst+Desk;Forensic+Case+Workspace+With+Tamper-Evident+Audit+Trail;Automated+MAR+%2F+MiFID+II+Compliance+Report+Generation" alt="Typing SVG" />
 </a>
 
 <br/>
@@ -43,9 +43,9 @@
 
 <br/>
 
-## 🌐 Overview
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Globe%20Showing%20Europe-Africa.png" alt="Overview" width="28" height="28" style="vertical-align: middle;" /> Overview
 
-**Heimdall** is an open-source, institutional market surveillance engine and investigative platform engineered for financial exchanges, electronic brokerages, proprietary trading desks, and regulatory compliance teams.
+> **Heimdall** is an open-source, institutional market surveillance engine and investigative platform engineered for financial exchanges, electronic brokerages, proprietary trading desks, and regulatory compliance teams.
 
 The platform ingests live order-book and transaction telemetry across multi-asset venues (US equities and digital assets), executes statistical outlier scoring and supervised abuse detection models at sub-millisecond latencies, and equips compliance officers with an interactive forensic investigation terminal — named for the Norse watchman who sees all and misses nothing.
 
@@ -69,7 +69,7 @@ The platform ingests live order-book and transaction telemetry across multi-asse
 
 ---
 
-## 🏗️ Architecture & Data Pipeline
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Building%20Construction.png" alt="Architecture" width="28" height="28" style="vertical-align: middle;" /> Architecture & Data Pipeline
 
 Heimdall decouples stream ingestion, real-time feature extraction, anomaly evaluation, and stateful case management into an event-driven architecture.
 
@@ -125,7 +125,7 @@ flowchart TD
 
 ---
 
-## 🧠 Detection Engine & Abuse Heuristics
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Brain.png" alt="Brain" width="28" height="28" style="vertical-align: middle;" /> Detection Engine & Abuse Heuristics
 
 Heimdall runs a multi-layered detection pipeline evaluating incoming ticks against historical rolling baselines:
 
@@ -142,7 +142,7 @@ Heimdall runs a multi-layered detection pipeline evaluating incoming ticks again
 
 ---
 
-## 🔬 Forensic Investigation Workspace
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Magnifying%20Glass%20Tilted%20Right.png" alt="Forensic Workspace" width="28" height="28" style="vertical-align: middle;" /> Forensic Investigation Workspace
 
 When an anomaly triggers or a case is escalated, compliance officers navigate the dedicated **Forensic Workspace**:
 
@@ -173,7 +173,7 @@ Every status transition, priority change, and investigation note is recorded wit
 
 ---
 
-## 🧰 Tech Stack
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Toolbox.png" alt="Tech Stack" width="28" height="28" style="vertical-align: middle;" /> Tech Stack
 
 <div align="center">
 
@@ -195,7 +195,7 @@ Every status transition, priority change, and investigation note is recorded wit
 
 ---
 
-## ⚡ Quick Start
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/High%20Voltage.png" alt="Quick Start" width="28" height="28" style="vertical-align: middle;" /> Quick Start
 
 ### Prerequisites
 
@@ -259,7 +259,7 @@ npm run dev
 
 ---
 
-## 🔑 Demo Credentials
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Key.png" alt="Credentials" width="28" height="28" style="vertical-align: middle;" /> Demo Credentials
 
 | Role | Username / Email | Password | Access Level |
 | :--- | :--- | :--- | :--- |
@@ -269,7 +269,7 @@ npm run dev
 
 ---
 
-## 🧪 Testing Suite
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Test%20Tube.png" alt="Testing" width="28" height="28" style="vertical-align: middle;" /> Testing Suite
 
 <table>
 <tr>
@@ -313,7 +313,7 @@ pytest ml/tests/ -v
 
 ---
 
-## 📂 Repository Structure
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/File%20Folder.png" alt="Repository Structure" width="28" height="28" style="vertical-align: middle;" /> Repository Structure
 
 <details>
 <summary><b>Expand full directory tree (click to open)</b></summary>
@@ -364,7 +364,7 @@ heimdall/
 
 ---
 
-## 🔒 Security & Regulatory Compliance
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Locked.png" alt="Security" width="28" height="28" style="vertical-align: middle;" /> Security & Regulatory Compliance
 
 - **Zero-Trust Auditability** — Every state mutation is signed with the user ID, timestamped, and stored immutably to meet regulatory chain-of-custody requirements.
 - **Deterministic Data Partitioning** — TimescaleDB hypertables are partitioned by symbol and time range to guarantee bounded query times and deterministic retention policies.
@@ -376,7 +376,7 @@ heimdall/
 
 
 
-## 🤝 Contributing
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Handshake.png" alt="Contributing" width="28" height="28" style="vertical-align: middle;" /> Contributing
 
 Contributions, bug reports, and feature proposals are welcome. Fork the repo, create a feature branch, and open a pull request — please include tests for any behavioral change.
 
@@ -392,7 +392,7 @@ Contributions, bug reports, and feature proposals are welcome. Fork the repo, cr
 
 ---
 
-## 📜 License
+## <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Scroll.png" alt="License" width="28" height="28" style="vertical-align: middle;" /> License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 

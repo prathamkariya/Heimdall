@@ -149,8 +149,8 @@ async def run_binance_feed() -> None:
         finally:
             try:
                 await client.close_connection()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to close connection: {e}")
 
 
 # ── Bybit Fallback Feed ────────────────────────────────────────────────────────

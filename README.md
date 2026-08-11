@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A0A0A,50:1F1B12,100:0D1F18&height=190&section=header&text=HEIMDALL&fontSize=68&fontColor=D4A63A&fontAlignY=42&desc=Institutional%20AI%20Market%20Surveillance%20%26%20Regulatory%20Intelligence&descSize=17&descAlignY=64&descColor=A5D6A7&animation=fadeIn" width="100%" alt="Heimdall banner" />
 
@@ -325,8 +325,7 @@ heimdall/
 │   ├── icon_system.png
 │   ├── logo_lockup.png
 │   ├── pillars_banner.png
-│   ├── wordmark.png
-│   └── screenshots/                # Product screenshots (see "See It In Action")
+│   └── wordmark.png
 ├── backend/                        # FastAPI Backend & Surveillance Core
 │   ├── alembic/                    # Database migrations (001–005 + Case Management)
 │   ├── app/

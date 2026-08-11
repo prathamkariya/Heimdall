@@ -27,7 +27,7 @@ describe('CaseList', () => {
     {
       id: 2,
       title: 'Wash Trading Pattern',
-      status: 'RESOLVED',
+      status: 'CLOSED',
       severity: 'CRITICAL',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

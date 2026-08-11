@@ -14,10 +14,10 @@ version: '3.8'
 
 services:
   # ─────────────────────────────────────────────────────
-  # Database — TimescaleDB (PostgreSQL 15 + time-series)
+  # Database — PostgreSQL 15
   # ─────────────────────────────────────────────────────
   db:
-    image: timescale/timescaledb:latest-pg15
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}

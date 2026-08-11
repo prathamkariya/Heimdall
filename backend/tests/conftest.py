@@ -51,8 +51,9 @@ def postgres_url():
             probe_engine.dispose()
             yield test_url
             return
-        except Exception:
-            pass # Unreachable or DB doesn't exist, fall back to testcontainers
+        except Exception as e:
+            import warnings
+            warnings.warn(f"Failed to use local fallback DB: {e}")
 
     # 2. Try Testcontainers (Docker)
     try:
@@ -60,8 +61,9 @@ def postgres_url():
         with PostgresContainer("postgres:15-alpine") as pg:
             yield pg.get_connection_url()
             return
-    except Exception:
-        pass
+    except Exception as e:
+        import warnings
+        warnings.warn(f"Failed to start Testcontainers Postgres: {e}")
 
     # 3. Try other fallback local databases
     candidates = []
@@ -129,8 +131,9 @@ def create_tables(test_engine):
     yield
     try:
         Base.metadata.drop_all(bind=test_engine)
-    except Exception:
-        pass
+    except Exception as e:
+        import warnings
+        warnings.warn(f"Failed to drop tables: {e}")
 
 
 # ══════════════════════════════════════════════════════════════

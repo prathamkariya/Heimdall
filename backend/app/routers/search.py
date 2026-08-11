@@ -87,8 +87,9 @@ def global_search(
                     if val > max_val and val >= 0.5:
                         max_val = val
                         primary_signal = pat.upper().replace('_', ' ')
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).debug(f"Failed to parse: {e}")
 
         results.append({
             "id": f"anomaly-{a.id}",

@@ -5,13 +5,44 @@ line-length = 120
 ignore = [
     "E501", # Line too long
     "B008", # Do not perform function call in argument defaults (FastAPI uses Depends() heavily)
-    "S104", # Possible binding to all interfaces (0.0.0.0 is used in docker)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["BLE001", "S110", "S112", "DTZ001", "F841", "RUF012", "S113", "DTZ005", "S311", "DTZ003"]
-"scripts/*" = ["BLE001", "T201", "S113", "DTZ005", "DTZ001", "S110", "DTZ003"]
-"ml/scripts/*" = ["BLE001", "PLW1510", "DTZ005"]
-"ml/src/*" = ["BLE001", "LOG015", "S112"]
-"ml/tests/*" = ["BLE001", "PLW1510"]
-"app/*" = ["BLE001", "S110", "S112", "DTZ003", "PLW0602", "LOG015", "G201", "UP035", "F401", "RUF100"]
+"tests/**/*" = [
+    "S112", # `try`-`except`-`continue` is used for test retries
+    "DTZ001", "DTZ005", "DTZ003", # Datetime timezone rules are overly strict for test data
+    "F841", # Unused variables are common when unpacking test responses
+    "RUF012", # Mutable class attributes in tests (e.g. pytest fixtures) are fine
+    "S311", # Standard pseudo-random generators are fine for generating synthetic test data
+    "BLE001", # Blind except is required to prevent one failing test setup from crashing the whole suite
+]
+"scripts/**/*" = [
+    "T201", # Scripts use print() for CLI output
+    "DTZ001", "DTZ005", "DTZ003", # Scripts often generate mock time data without tzinfo
+    "BLE001", # Scripts like the E2E verifier use blind excepts to report individual step failures and continue
+]
+"ml/scripts/**/*" = [
+    "PLW1510", # ML scripts sometimes use subprocess without checking return code in legacy wrappers
+    "DTZ005", # Mock datetime without tzinfo
+    "BLE001", # Pipeline wrappers catch all exceptions to mark jobs as failed
+]
+"ml/src/**/*" = [
+    "LOG015", # ML code uses root logger occasionally
+    "S112", # `try`-`except`-`continue` in ML loops
+    "BLE001", # Catch-all exceptions for loading legacy models
+]
+"ml/tests/**/*" = [
+    "PLW1510", # See above
+    "BLE001", # See above
+]
+"app/**/*" = [
+    "S112", # `try`-`except`-`continue` used in background processors
+    "DTZ003", # UTC is enforced but rule is too pedantic
+    "PLW0602", # Global variables used for simple caching
+    "LOG015", # Root logger usage
+    "G201", # Logging exceptions
+    "UP035", # Deprecated imports pending FastAPI upgrades
+    "F401", # Unused imports (models) required for SQLAlchemy Base metadata registry
+    "RUF100", # Unused noqa comments
+    "BLE001", # Top-level routers and health checks must catch generic Exceptions to avoid crashing
+]

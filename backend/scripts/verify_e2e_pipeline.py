@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """backend/scripts/verify_e2e_pipeline.py
 
 Full synthetic end-to-end pipeline verification for HEIMDALL.

@@ -31,7 +31,7 @@ class TestPathLength:
         anomaly_point = X[is_anomaly == 1][0]
         normal_point = X[is_anomaly == 0][5]
 
-        rng = np.random.RandomState(1)
+        np.random.RandomState(1)
         anomaly_paths, normal_paths = [], []
         for tree_idx in range(50):
             tree_rng = np.random.RandomState(tree_idx)
@@ -90,7 +90,7 @@ class TestBuildIsolationTree:
         assert count_nodes(tree) <= 3  # root + at most 2 leaves
 
     def test_constant_feature_stops_splitting(self):
-        X = np.column_stack([np.ones(50), np.random.RandomState(0).normal(0, 1, 50)])
+        np.column_stack([np.ones(50), np.random.RandomState(0).normal(0, 1, 50)])
         # force split_feature=0 (the constant one) by controlling rng draws is
         # complex; instead verify no crash and tree terminates for fully-constant data
         X_all_constant = np.ones((50, 2))

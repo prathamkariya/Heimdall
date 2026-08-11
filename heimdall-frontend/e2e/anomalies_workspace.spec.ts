@@ -59,6 +59,15 @@ test.describe('Anomalies Workspace', () => {
       localStorage.removeItem('heimdall_visible_columns');
     });
 
+    // Intercept auth refresh to restore session
+    await page.route('**/api/v1/auth/refresh*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ access_token: 'mock_jwt_token' }),
+      });
+    });
+
     // Intercept anomaly API requests
     await page.route('**/api/v1/anomalies*', async (route) => {
       await route.fulfill({

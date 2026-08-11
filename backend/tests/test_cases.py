@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 
-from app.models import Anomaly, CaseStatus, MarketData, User
-from app.services.auth_service import create_access_token, hash_password
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+
+from app.models import Anomaly, CaseStatus, MarketData, User
+from app.services.auth_service import create_access_token, hash_password
 
 
 def test_case_creation_and_visibility(client: TestClient, db_session: Session, auth_headers: dict, registered_user: dict):

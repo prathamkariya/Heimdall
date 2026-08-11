@@ -11,7 +11,7 @@ class TestBootstrapSample:
     def test_bootstrap_sample_has_same_size_as_original(self):
         X = pd.DataFrame({"a": range(100)})
         y = pd.Series(np.random.randint(0, 2, 100))
-        X_boot, y_boot, idx = bootstrap_sample(X, y, random_state=1)
+        X_boot, _y_boot, idx = bootstrap_sample(X, y, random_state=1)
         assert len(X_boot) == len(X)
         assert len(idx) == len(X)
 
@@ -110,7 +110,7 @@ class TestRandomForestScratch:
 
         single_tree = DecisionTreeClassifierScratch(max_depth=8, min_samples_split=5)
         single_tree.fit(X_train, y_train)
-        single_acc = accuracy_score(y_test, single_tree.predict(X_test))
+        accuracy_score(y_test, single_tree.predict(X_test))
 
         forest_sqrt = RandomForestScratch(
             n_estimators=25, max_depth=8, max_features="sqrt", random_state=10

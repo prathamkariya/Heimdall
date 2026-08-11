@@ -1,2 +1,17 @@
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint]
-ignore = ["B008", "E722", "F401", "F841"]
+ignore = [
+    "E501", # Line too long
+    "B008", # Do not perform function call in argument defaults (FastAPI uses Depends() heavily)
+    "S104", # Possible binding to all interfaces (0.0.0.0 is used in docker)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["BLE001", "S110", "S112", "DTZ001", "F841", "RUF012", "S113", "DTZ005", "S311", "DTZ003"]
+"scripts/*" = ["BLE001", "T201", "S113", "DTZ005", "DTZ001", "S110", "DTZ003"]
+"ml/scripts/*" = ["BLE001", "PLW1510", "DTZ005"]
+"ml/src/*" = ["BLE001", "LOG015", "S112"]
+"ml/tests/*" = ["BLE001", "PLW1510"]
+"app/*" = ["BLE001", "S110", "S112", "DTZ003", "PLW0602", "LOG015", "G201", "UP035", "F401", "RUF100"]

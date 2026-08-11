@@ -31,8 +31,6 @@ async def main() -> None:
     try:
         from app.schemas.streaming import (
             Market,
-            SentimentSource,
-            UnifiedSentimentEvent,
             UnifiedTradeEvent,
         )
         print("OK [V]")

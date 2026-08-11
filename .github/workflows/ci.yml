@@ -45,7 +45,7 @@ jobs:
     - name: Run Ruff Linter
       run: |
         cd backend
-        ruff check . --ignore B008,BLE001,I001,E722,F401,F841,S113,S104,F811,T201,DTZ005,S311,E501,RUF100,DTZ003,DTZ001,S110,RUF012,PLW0602,RUF015,PLW1510,LOG015,S112,C408,RUF059,SIM102,G201,PIE810,UP035,EXE001,EXE002,EXE003
+        ruff check .
         
     - name: Run Pytest
       env:

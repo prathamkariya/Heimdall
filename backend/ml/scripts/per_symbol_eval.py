@@ -15,7 +15,7 @@ def evaluate_market(market: str, scored_csv: str, input_csv: str):
     print(f"\n=== {market} Per-Symbol Slice (§5.3) ===")
 
     scored = pd.read_csv(scored_csv, index_col=0)
-    pooled = pd.read_csv(input_csv, index_col=0)
+    pd.read_csv(input_csv, index_col=0)
 
     # scored has no symbol column — join on index (date)
     if 'symbol' not in scored.columns:

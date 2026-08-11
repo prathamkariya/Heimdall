@@ -24,11 +24,6 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import joblib
 import numpy as np
-from app.config import settings as app_settings
-from app.database import Base
-from app.models import MarketData, User
-from app.services import anomaly_service
-from app.services.auth_service import hash_password
 from fastapi import HTTPException
 from ml.anomaly.isolation_forest import IsolationForestScratch
 from ml.config import BASE_FEATURE_COLUMNS
@@ -36,6 +31,12 @@ from ml.data.synthetic import generate_synthetic_market_data
 from ml.detection.multi_pattern import MultiPatternDetector
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.config import settings as app_settings
+from app.database import Base
+from app.models import MarketData, User
+from app.services import anomaly_service
+from app.services.auth_service import hash_password
 
 results = {"passed": 0, "failed": 0}
 

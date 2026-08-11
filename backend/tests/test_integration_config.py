@@ -279,8 +279,9 @@ class TestModelRegistrySingletonRace:
         code does.)
         """
         import joblib
-        from app.services import anomaly_service
         from ml.serving.model_registry import ModelRegistry
+
+        from app.services import anomaly_service
 
         joblib.dump(_DummyMultiPatternForRaceTest(), tmp_path / "multi_pattern_detector.joblib")
 

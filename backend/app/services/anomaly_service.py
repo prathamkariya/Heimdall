@@ -45,7 +45,6 @@ from ml.serving.model_registry import ModelLoadError, ModelRegistry
 from ml.types import DetectionResult, EvidenceSignal
 from sqlalchemy.orm import Session
 
-import app.alias
 from app.config import settings
 from app.models import Anomaly, MarketData
 from app.services.severity import severity_for_score
@@ -611,7 +610,7 @@ def score_live_trade(
         if detector_agreement is not None:
             weak_label_confidence = round(weak_label_confidence * detector_agreement, 4)
     elif pattern_scores is not None:
-        weak_label_confidence = round(list(pattern_scores.values())[0], 4)
+        weak_label_confidence = round(next(iter(pattern_scores.values())), 4)
 
     # --- Evidence list (plan1.md issue #5) ---
     from ml.explainability import generate_evidence_signals

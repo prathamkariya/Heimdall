@@ -18,7 +18,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers, credentials: 'include' });
   
   // Basic 401 interceptor logic could go here, but since the token is short-lived,
   // we might want a mechanism to refresh it.

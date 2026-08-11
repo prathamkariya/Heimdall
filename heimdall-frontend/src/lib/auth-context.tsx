@@ -28,6 +28,7 @@ interface SseTokenResponse {
 interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -44,57 +45,48 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const REFRESH_INTERVAL_MS = 25 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(() => {
-    return localStorage.getItem('heimdall_access_token');
-  });
-  const [refreshToken, setRefreshToken] = useState<string | null>(() => {
-    return localStorage.getItem('heimdall_refresh_token');
-  });
-
-  // Keep localStorage in sync
-  useEffect(() => {
-    if (accessToken) {
-      localStorage.setItem('heimdall_access_token', accessToken);
-    } else {
-      localStorage.removeItem('heimdall_access_token');
-    }
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (refreshToken) {
-      localStorage.setItem('heimdall_refresh_token', refreshToken);
-    } else {
-      localStorage.removeItem('heimdall_refresh_token');
-    }
-  }, [refreshToken]);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize the api fetcher with the token
   useEffect(() => {
-    initializeAuth(
-      () => accessToken || ''
-    );
+    initializeAuth(() => accessToken || '');
   }, [accessToken]);
 
-  // Handle automatic refresh when we have a refresh token
+  // Attempt silent refresh on mount to restore session
   useEffect(() => {
-    if (!refreshToken) return;
+    let mounted = true;
+    const restoreSession = async () => {
+      try {
+        const res = await apiFetch('/auth/refresh', { method: 'POST' }) as TokenResponse;
+        if (mounted) setAccessToken(res.access_token);
+      } catch (err) {
+        // Expected if no cookie or cookie expired
+        console.debug('No valid session cookie found');
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+    restoreSession();
+    return () => { mounted = false; };
+  }, []);
+
+  // Handle automatic refresh when we have an access token
+  useEffect(() => {
+    if (!accessToken) return;
 
     const interval = setInterval(async () => {
       try {
-        const res = await apiFetch('/auth/refresh', {
-          method: 'POST',
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        }) as TokenResponse;
+        const res = await apiFetch('/auth/refresh', { method: 'POST' }) as TokenResponse;
         setAccessToken(res.access_token);
       } catch (err) {
         console.error('Failed to refresh token', err);
         setAccessToken(null);
-        setRefreshToken(null);
       }
     }, REFRESH_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [refreshToken]);
+  }, [accessToken]);
 
   const login = async (credentials: LoginCredentials) => {
     const res = await apiFetch('/auth/login', {
@@ -102,7 +94,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify(credentials),
     }) as TokenResponse;
     setAccessToken(res.access_token);
-    setRefreshToken(res.refresh_token);
   };
 
   const register = async (credentials: RegisterCredentials) => {
@@ -111,34 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify(credentials),
     }) as TokenResponse;
     setAccessToken(res.access_token);
-    setRefreshToken(res.refresh_token);
   };
 
   const logout = async () => {
-    if (refreshToken) {
-      try {
-        await apiFetch('/auth/logout', {
-          method: 'POST',
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-      } catch (e) {
-        console.error('Logout error', e);
-      }
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error', e);
     }
     setAccessToken(null);
-    setRefreshToken(null);
   };
 
   const logoutAll = async () => {
     try {
-      await apiFetch('/auth/logout-all', {
-        method: 'POST',
-      });
+      await apiFetch('/auth/logout-all', { method: 'POST' });
     } catch (e) {
       console.error('Logout all error', e);
     }
     setAccessToken(null);
-    setRefreshToken(null);
   };
 
   const getSseToken = async () => {
@@ -151,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         accessToken,
         isAuthenticated: !!accessToken,
+        isLoading,
         login,
         register,
         logout,

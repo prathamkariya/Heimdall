@@ -51,6 +51,9 @@ def generate_mar(context_data: dict) -> str:
         - Features: {features}
         """
 
+    if not anomalies_text:
+        anomalies_text = "No specific anomalies have been linked to this case yet."
+
     context = f"""
     You are an expert financial compliance officer. Please generate a Market Abuse Regulation (MAR) Report
     for the following investigation Case.

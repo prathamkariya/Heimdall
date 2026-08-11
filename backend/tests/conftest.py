@@ -17,14 +17,15 @@ testcontainers:
   - Requires Docker to be running
 """
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
 from app.database import Base, get_db
 from app.limiter import limiter
 from app.main import app
 from app.services import anomaly_service
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 limiter.enabled = False
 
@@ -39,10 +40,21 @@ def postgres_url():
     Falls back to a reachable local PostgreSQL or SQLite memory DB if Docker is unavailable.
     """
     import os
+    
+    # 1. Try explicit TEST_DATABASE_URL if provided and reachable
     if os.environ.get("TEST_DATABASE_URL"):
-        yield os.environ["TEST_DATABASE_URL"]
-        return
+        test_url = os.environ["TEST_DATABASE_URL"]
+        try:
+            probe_engine = create_engine(test_url)
+            with probe_engine.connect():
+                pass
+            probe_engine.dispose()
+            yield test_url
+            return
+        except Exception:
+            pass # Unreachable or DB doesn't exist, fall back to testcontainers
 
+    # 2. Try Testcontainers (Docker)
     try:
         from testcontainers.postgres import PostgresContainer
         with PostgresContainer("postgres:15-alpine") as pg:
@@ -51,7 +63,7 @@ def postgres_url():
     except Exception:
         pass
 
-    # Check if configured PostgreSQL is actually reachable
+    # 3. Try other fallback local databases
     candidates = []
     if os.environ.get("POSTGRES_HOST") or settings.DATABASE_URL:
         candidates.append(str(settings.DATABASE_URL))
@@ -68,7 +80,7 @@ def postgres_url():
         except Exception:
             continue
 
-    # Fallback: SQLite in-memory for zero-dependency local testing
+    # 4. Fallback: SQLite in-memory for zero-dependency local testing
     yield "sqlite:///:memory:"
 
 
@@ -209,7 +221,9 @@ def auth_tokens(client, registered_user) -> dict:
         json={"email": "test@example.com", "password": "SecurePass1"},
     )
     assert response.status_code == 200, f"Login failed: {response.text}"
-    return response.json()
+    data = response.json()
+    data["refresh_token"] = response.cookies.get("refresh_token")
+    return data
 
 
 @pytest.fixture(scope="function")

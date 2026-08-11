@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Union
 
 from pydantic import (
     BaseModel,
@@ -52,9 +52,8 @@ class UserResponse(OrmBase):
 
 
 class TokenResponse(BaseModel):
-    """Response from /auth/login — includes both token types."""
+    """Response from /auth/login — access token only, refresh token in cookie."""
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
     expires_in: int   # Access token TTL in seconds
 
@@ -64,17 +63,6 @@ class AccessTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
-
-
-class RefreshRequest(BaseModel):
-    """Body for POST /auth/refresh."""
-    refresh_token: str = Field(..., min_length=1)
-
-
-class LogoutRequest(BaseModel):
-    """Body for POST /auth/logout — revokes a specific refresh token."""
-    refresh_token: str = Field(..., min_length=1)
-
 
 # ══════════════════════════════════════════════════════════════
 # MARKET DATA SCHEMAS

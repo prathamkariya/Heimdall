@@ -110,7 +110,7 @@ def train_weak_supervised(
 
     # Stats for reporting
     n_flagged = int(weak_labels["is_manipulation"].sum())
-    n_high_conf = int(weak_labels.get("used_in_training", pd.Series(dtype=bool)).sum()
+    int(weak_labels.get("used_in_training", pd.Series(dtype=bool)).sum()
                       if "used_in_training" in weak_labels.columns
                       else n_flagged)
     n_discarded = n_flagged - int(

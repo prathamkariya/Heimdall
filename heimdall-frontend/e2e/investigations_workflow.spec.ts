@@ -47,6 +47,14 @@ test.describe('Investigations Workflow & Lifecycle', () => {
         });
       }
 
+      if (url.includes('/auth/refresh')) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ access_token: 'mock_jwt_token' }),
+        });
+      }
+
       if (url.includes('/auth/sse-token')) {
         return route.fulfill({
           status: 200,

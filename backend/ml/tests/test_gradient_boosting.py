@@ -43,7 +43,7 @@ class TestGradientBoostingScratch:
         assert auc > 0.85
 
     def test_more_estimators_generally_reduces_training_error(self, classification_data):
-        X_train, X_test, y_train, y_test = classification_data
+        X_train, _X_test, y_train, _y_test = classification_data
         few_trees = GradientBoostingScratch(n_estimators=5, learning_rate=0.1, max_depth=3)
         few_trees.fit(X_train, y_train)
         many_trees = GradientBoostingScratch(n_estimators=100, learning_rate=0.1, max_depth=3)
@@ -54,7 +54,7 @@ class TestGradientBoostingScratch:
         assert many_train_auc >= few_train_auc
 
     def test_staged_predict_proba_final_stage_matches_predict_proba(self, classification_data):
-        X_train, X_test, y_train, y_test = classification_data
+        X_train, X_test, y_train, _y_test = classification_data
         model = GradientBoostingScratch(n_estimators=20, learning_rate=0.1, max_depth=3)
         model.fit(X_train, y_train)
         staged = model.staged_predict_proba(X_test)
@@ -62,7 +62,7 @@ class TestGradientBoostingScratch:
         assert np.allclose(staged[-1], final_predict_proba)
 
     def test_staged_predict_proba_has_one_entry_per_tree(self, classification_data):
-        X_train, X_test, y_train, y_test = classification_data
+        X_train, X_test, y_train, _y_test = classification_data
         model = GradientBoostingScratch(n_estimators=15, learning_rate=0.1, max_depth=3)
         model.fit(X_train, y_train)
         staged = model.staged_predict_proba(X_test)
@@ -74,7 +74,7 @@ class TestGradientBoostingScratch:
             model.predict_proba(np.zeros((5, 2)))
 
     def test_predict_proba_bounded_zero_one(self, classification_data):
-        X_train, X_test, y_train, y_test = classification_data
+        X_train, X_test, y_train, _y_test = classification_data
         model = GradientBoostingScratch(n_estimators=50).fit(X_train, y_train)
         proba = model.predict_proba(X_test)
         assert (proba >= 0).all() and (proba <= 1).all()

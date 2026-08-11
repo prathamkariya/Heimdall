@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -9,8 +9,6 @@ from app.dependencies import get_current_user
 from app.limiter import limiter
 from app.models import User
 from app.schemas import (
-    LogoutRequest,
-    RefreshRequest,
     TokenResponse,
     UserLogin,
     UserRegister,
@@ -65,7 +63,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
-def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
+def login(request: Request, response: Response, payload: UserLogin, db: Session = Depends(get_db)):
     """
     Authenticate user and return access + refresh token pair.
     Returns 401 for any invalid credential (deliberately vague message).
@@ -81,22 +79,39 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(user.id, user.email)
     refresh_token = create_refresh_token(db, user.id)
 
-    return TokenResponse(
+    token_res = TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=14 * 24 * 60 * 60
+    )
+    
+    return token_res
 
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")
-def refresh_token(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)):
+def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
     """
     Exchange a valid refresh token for a new access token.
     The presented refresh token is rotated (revoked) on use.
     Returns 401 if the refresh token is invalid, expired, or already revoked.
     """
-    result = rotate_refresh_token(db, payload.refresh_token)
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token",
+        )
+
+    result = rotate_refresh_token(db, refresh_token)
     if result is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,16 +121,25 @@ def refresh_token(request: Request, payload: RefreshRequest, db: Session = Depen
 
     new_access_token, new_refresh = result
 
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh,
+        httponly=True,
+        secure=True,          # True for production (HTTPS)
+        samesite="lax",
+        max_age=14 * 24 * 60 * 60  # 14 days
+    )
+
     return TokenResponse(
         access_token=new_access_token,
-        refresh_token=new_refresh,
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    payload: LogoutRequest,
+    request: Request,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -124,12 +148,16 @@ def logout(
     Requires a valid access token — prevents unauthenticated token revocation.
     Returns 204 whether or not the token was found (to not leak info).
     """
-    revoke_refresh_token(db, payload.refresh_token, current_user.id)
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        revoke_refresh_token(db, refresh_token, current_user.id)
+    response.delete_cookie("refresh_token")
     # Always return 204 — don't reveal whether token existed
 
 
 @router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
 def logout_all(
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -138,6 +166,7 @@ def logout_all(
     Requires valid access token.
     """
     revoke_all_user_tokens(db, current_user.id)
+    response.delete_cookie("refresh_token")
 
 
 @router.get("/me", response_model=UserResponse)

@@ -124,7 +124,7 @@ async def run_finnhub_news() -> None:
                     publish_sentiment_sync(event)
                     logger.debug("Published Finnhub news for %s (score=%.2f)", sym, score)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Finnhub news error: %s", exc)
 
         await asyncio.sleep(60)  # Finnhub free: 60 req/min

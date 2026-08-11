@@ -50,7 +50,7 @@ class TestCompareModelsTimeSeriesCv:
         strictly increasing (each successive fold's test set starts
         after the previous fold's test set ends)."""
         from sklearn.model_selection import TimeSeriesSplit
-        X, y = time_series_classification_data
+        X, _y = time_series_classification_data
         tscv = TimeSeriesSplit(n_splits=4)
         last_test_start = -1
         for train_idx, test_idx in tscv.split(X):

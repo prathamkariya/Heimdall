@@ -26,10 +26,6 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-from app.config import settings
-from app.database import Base, get_db
-from app.main import app
-from app.services import anomaly_service
 from fastapi.testclient import TestClient
 from ml.anomaly.isolation_forest import IsolationForestScratch
 from ml.config import BASE_FEATURE_COLUMNS
@@ -40,6 +36,11 @@ from ml.data.synthetic import generate_synthetic_market_data
 from ml.detection.multi_pattern import MultiPatternDetector
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from app.config import settings
+from app.database import Base, get_db
+from app.main import app
+from app.services import anomaly_service
 
 model_dir = Path(tempfile.mkdtemp())
 df = generate_synthetic_market_data(n_days=800, random_state=123)

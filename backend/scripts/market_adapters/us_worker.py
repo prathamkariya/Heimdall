@@ -68,7 +68,7 @@ async def _alpaca_trade_handler(trade) -> None:
         )
         entry_id = publish_trade_sync(event)
         logger.debug("Published ALPACA tick %s → Redis %s", trade.symbol, entry_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.warning("Alpaca handler error: %s", exc)
 
 
@@ -88,7 +88,7 @@ async def run_alpaca_feed() -> None:
             logger.info("Alpaca feed active.")
             await stream.run()  # Blocks until disconnected
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Alpaca feed error: %s. Reconnecting in %ds …", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_BACKOFF_S)
@@ -147,7 +147,7 @@ async def run_finnhub_feed() -> None:
                             entry_id = publish_trade_sync(event)
                             logger.debug("Published FINNHUB tick %s → Redis %s", event.symbol, entry_id)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Finnhub feed error: %s. Reconnecting in %ds …", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_BACKOFF_S)

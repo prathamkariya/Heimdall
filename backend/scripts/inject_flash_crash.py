@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from app.schemas.streaming import Market, UnifiedTradeEvent
 from app.services.redis_service import publish_trade_sync
 
+
 def inject_flash_crash(symbol="DOGEUSDT"):
     print(f"Injecting massive flash crash for {symbol}...")
     

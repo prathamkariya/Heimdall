@@ -366,3 +366,51 @@ class TestSSELiveAlerts:
         # 4. Assert filtering logic (B2)
         assert len(received_data) == 1
         assert received_data[0]["symbol"] == "AAPL"
+
+    @patch("app.database.SessionLocal")
+    @patch("app.services.redis_service.get_async_redis")
+    def test_stream_live_alerts_empty_watchlist_receives_nothing(self, mock_get_redis, mock_session_local, client, auth_headers, db_session):
+        import asyncio
+        import json
+
+        # Mock SessionLocal to return the test's db_session
+        mock_session_local.return_value = db_session
+
+        # Mock Redis to yield a batch of alerts, then cancel the stream
+        class MockRedis:
+            def __init__(self):
+                self.called = False
+
+            async def xread(self, *args, **kwargs):
+                if not self.called:
+                    self.called = True
+                    # Return 3 anomalies
+                    payloads = [
+                        ("1-0", {"data": json.dumps({"symbol": "TSLA", "anomaly_score": 0.9})}),
+                        ("2-0", {"data": json.dumps({"symbol": "AAPL", "anomaly_score": 0.95})}),
+                        ("3-0", {"data": json.dumps({"symbol": "MSFT", "anomaly_score": 0.8})}),
+                    ]
+                    return [("live_alerts", payloads)]
+                else:
+                    await asyncio.sleep(0.1)
+                    raise asyncio.CancelledError()
+
+        mock_get_redis.return_value = MockRedis()
+
+        # 1. Do NOT create any watchlists for the user.
+
+        # 2. Get valid SSE token
+        token_resp = client.post("/api/v1/auth/sse-token", headers=auth_headers)
+        sse_token = token_resp.json()["sse_token"]
+
+        # 3. Read stream and verify nothing is emitted
+        received_data = []
+        with client.stream("GET", f"/api/v1/alerts/stream/live?token={sse_token}") as response:
+            assert response.status_code == 200
+            for line in response.iter_lines():
+                if line.startswith("data: "):
+                    payload_str = line[len("data: "):]
+                    received_data.append(json.loads(payload_str))
+
+        # 4. Assert filtering logic (B2): empty watchlist -> no events
+        assert len(received_data) == 0

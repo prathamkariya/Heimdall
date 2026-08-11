@@ -36,6 +36,9 @@ class ModelRegistry:
             iforest_meta = self.model_dir.parent / "crypto" / "isolation_forest_metadata.json"
         if iforest_path.exists():
             try:
+                # SECURITY WARNING: joblib.load (like pickle) is vulnerable to arbitrary
+                # code execution if the payload is modified by a malicious actor.
+                # Do not load models from untrusted sources. Consider safetensors for future.
                 self.isolation_forest = joblib.load(iforest_path)
                 if iforest_meta.exists():
                     with open(iforest_meta, "r") as f:
@@ -52,6 +55,9 @@ class ModelRegistry:
             mp_meta = self.model_dir.parent / "crypto" / "multi_pattern_detector_metadata.json"
         if mp_path.exists():
             try:
+                # SECURITY WARNING: joblib.load (like pickle) is vulnerable to arbitrary
+                # code execution if the payload is modified by a malicious actor.
+                # Do not load models from untrusted sources. Consider safetensors for future.
                 self.multi_pattern_detector = joblib.load(mp_path)
                 if mp_meta.exists():
                     with open(mp_meta, "r") as f:

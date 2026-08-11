@@ -55,6 +55,9 @@ heimdall-plan
 # MLflow tracking artifacts
 mlruns/
 mlartifacts/
+backend/mlruns/
+backend/mlartifacts/
+backend/mlflow.db
 
 # DVC
 /backend/ml/data/*.csv
@@ -62,3 +65,6 @@ mlartifacts/
 
 # Trained model artifacts (tracked by DVC/MLflow, not git)
 trained_models/
+
+# Local tools
+tools/local/

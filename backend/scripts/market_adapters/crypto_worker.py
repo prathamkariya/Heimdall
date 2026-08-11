@@ -142,14 +142,14 @@ async def run_binance_feed() -> None:
                         entry_id = publish_trade_sync(event)
                         logger.debug("Published BINANCE tick %s → Redis %s", event.symbol, entry_id)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Binance feed error: %s. Reconnecting in %ds …", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_BACKOFF_S)
         finally:
             try:
                 await client.close_connection()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
 
@@ -171,13 +171,12 @@ async def run_bybit_feed() -> None:
                 async for raw_msg in ws:
                     raw = json.loads(raw_msg)
                     events = _normalise_bybit(raw)
-                    if events:
-                        if time.time() - last_seen_primary > 30:
-                            for event in events:
-                                entry_id = publish_trade_sync(event)
-                            logger.debug("Published BYBIT tick %s → Redis %s (Fallback Active)", event.symbol, entry_id)
+                    if events and time.time() - last_seen_primary > 30:
+                        for event in events:
+                            entry_id = publish_trade_sync(event)
+                        logger.debug("Published BYBIT tick %s → Redis %s (Fallback Active)", event.symbol, entry_id)
 
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Bybit feed error: %s. Reconnecting in %ds …", exc, backoff)
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_BACKOFF_S)

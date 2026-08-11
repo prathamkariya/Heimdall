@@ -103,7 +103,7 @@ def list_anomalies(
                 if da is not None:
                     wlc = round(wlc * da, 4)
             elif pattern_scores:
-                wlc = round(list(pattern_scores.values())[0], 4)
+                wlc = round(next(iter(pattern_scores.values())), 4)
 
             best_pattern = max(pattern_scores, key=pattern_scores.get) if pattern_scores else None
 

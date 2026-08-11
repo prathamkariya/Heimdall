@@ -1,8 +1,23 @@
 import json
 from datetime import datetime, timedelta, timezone
+
 from app.database import SessionLocal
-from app.models import User, MarketData, Anomaly, Alert, AlertStatus, Watchlist, WatchlistSymbol, Case, CaseStatus, CaseNote, CaseAnomaly, CaseEvent
+from app.models import (
+    Alert,
+    AlertStatus,
+    Anomaly,
+    Case,
+    CaseAnomaly,
+    CaseEvent,
+    CaseNote,
+    CaseStatus,
+    MarketData,
+    User,
+    Watchlist,
+    WatchlistSymbol,
+)
 from app.services.auth_service import hash_password
+
 
 def seed():
     db = SessionLocal()
@@ -155,7 +170,7 @@ def seed():
 
         # 6. Seed Redis live_alerts stream with recent anomalies so live feed is immediately populated
         try:
-            from app.services.redis_service import get_sync_redis, STREAM_ALERTS
+            from app.services.redis_service import STREAM_ALERTS, get_sync_redis
             r = get_sync_redis()
             for sym, price, market, score, patterns in symbols_data:
                 if score >= 0.7:

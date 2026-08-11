@@ -47,13 +47,14 @@ import time
 
 sys.path.insert(0, ".")
 
+from sqlalchemy.orm import Session
+
 from app.database import SessionLocal
 from app.models import Anomaly, MarketData, User, Watchlist, WatchlistSymbol
 from app.services.anomaly_service import get_model_registry, score_live_trade
 from app.services.auth_service import hash_password
 from app.services.mar_generator import generate_mar
 from app.services.redis_service import STREAM_ALERTS, get_async_redis
-from sqlalchemy.orm import Session
 
 TEST_SYMBOL = "BTCUSDT"
 TEST_MARKET = "CRYPTO"

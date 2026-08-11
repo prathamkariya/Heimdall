@@ -31,7 +31,7 @@ describe('LiveEventRow', () => {
 
     expect(screen.getByText('BTCUSDT')).toBeInTheDocument()
     expect(screen.getByText('CRYPTO')).toBeInTheDocument()
-    expect(screen.getByText('60000.0000')).toBeInTheDocument()
+    expect(screen.getByText('60000.00')).toBeInTheDocument()
     expect(screen.getByText('500.0')).toBeInTheDocument()
     expect(screen.getByText('0.9000')).toBeInTheDocument()
     expect(screen.getByText('WASH TRADING')).toBeInTheDocument()

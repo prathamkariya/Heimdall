@@ -187,7 +187,7 @@ async def stream_live_alerts(
             if recent_entries:
                 for entry_id, fields in reversed(recent_entries):
                     data = json.loads(fields["data"])
-                    if not watchlist_symbols or data.get("symbol") in watchlist_symbols:
+                    if watchlist_symbols and data.get("symbol") in watchlist_symbols:
                         yield f"data: {fields['data']}\n\n"
         except Exception as e:
             logger.warning("Error replaying recent alerts for user_id=%s: %s", user_id, e)
@@ -200,8 +200,8 @@ async def stream_live_alerts(
                         for entry_id, fields in entries:
                             last_id = entry_id
                             data = json.loads(fields["data"])
-                            # Strict data isolation when watchlists exist; broad feed if no watchlists configured
-                            if not watchlist_symbols or data.get("symbol") in watchlist_symbols:
+                            # B2: Strict data isolation: only emit if the symbol is in this user's explicit watchlists.
+                            if watchlist_symbols and data.get("symbol") in watchlist_symbols:
                                 yield f"data: {fields['data']}\n\n"
                 else:
                     # Keep-alive ping every 2 seconds when idle

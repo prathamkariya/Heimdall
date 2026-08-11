@@ -146,9 +146,7 @@ class TestLogin:
             "email": "test@example.com",
             "password": "SecurePass1",
         })
-        body = response.json()
-        assert "refresh_token" in body
-        assert isinstance(body["refresh_token"], str)
+        assert "refresh_token" in response.cookies
 
     def test_login_tokens_are_different(self, client, registered_user):
         response = client.post("/api/v1/auth/login", json={
@@ -156,7 +154,7 @@ class TestLogin:
             "password": "SecurePass1",
         })
         body = response.json()
-        assert body["access_token"] != body["refresh_token"]
+        assert body["access_token"] != response.cookies.get("refresh_token")
 
     def test_login_wrong_password_returns_401(self, client, registered_user):
         response = client.post("/api/v1/auth/login", json={

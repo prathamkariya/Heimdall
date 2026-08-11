@@ -1,11 +1,11 @@
 """tests/test_telemetry.py — Tests for Prometheus metrics and system telemetry router."""
-import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from app.models import Anomaly, MarketData
 from app.routers.telemetry import (
-    record_request,
     record_anomaly,
     record_ingestion,
+    record_request,
     set_active_subscribers,
 )
 

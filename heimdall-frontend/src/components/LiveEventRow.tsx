@@ -76,7 +76,7 @@ export const LiveEventRow = React.memo(function LiveEventRow({
       >
         <span className="truncate font-semibold text-ink">{event.symbol}</span>
         <span className="text-ink-dim text-[11px]">
-          {event.market === 'US_EQUITY' || event.market === 'US_EQUITIES' ? 'EQUITY' : event.market}
+          {event.market === 'US_EQUITY' ? 'EQUITY' : event.market}
         </span>
         <span className="tabular-nums font-medium">
           {event.price != null ? event.price.toFixed(2) : '—'}

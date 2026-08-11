@@ -1,15 +1,16 @@
-import sys
 import json
-from pathlib import Path
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
 import joblib
 
 sys.path.insert(0, '/app/ml/src')
 
 from ml.anomaly.isolation_forest import IsolationForestScratch
-from ml.detection.multi_pattern import MultiPatternDetector
 from ml.config import BASE_FEATURE_COLUMNS, PatternType
-from ml.data.synthetic import generate_synthetic_market_data, PatternInjectionConfig
+from ml.data.synthetic import PatternInjectionConfig, generate_synthetic_market_data
+from ml.detection.multi_pattern import MultiPatternDetector
 from sklearn.neighbors import LocalOutlierFactor
 
 out_dir = Path('/models/us_equity')
@@ -46,7 +47,7 @@ meta = {
     "market": "US_EQUITY",
     "n_rows": len(df),
     "feature_columns": BASE_FEATURE_COLUMNS,
-    "patterns": [p.value for p in mpd.models_.keys()],
+    "patterns": [p.value for p in mpd.models_],
 }
 (out_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
 (out_dir / "multi_pattern_detector_metadata.json").write_text(json.dumps(meta, indent=2))

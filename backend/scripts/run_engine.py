@@ -28,6 +28,8 @@ import redis
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+from ml.config import FEATURE_HISTORY_LENGTH
+
 from app.database import SessionLocal
 from app.models import Anomaly, MarketData, User
 from app.services.anomaly_service import score_live_trade
@@ -38,7 +40,6 @@ from app.services.redis_service import (
     read_trades_blocking,
     setup_consumer_group,
 )
-from ml.config import FEATURE_HISTORY_LENGTH
 
 logging.basicConfig(
     level=logging.INFO,

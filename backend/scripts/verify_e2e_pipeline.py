@@ -21,9 +21,7 @@ Exit codes:
 """
 import argparse
 import hashlib
-import json
 import sys
-import time
 from datetime import datetime, timezone
 
 import httpx

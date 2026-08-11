@@ -9,6 +9,15 @@ test.describe('Navigation, Command Palette & Settings', () => {
       localStorage.setItem('heimdall_user', JSON.stringify({ id: 1, username: 'analyst_1', role: 'ADMIN' }));
     });
 
+    // Intercept auth refresh to restore session
+    await page.route('**/api/v1/auth/refresh*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ access_token: 'mock_jwt_token' }),
+      });
+    });
+
     // Mock generic API calls
     await page.route('**/api/v1/anomalies*', async (route) => {
       await route.fulfill({
@@ -60,6 +69,9 @@ test.describe('Navigation, Command Palette & Settings', () => {
 
   test('opens command palette and performs fuzzy search navigation', async ({ page }) => {
     await page.goto('/');
+
+    // Wait for app to render by checking for a rail item
+    await expect(page.locator('a[href="/anomalies"]')).toBeVisible();
 
     // Press Ctrl+K to trigger command palette
     await page.keyboard.press('Control+k');
@@ -117,6 +129,9 @@ test.describe('Navigation, Command Palette & Settings', () => {
     });
 
     await page.goto('/');
+
+    // Wait for app to render
+    await expect(page.locator('a[href="/anomalies"]')).toBeVisible();
 
     // Trigger palette with '/'
     await page.keyboard.press('/');

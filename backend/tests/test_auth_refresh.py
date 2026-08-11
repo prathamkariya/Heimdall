@@ -20,7 +20,7 @@ class TestLoginTokenPair:
         assert response.status_code == 200
         body = response.json()
         assert "access_token" in body
-        assert "refresh_token" in body
+        assert "refresh_token" in response.cookies
         assert body["token_type"] == "bearer"
         assert isinstance(body["expires_in"], int)
         assert body["expires_in"] > 0
@@ -32,7 +32,7 @@ class TestLoginTokenPair:
             json={"email": "test@example.com", "password": "SecurePass1"},
         )
         body = response.json()
-        assert body["access_token"] != body["refresh_token"]
+        assert body["access_token"] != response.cookies.get("refresh_token")
 
     def test_login_invalid_password_no_tokens(self, client, registered_user):
         """Bad credentials must not return any tokens."""
@@ -42,6 +42,7 @@ class TestLoginTokenPair:
         )
         assert response.status_code == 401
         assert "access_token" not in response.json()
+        assert "refresh_token" not in response.cookies
 
 
 class TestRefreshToken:
@@ -49,7 +50,7 @@ class TestRefreshToken:
         """Valid refresh token returns new access token."""
         response = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": auth_tokens["refresh_token"]},
+            cookies={"refresh_token": auth_tokens["refresh_token"]},
         )
         assert response.status_code == 200
         body = response.json()
@@ -62,7 +63,7 @@ class TestRefreshToken:
         # Get new access token
         refresh_resp = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": auth_tokens["refresh_token"]},
+            cookies={"refresh_token": auth_tokens["refresh_token"]},
         )
         new_access = refresh_resp.json()["access_token"]
 
@@ -80,14 +81,14 @@ class TestRefreshToken:
         # First use — should succeed
         first_resp = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": old_refresh},
+            cookies={"refresh_token": old_refresh},
         )
         assert first_resp.status_code == 200
 
         # Second use of the same token — must fail (token was rotated/revoked)
         second_resp = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": old_refresh},
+            cookies={"refresh_token": old_refresh},
         )
         assert second_resp.status_code == 401
 
@@ -95,7 +96,7 @@ class TestRefreshToken:
         """Garbage refresh token must be rejected."""
         response = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": "this-is-not-a-valid-token"},
+            cookies={"refresh_token": "this-is-not-a-valid-token"},
         )
         assert response.status_code == 401
 
@@ -103,9 +104,9 @@ class TestRefreshToken:
         """Empty refresh token must be rejected by Pydantic validation."""
         response = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": ""},
+            cookies={"refresh_token": ""},
         )
-        assert response.status_code == 422
+        assert response.status_code == 401
 
 
 class TestLogout:
@@ -113,7 +114,7 @@ class TestLogout:
         """POST /auth/logout requires a valid access token."""
         response = client.post(
             "/api/v1/auth/logout",
-            json={"refresh_token": auth_tokens["refresh_token"]},
+            cookies={"refresh_token": auth_tokens["refresh_token"]},
             # No Authorization header
         )
         assert response.status_code == 403  # HTTPBearer returns 403 on missing
@@ -125,7 +126,7 @@ class TestLogout:
         # Logout
         logout_resp = client.post(
             "/api/v1/auth/logout",
-            json={"refresh_token": refresh_token},
+            cookies={"refresh_token": refresh_token},
             headers=auth_headers,
         )
         assert logout_resp.status_code == 204
@@ -133,7 +134,7 @@ class TestLogout:
         # Try to use the refresh token — must fail
         refresh_resp = client.post(
             "/api/v1/auth/refresh",
-            json={"refresh_token": refresh_token},
+            cookies={"refresh_token": refresh_token},
         )
         assert refresh_resp.status_code == 401
 
@@ -141,7 +142,7 @@ class TestLogout:
         """Logout with a non-existent token still returns 204 (no info leakage)."""
         response = client.post(
             "/api/v1/auth/logout",
-            json={"refresh_token": "nonexistent-token"},
+            cookies={"refresh_token": "nonexistent-token"},
             headers=auth_headers,
         )
         assert response.status_code == 204
@@ -153,14 +154,14 @@ class TestLogout:
             "/api/v1/auth/login",
             json={"email": "test@example.com", "password": "SecurePass1"},
         )
-        second_refresh = second_login.json()["refresh_token"]
+        second_refresh = second_login.cookies.get("refresh_token")
 
         # Get first refresh token
         first_login = client.post(
             "/api/v1/auth/login",
             json={"email": "test@example.com", "password": "SecurePass1"},
         )
-        first_refresh = first_login.json()["refresh_token"]
+        first_refresh = first_login.cookies.get("refresh_token")
 
         # Logout all
         logout_all_resp = client.post("/api/v1/auth/logout-all", headers=auth_headers)
@@ -168,9 +169,9 @@ class TestLogout:
 
         # Both tokens must now be invalid
         assert client.post(
-            "/api/v1/auth/refresh", json={"refresh_token": first_refresh}
+            "/api/v1/auth/refresh", cookies={"refresh_token": first_refresh}
         ).status_code == 401
 
         assert client.post(
-            "/api/v1/auth/refresh", json={"refresh_token": second_refresh}
+            "/api/v1/auth/refresh", cookies={"refresh_token": second_refresh}
         ).status_code == 401

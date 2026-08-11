@@ -160,7 +160,7 @@ def fit_prophet_and_forecast(
     from prophet import Prophet
 
     prophet_df = pd.DataFrame({"ds": train_series.index, "y": train_series.values})
-    defaults = dict(seasonality_mode="additive", daily_seasonality=False)
+    defaults = {"seasonality_mode": "additive", "daily_seasonality": False}
     model = Prophet(**{**defaults, **prophet_kwargs})
     model.fit(prophet_df)
 

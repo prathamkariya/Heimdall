@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { NotificationCenter, pushNotification } from './NotificationCenter'
 
 vi.mock('../lib/api', () => ({
@@ -33,11 +33,13 @@ describe('NotificationCenter', () => {
   it('displays pushed notifications', () => {
     render(<NotificationCenter />)
 
-    pushNotification({
-      category: 'critical',
-      title: 'TEST_PUMP_DETECTED',
-      body: 'High volume spike detected on BTCUSDT',
-      severity: 'high',
+    act(() => {
+      pushNotification({
+        category: 'critical',
+        title: 'TEST_PUMP_DETECTED',
+        body: 'High volume spike detected on BTCUSDT',
+        severity: 'high',
+      })
     })
 
     // Open drawer

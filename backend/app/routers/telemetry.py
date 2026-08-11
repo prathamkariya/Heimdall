@@ -12,14 +12,13 @@ Metrics exported:
   heimdall_active_stream_subscribers (gauge, SSE subscriber estimate)
   heimdall_ingestion_processed_total{market}
 """
-import time
 import threading
+import time
 from collections import defaultdict
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -176,7 +175,8 @@ def telemetry_status(
       - Uptime seconds
       - Active subscriber estimate
     """
-    from datetime import datetime, timedelta, timezone as tz
+    from datetime import datetime, timedelta
+    from datetime import timezone as tz
     cutoff = datetime.now(tz.utc) - timedelta(hours=24)
 
     try:

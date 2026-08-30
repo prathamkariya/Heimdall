@@ -181,3 +181,58 @@ def remove_symbol(
 
     db.delete(ws)
     db.commit()
+
+
+# ──────────────────────────────────────────────
+# Registration helper — default watchlist seed
+# ──────────────────────────────────────────────
+
+# Symbols every new user's default watchlist is pre-seeded with.
+# Matches the DEFAULT_SYMBOLS list in market_data.py's get_correlation_matrix.
+DEFAULT_WATCHLIST_SYMBOLS: list[str] = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT",  # crypto
+    "AAPL", "TSLA", "NVDA",                        # US equities
+]
+
+
+def seed_default_watchlist(db: Session, user_id: int) -> Watchlist:
+    """Create a default "My Watchlist" with a sensible starter symbol set for a new user.
+
+    Called immediately after user creation in the /auth/register endpoint.
+    Ensures no new user hits the SSE stream with an empty watchlist — which
+    would make the stream permanently silent with no visible explanation.
+
+    Idempotent: if the user already has a watchlist named "My Watchlist"
+    (should never happen at registration, but safe to call elsewhere), returns
+    the existing one rather than raising a 409.
+    """
+    existing = db.query(Watchlist).filter(
+        Watchlist.user_id == user_id,
+        Watchlist.name == "My Watchlist",
+    ).first()
+
+    if existing is None:
+        wl = Watchlist(
+            user_id=user_id,
+            name="My Watchlist",
+            description="Your default surveillance watchlist, pre-seeded with common symbols.",
+        )
+        db.add(wl)
+        db.flush()  # get wl.id without committing
+    else:
+        wl = existing
+
+    # Bulk-insert symbols, skip any already present
+    existing_symbols: set[str] = {
+        row.symbol
+        for row in db.query(WatchlistSymbol.symbol)
+        .filter(WatchlistSymbol.watchlist_id == wl.id)
+        .all()
+    }
+    for symbol in DEFAULT_WATCHLIST_SYMBOLS:
+        if symbol not in existing_symbols:
+            db.add(WatchlistSymbol(watchlist_id=wl.id, symbol=symbol))
+
+    db.commit()
+    db.refresh(wl)
+    return wl

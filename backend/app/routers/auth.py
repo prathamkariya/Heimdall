@@ -25,6 +25,7 @@ from app.services.auth_service import (
     revoke_refresh_token_by_token_only,
     rotate_refresh_token,
 )
+from app.services.watchlist_service import seed_default_watchlist
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -59,6 +60,8 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
     db.add(user)
     db.commit()
     db.refresh(user)
+    # FIX-04: seed a default watchlist so new users aren't silently locked out of the SSE stream
+    seed_default_watchlist(db, user.id)
     return user
 
 

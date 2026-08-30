@@ -72,8 +72,6 @@ ignore = [
     "F401", # Unused imports (models) required for SQLAlchemy Base metadata registry
     "RUF100", # Unused noqa comments
     "BLE001", # Top-level routers and health checks must catch generic Exceptions to avoid crashing
-    "B904", # 'raise ... from err' is good practice but not strictly required for HTTP exceptions
-    "S105", # Default config values and schemas often trigger hardcoded password checks
     "G004", # Logging with f-strings is acceptable
     "PLW0603", # Global variables are used for simple module-level state like counters
     "B007", # Unused loop variables are acceptable for retries

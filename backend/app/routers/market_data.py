@@ -54,7 +54,7 @@ def create_market_data(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Market data for {payload.symbol} at {payload.timestamp} already exists.",
-            )
+            ) from e
         raise
     db.refresh(record)
     return record

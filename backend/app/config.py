@@ -63,9 +63,9 @@ class Settings(BaseSettings):
         import warnings
         if self.APP_ENV == "development":
             if not self.POSTGRES_PASSWORD:
-                self.POSTGRES_PASSWORD = "admin123"
+                self.POSTGRES_PASSWORD = "admin123"  # noqa: S105
             if not self.SECRET_KEY:
-                self.SECRET_KEY = "dev_secret_key_change_me"
+                self.SECRET_KEY = "dev_secret_key_change_me"  # noqa: S105
         else:
             if not self.POSTGRES_PASSWORD:
                 raise ValueError("POSTGRES_PASSWORD is required in non-development environments.")

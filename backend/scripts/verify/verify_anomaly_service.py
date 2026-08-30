@@ -70,7 +70,7 @@ joblib.dump(iso_forest, model_dir / "isolation_forest_scratch.joblib")
 ))
 
 app_settings.MODEL_DIR = str(model_dir)
-anomaly_service._registry = None  # force a fresh load against model_dir
+anomaly_service._registries = {}  # force a fresh load against model_dir
 
 # ── In-memory SQLite DB ──
 engine = create_engine("sqlite:///:memory:")
@@ -149,7 +149,7 @@ print("=" * 70)
 # attribute directly instead, which is what actually changes what
 # get_model_registry() reads.
 app_settings.MODEL_DIR = str(Path(tempfile.mkdtemp()))  # a real, but empty, directory
-anomaly_service._registry = None
+anomaly_service._registries = {}
 
 try:
     anomaly_service.detect_anomaly(db, market_data_id=last_record.id, user_id=user.id)

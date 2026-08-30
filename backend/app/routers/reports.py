@@ -83,11 +83,11 @@ async def get_mar_report(
     try:
         # Wait up to 10s to acquire the permit, rejecting if the queue is too long
         await asyncio.wait_for(mar_generation_semaphore.acquire(), timeout=10.0)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Server is busy generating reports. Please try again later.",
-        )
+        ) from e
 
     try:
         # Wrap the Gemini call with a hard timeout so a hung LLM request
@@ -103,11 +103,11 @@ async def get_mar_report(
             media_type="text/markdown",
             headers={"Content-Disposition": f"attachment; filename=MAR_Case_{case_id}.md"},
         )
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Report generation timed out. Please try again later.",
-        )
+        ) from e
     except Exception as e:
         if isinstance(e, HTTPException):
             raise
@@ -116,6 +116,6 @@ async def get_mar_report(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An internal error occurred while generating the report."
-        )
+        ) from e
     finally:
         mar_generation_semaphore.release()

@@ -29,7 +29,7 @@ def _get_watchlist_or_404(db: Session, watchlist_id: int, current_user: User) ->
     except HTTPException as e:
         if e.status_code == status.HTTP_403_FORBIDDEN:
             # Mask the 403 as a 404 to prevent resource enumeration
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Watchlist not found") from e
         raise
         
     return wl

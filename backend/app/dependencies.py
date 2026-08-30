@@ -38,8 +38,8 @@ def get_current_user(
 
     try:
         user_id = int(user_id_str)
-    except (ValueError, TypeError):
-        raise credentials_exception
+    except (ValueError, TypeError) as e:
+        raise credentials_exception from e
 
     user = get_user_by_id(db, user_id)
     if user is None:

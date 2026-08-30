@@ -309,7 +309,7 @@ def trained_models_for_tests(tmp_path_factory):
     }))
 
     settings.MODEL_DIR = str(model_dir)
-    anomaly_service._registry = None  # force a fresh load against the new MODEL_DIR
+    anomaly_service._registries = {}  # force a fresh load against the new MODEL_DIR
     yield model_dir
 
 

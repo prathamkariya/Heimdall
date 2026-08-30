@@ -129,4 +129,4 @@ def generate_mar(context_data: dict) -> str:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to generate report: {e}",
-        )
+        ) from e

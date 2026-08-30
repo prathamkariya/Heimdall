@@ -54,14 +54,14 @@ class UserResponse(OrmBase):
 class TokenResponse(BaseModel):
     """Response from /auth/login — access token only, refresh token in cookie."""
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
     expires_in: int   # Access token TTL in seconds
 
 
 class AccessTokenResponse(BaseModel):
     """Response from /auth/refresh — access token only."""
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105
     expires_in: int
 
 # ══════════════════════════════════════════════════════════════

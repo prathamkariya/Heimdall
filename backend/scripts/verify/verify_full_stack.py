@@ -57,7 +57,7 @@ joblib.dump(iso_forest, model_dir / "isolation_forest_scratch.joblib")
     {"trained_at_utc": datetime.now(timezone.utc).isoformat(), "feature_columns": BASE_FEATURE_COLUMNS}
 ))
 settings.MODEL_DIR = str(model_dir)
-anomaly_service._registry = None
+anomaly_service._registries = {}
 
 # ── SQLite engine + tables (mirrors test_engine/create_tables) ──
 engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})

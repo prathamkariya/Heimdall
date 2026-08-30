@@ -6,13 +6,8 @@
 
 # Provenance files needed for auditability — these MUST be committed.
 # Anyone reviewing the repo can verify the model was produced by the documented
-# training pipeline by checking dataset_hash + confidence_threshold in metadata.json.
-!metadata.json
-!symbol_baselines.json
+# training pipeline by checking git_commit + dataset_hash + confidence_threshold
+# in multi_pattern_detector_metadata.json.
 !isolation_forest_metadata.json
 !multi_pattern_detector_metadata.json
-!evaluation_results.csv
-!per_symbol_evaluation.csv
-!SYNTHETIC_BASELINE_metadata.json
-!SYNTHETIC_BASELINE.md
-!*.md
+!symbol_baselines.json

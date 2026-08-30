@@ -1,0 +1,42 @@
+{
+  "trained_at_utc": "2026-08-30T17:43:58.037754+00:00",
+  "mode": "real-unsupervised-zscored",
+  "data_source": "trained_models/crypto/real_if_input.csv",
+  "git_commit": "43b849da5d73",
+  "dataset_hash": "2bb029cd0e9e70db",
+  "feature_version": "v2",
+  "feature_columns": [
+    "return",
+    "log_return",
+    "rolling_return_5d",
+    "rolling_return_10d",
+    "price_momentum",
+    "volume_ratio_20d",
+    "rolling_volume_mean",
+    "rolling_volume_std",
+    "obv",
+    "volatility_20d",
+    "true_range",
+    "atr_14d",
+    "rsi_14d",
+    "macd"
+  ],
+  "n_rows": 1675,
+  "n_flagged_if": 84,
+  "n_flagged_lof": 84,
+  "n_both_agree": 26,
+  "contamination": 0.05,
+  "n_estimators": 100,
+  "random_state": 42,
+  "lof_n_neighbors": 20,
+  "zscore_normalization": {
+    "features": [
+      "return",
+      "volatility_20d"
+    ],
+    "rolling_window": 60,
+    "min_periods": 20,
+    "shift": 1,
+    "note": "causal: row t uses stats from [t-window, t-1] only"
+  }
+}

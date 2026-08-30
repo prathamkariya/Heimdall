@@ -9,7 +9,7 @@ from app.auth_policy import verify_case_access
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Anomaly, Case, User
+from app.models import Anomaly, Case, CaseNote, User
 from app.services.mar_generator import generate_mar
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
@@ -32,7 +32,8 @@ async def get_mar_report(
     
     # 1. Fetch case with eager loaded anomalies and market data
     case = db.query(Case).options(
-        joinedload(Case.anomalies).joinedload(Anomaly.market_data)
+        joinedload(Case.anomalies).joinedload(Anomaly.market_data),
+        joinedload(Case.notes).joinedload(CaseNote.author),
     ).filter(Case.id == case_id).first()
 
     if not case:
@@ -60,12 +61,23 @@ async def get_mar_report(
     # Sort anomalies chronologically
     anomalies_data.sort(key=lambda x: x["md_timestamp"])
 
+    # FIX-16: include analyst notes in the generation context
+    notes_data = [
+        {
+            "author": note.author.username if note.author else "unknown",
+            "created_at": note.created_at.isoformat() if note.created_at else None,
+            "body": note.body,
+        }
+        for note in sorted(case.notes, key=lambda n: (n.created_at or ""))
+    ]
+
     context_data = {
         "case_id": case.id,
         "case_title": case.title,
         "case_status": case.status,
         "case_created_at": case.created_at.isoformat() if case.created_at else None,
-        "anomalies": anomalies_data
+        "anomalies": anomalies_data,
+        "notes": notes_data,
     }
 
     try:

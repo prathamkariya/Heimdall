@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
@@ -16,6 +17,10 @@ def get_current_user(
     Decode the Bearer token, verify it, and return the authenticated User.
     Raises 401 if token is missing, invalid, expired, or user not found.
     Raises 403 if user account is deactivated.
+
+    Also stashes the resolved user on request.state.user so that the global
+    exception handler in main.py can attribute 500 errors to the correct user
+    (rather than logging 'unauthenticated' for every unhandled exception).
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,4 +51,5 @@ def get_current_user(
             detail="Account deactivated",
         )
 
+    request.state.user = user
     return user

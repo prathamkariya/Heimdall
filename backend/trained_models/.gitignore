@@ -1,2 +1,11 @@
+# Large binary model files — never commit these; regenerate from training scripts
 *.joblib
+
+# Blanket JSON ignore — the negation lines below override it for specific files
 *.json
+
+# Provenance files needed for auditability — these MUST be committed.
+# Anyone reviewing the repo can verify the model was produced by the documented
+# training pipeline by checking dataset_hash + confidence_threshold in metadata.json.
+!metadata.json
+!symbol_baselines.json

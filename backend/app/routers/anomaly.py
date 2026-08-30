@@ -83,27 +83,33 @@ def list_anomalies(
             raw_features = json.loads(anomaly.features) if anomaly.features else {}
             pattern_scores = json.loads(anomaly.pattern_scores) if anomaly.pattern_scores else {}
 
+            # FIX-G01: Recompute zscored_features from the model registry so that
+            # generate_evidence_signals() receives real z-score baselines.
+            # The live scoring path already does this; without it the historical
+            # review path always returned z_score=None ("Not available") for every
+            # anomaly an analyst looks at — negating the value of FIX-F02.
+            from app.services.anomaly_service import get_model_registry, _apply_zscores
+            registry = get_model_registry(md.market or "CRYPTO")
+            zscored_features = _apply_zscores(raw_features, md.symbol, registry) or {}
+
             raw_dicts = generate_evidence_signals(
-                raw_features, 
-                anomaly.isolation_forest_score, 
-                anomaly.multi_pattern_max_score
+                raw_features,
+                anomaly.isolation_forest_score,
+                anomaly.multi_pattern_max_score,
+                zscored_features,
             )
             evidence_signals = [EvidenceSignalSchema(**sig) for sig in raw_dicts]
 
-            from app.models import check_detector_agreement
+            from app.models import check_detector_agreement, compute_weak_label_confidence
             da = check_detector_agreement(anomaly.isolation_forest_score, anomaly.multi_pattern_max_score)
             if da == 1.0:
                 evidence_signals.append(EvidenceSignalSchema(name="dual_detector_agreement", value=1.0, threshold=1.0, triggered=True))
 
-            # weak_label_confidence from pattern score distribution
-            wlc = None
-            if pattern_scores and len(pattern_scores) > 1:
-                scores_arr = sorted(pattern_scores.values(), reverse=True)
-                wlc = round(scores_arr[0] / (scores_arr[0] + scores_arr[1] + 1e-9), 4)
-                if da is not None:
-                    wlc = round(wlc * da, 4)
-            elif pattern_scores:
-                wlc = round(next(iter(pattern_scores.values())), 4)
+            # FIX-G02 (Option B): Use shared function that does NOT multiply by da.
+            # detector_agreement and weak_label_confidence are two separate signals
+            # shown independently in the UI — blending them was making strong
+            # single-detector detections display as low-confidence to analysts.
+            wlc = compute_weak_label_confidence(pattern_scores)
 
             best_pattern = max(pattern_scores, key=pattern_scores.get) if pattern_scores else None
 

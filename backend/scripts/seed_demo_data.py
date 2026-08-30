@@ -90,43 +90,49 @@ def seed():
         ]
 
         created_anomalies = []
+        import random
         for i, (sym, price, market, score, patterns) in enumerate(symbols_data):
-            ts = now - timedelta(minutes=(5 - i) * 10)
-            md = db.query(MarketData).filter(MarketData.symbol == sym, MarketData.timestamp == ts).first()
-            if not md:
-                md = MarketData(
-                    user_id=analyst.id,
-                    symbol=sym,
-                    timestamp=ts,
-                    open=price * 0.99,
-                    high=price * 1.05,
-                    low=price * 0.98,
-                    close=price * 1.03,
-                    volume=1500000.0,
-                    market=market,
-                )
-                db.add(md)
-                db.flush()
-
-                anomaly = Anomaly(
-                    market_data_id=md.id,
-                    anomaly_score=score,
-                    is_anomaly=(score >= 0.7),
-                    isolation_forest_score=score * 0.9,
-                    pattern_scores=patterns,
-                )
-                db.add(anomaly)
-                db.flush()
-                created_anomalies.append(anomaly)
-
-                if score >= 0.7:
-                    alert = Alert(
+            for t_offset in range(20, -1, -1):
+                ts = now - timedelta(minutes=t_offset * 10)
+                md = db.query(MarketData).filter(MarketData.symbol == sym, MarketData.timestamp == ts).first()
+                if not md:
+                    # Generate some random walk for price
+                    current_price = price * (1 + random.uniform(-0.02, 0.02))
+                    md = MarketData(
                         user_id=analyst.id,
-                        anomaly_id=anomaly.id,
-                        status=AlertStatus.ACTIVE if score >= 0.9 else AlertStatus.PENDING,
-                        message=f"Suspicious activity detected on {sym}: Anomaly score {score:.2f}",
+                        symbol=sym,
+                        timestamp=ts,
+                        open=current_price * 0.99,
+                        high=current_price * 1.01,
+                        low=current_price * 0.98,
+                        close=current_price,
+                        volume=1500000.0 * random.uniform(0.8, 1.2),
+                        market=market,
                     )
-                    db.add(alert)
+                    db.add(md)
+                    db.flush()
+
+                    # Only make the latest point (or random points) an anomaly
+                    is_anom = (t_offset == 0) and (score >= 0.7)
+                    if is_anom:
+                        anomaly = Anomaly(
+                            market_data_id=md.id,
+                            anomaly_score=score,
+                            is_anomaly=True,
+                            isolation_forest_score=score * 0.9,
+                            pattern_scores=patterns,
+                        )
+                        db.add(anomaly)
+                        db.flush()
+                        created_anomalies.append(anomaly)
+
+                        alert = Alert(
+                            user_id=analyst.id,
+                            anomaly_id=anomaly.id,
+                            status=AlertStatus.ACTIVE if score >= 0.9 else AlertStatus.PENDING,
+                            message=f"Suspicious activity detected on {sym}: Anomaly score {score:.2f}",
+                        )
+                        db.add(alert)
 
         # 5. Cases
         case1 = db.query(Case).filter(Case.title == "Operation Ironclad: Coordinated BTC/NVDA Spoofing").first()

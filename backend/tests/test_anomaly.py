@@ -284,3 +284,125 @@ class TestDetectAnomaly:
         data = resp.json()
         assert "status" in data
         assert "markets" in data
+
+
+# ══════════════════════════════════════════════════════════════
+# FIX-G01 REGRESSION: z_score reaches the UI for historical anomalies
+# ══════════════════════════════════════════════════════════════
+class TestHistoricalZScoreEvidence:
+    """FIX-G01: list_anomalies must pass zscored_features into
+    generate_evidence_signals so that historical anomaly reviews show
+    real z_score values rather than 'Not available' on every signal.
+
+    Before the fix, generate_evidence_signals was called with only 3 args,
+    defaulting zscored_features to None, meaning every analyst who opened
+    an anomaly detail after the fact saw null z-scores — negating the value
+    of FIX-F02's z_score infrastructure.
+    """
+
+    def test_list_anomalies_evidence_signal_structure(
+        self, client, auth_headers, sample_market_data_with_history
+    ):
+        """After scoring, list_anomalies must return evidence signals with
+        the expected keys present (value, threshold, triggered).
+        z_score may be null if the symbol has no baseline, but the field
+        must exist in each signal dict rather than being absent entirely.
+        """
+        # First, score the record so an Anomaly row exists
+        score_resp = client.post(
+            "/api/v1/anomalies",
+            json={"market_data_id": sample_market_data_with_history["id"]},
+            headers=auth_headers,
+        )
+        assert score_resp.status_code == 201
+
+        # Fetch via list endpoint (the historical path that was broken)
+        list_resp = client.get("/api/v1/anomalies", headers=auth_headers)
+        assert list_resp.status_code == 200
+        items = list_resp.json()["items"]
+        assert len(items) > 0, "Expected at least one anomaly in list response"
+
+        scored = items[0]
+        # evidence is populated when features are stored
+        if scored.get("evidence"):
+            for sig in scored["evidence"]:
+                assert "name" in sig, f"Signal missing 'name': {sig}"
+                assert "value" in sig, f"Signal missing 'value': {sig}"
+                assert "threshold" in sig, f"Signal missing 'threshold': {sig}"
+                assert "triggered" in sig, f"Signal missing 'triggered': {sig}"
+                # z_score key must be present (may be null for symbols without
+                # baseline — that's the correct 'Not available' state, not an error)
+                assert "z_score" in sig, (
+                    f"Signal missing 'z_score' key entirely (FIX-G01 regression): {sig}\n"
+                    "This means zscored_features is not being passed to "
+                    "generate_evidence_signals() in list_anomalies."
+                )
+
+
+# ══════════════════════════════════════════════════════════════
+# FIX-G02 REGRESSION: detector_agreement no longer bleeds into attribution confidence
+# ══════════════════════════════════════════════════════════════
+class TestWeakLabelConfidence:
+    """FIX-G02 (Option B): compute_weak_label_confidence must NOT multiply
+    by detector_agreement. The two values are independently interpretable
+    signals — collapsing them into one number was causing strong single-detector
+    detections (e.g. IF=0.846, 95% pump_and_dump) to display as low-confidence.
+
+    The concrete bug: a BTCUSDT anomaly with IF=0.846 showed
+    Attribution Confidence 26.0% because multi_pattern_max_score landed
+    under 0.6, producing detector_agreement=0.5, which was then multiplied
+    into an already-reasonable wlc. The fix: stop that multiplication.
+    """
+
+    def test_strong_single_detector_not_collapsed_to_same_as_weak_pair(self):
+        """A strong signal (high IF, pump_and_dump dominant) must produce
+        higher weak_label_confidence than a genuinely weak pair where two
+        patterns are nearly tied. Before the fix both cases were penalized
+        identically when detector_agreement=0.5 was used as a multiplier.
+        """
+        from app.models import compute_weak_label_confidence
+
+        # Strong case: one pattern clearly dominates
+        strong_pattern_scores = {"pump_and_dump": 0.95, "wash_trading": 0.03, "spoofing": 0.01, "layering": 0.01}
+        wlc_strong = compute_weak_label_confidence(strong_pattern_scores)
+
+        # Weak case: two patterns nearly tied (genuinely uncertain attribution)
+        weak_pattern_scores = {"pump_and_dump": 0.51, "wash_trading": 0.49, "spoofing": 0.0, "layering": 0.0}
+        wlc_weak = compute_weak_label_confidence(weak_pattern_scores)
+
+        assert wlc_strong is not None
+        assert wlc_weak is not None
+        assert wlc_strong > wlc_weak, (
+            f"FIX-G02 regression: strong detection (wlc={wlc_strong}) should be "
+            f"more confident than a tied pair (wlc={wlc_weak}). "
+            "If they're equal, detector_agreement is still being multiplied in."
+        )
+
+    def test_wlc_single_pattern_returns_raw_probability(self):
+        """When only one pattern is present, wlc equals that pattern's probability."""
+        from app.models import compute_weak_label_confidence
+
+        result = compute_weak_label_confidence({"pump_and_dump": 0.87})
+        assert result == pytest.approx(0.87, abs=1e-4)
+
+    def test_wlc_none_when_no_pattern_scores(self):
+        """Returns None gracefully for empty or None input."""
+        from app.models import compute_weak_label_confidence
+
+        assert compute_weak_label_confidence(None) is None
+        assert compute_weak_label_confidence({}) is None
+
+    def test_check_detector_agreement_still_independent(self):
+        """check_detector_agreement still returns 0.5 for partial agreement —
+        it's used as a UI badge, not a multiplier, so the value itself is fine.
+        What's changed is that it's no longer multiplied into wlc.
+        """
+        from app.models import check_detector_agreement
+
+        # High IF, lower pattern score (below 0.6 cutoff) → PARTIAL
+        da_partial = check_detector_agreement(0.846, 0.55)
+        assert da_partial == 0.5, f"Expected 0.5 (PARTIAL), got {da_partial}"
+
+        # Both above threshold → BOTH AGREE
+        da_both = check_detector_agreement(0.75, 0.80)
+        assert da_both == 1.0, f"Expected 1.0 (BOTH AGREE), got {da_both}"

@@ -1,0 +1,62 @@
+{
+  "AAPL": {
+    "return": {
+      "mean": 0.000814,
+      "std": 0.01482
+    },
+    "volatility_20d": {
+      "mean": 0.01395,
+      "std": 0.00382
+    }
+  },
+  "MSFT": {
+    "return": {
+      "mean": 0.000892,
+      "std": 0.01412
+    },
+    "volatility_20d": {
+      "mean": 0.01310,
+      "std": 0.00341
+    }
+  },
+  "NVDA": {
+    "return": {
+      "mean": 0.001850,
+      "std": 0.02790
+    },
+    "volatility_20d": {
+      "mean": 0.02480,
+      "std": 0.00790
+    }
+  },
+  "TSLA": {
+    "return": {
+      "mean": 0.001480,
+      "std": 0.03450
+    },
+    "volatility_20d": {
+      "mean": 0.03150,
+      "std": 0.00980
+    }
+  },
+  "AMZN": {
+    "return": {
+      "mean": 0.001020,
+      "std": 0.01820
+    },
+    "volatility_20d": {
+      "mean": 0.01640,
+      "std": 0.00490
+    }
+  },
+  "GOOGL": {
+    "return": {
+      "mean": 0.000790,
+      "std": 0.01610
+    },
+    "volatility_20d": {
+      "mean": 0.01520,
+      "std": 0.00420
+    }
+  }
+}

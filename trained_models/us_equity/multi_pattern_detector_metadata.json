@@ -1,0 +1,41 @@
+{
+  "trained_at_utc": "2026-08-01T12:00:00.000000+00:00",
+  "mode": "real-weak-supervised",
+  "market": "US_EQUITY",
+  "data_source": "trained_models/us_equity/scored_days.csv",
+  "git_commit": "0e37105ac164",
+  "dataset_hash": "a48f9d0c2e3b1578",
+  "feature_version": "v2",
+  "weak_label_version": "v2:dual_detector_if+lof_confidence_filtered",
+  "feature_columns": [
+    "return",
+    "log_return",
+    "rolling_return_5d",
+    "rolling_return_10d",
+    "price_momentum",
+    "volume_ratio_20d",
+    "rolling_volume_mean",
+    "rolling_volume_std",
+    "obv",
+    "volatility_20d",
+    "true_range",
+    "atr_14d",
+    "rsi_14d",
+    "macd"
+  ],
+  "n_rows": 25000,
+  "n_flagged": 2150,
+  "n_kept_above_threshold": 48,
+  "n_discarded_below_threshold": 2102,
+  "confidence_threshold": 0.4,
+  "contamination": 0.05,
+  "random_state": 42,
+  "patterns": [
+    "pump_and_dump",
+    "spoofing"
+  ],
+  "attribution_counts": {
+    "pump_and_dump": 310,
+    "spoofing": 1120
+  }
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useApiFetch } from '../lib/hooks'
 import { Plus, Trash2, X, AlertTriangle } from 'lucide-react'
@@ -33,6 +34,7 @@ interface WatchlistListItem {
 }
 
 export function Watchlists() {
+  const navigate = useNavigate()
   const { toast } = useToast()
   const { data: watchlistsData, loading, error: listError, execute: executeList } = useApiFetch<WatchlistListItem[]>()
   const watchlists = watchlistsData || []
@@ -329,7 +331,8 @@ export function Watchlists() {
                     return (
                       <div
                         key={sym.id}
-                        className="group grid grid-cols-[2fr_1fr_2fr_2fr_auto] gap-4 items-center border-b border-line/30 bg-surface px-5 py-3 hover:bg-raised/50 transition-colors"
+                        onClick={() => navigate(`/anomalies?symbol=${sym.symbol}`)}
+                        className="group grid grid-cols-[2fr_1fr_2fr_2fr_auto] gap-4 items-center border-b border-line/30 bg-surface px-5 py-3 hover:bg-raised/50 transition-colors cursor-pointer"
                       >
                         <div>
                           <span className="font-mono text-[13px] font-medium text-ink">{sym.symbol}</span>
@@ -360,7 +363,10 @@ export function Watchlists() {
                           )}
                         </div>
                         <button
-                          onClick={() => handleRemoveSymbol(sym.symbol)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveSymbol(sym.symbol)
+                          }}
                           className="rounded p-1 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-down bg-void/50"
                           aria-label={`Remove ${sym.symbol}`}
                         >

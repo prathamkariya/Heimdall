@@ -124,7 +124,15 @@ class Anomaly(Base):
 
 
 def check_detector_agreement(isolation_forest_score: float | None, multi_pattern_max_score: float | None) -> float | None:
-    """Returns the detector agreement score based on isolation forest and multi-pattern scores."""
+    """Returns the detector agreement score based on isolation forest and multi-pattern scores.
+
+    Deliberately kept as a simple binary signal — suitable for displaying an
+    informational badge in the UI ("BOTH AGREE" / "PARTIAL") but intentionally
+    NOT used as a multiplier on weak_label_confidence (FIX-G02, Option B).
+    Folding the two into one blended number made strong single-detector signals
+    display as low-confidence — showing them as separate, independently
+    interpretable values is more honest and less misleading to analysts.
+    """
     if isolation_forest_score is not None and multi_pattern_max_score is not None:
         if isolation_forest_score >= 0.6 and multi_pattern_max_score >= 0.6:
             return 1.0
@@ -132,6 +140,33 @@ def check_detector_agreement(isolation_forest_score: float | None, multi_pattern
     elif isolation_forest_score is not None or multi_pattern_max_score is not None:
         return 0.5
     return None
+
+
+def compute_weak_label_confidence(pattern_scores: dict | None) -> float | None:
+    """Compute attribution confidence from the pattern_scores distribution.
+
+    High confidence = one pattern clearly dominates (top-1 score is large
+    relative to top-2). Low confidence = scores spread roughly evenly across
+    patterns, meaning the model is uncertain about which manipulation type
+    this is.
+
+    Deliberately does NOT factor in detector_agreement (FIX-G02, Option B).
+    detector_agreement is a separate, orthogonal signal — an analyst can read
+    "attribution is 52% confident AND only one detector fired" as two distinct
+    facts. Blending them into a single number was masking the actual source of
+    uncertainty, making a strong single-detector signal appear weak.
+
+    Returns None if pattern_scores is None or empty.
+    """
+    if not pattern_scores:
+        return None
+    if len(pattern_scores) > 1:
+        scores_arr = sorted(pattern_scores.values(), reverse=True)
+        # Ratio of top-1 to (top-1 + top-2): approaches 1.0 when one pattern
+        # clearly dominates, approaches 0.5 when two patterns score equally.
+        return round(scores_arr[0] / (scores_arr[0] + scores_arr[1] + 1e-9), 4)
+    # Single pattern — confidence is just its raw probability
+    return round(next(iter(pattern_scores.values())), 4)
 
 
 # ══════════════════════════════════════════════════════════════

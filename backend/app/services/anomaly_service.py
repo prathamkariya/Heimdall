@@ -574,21 +574,17 @@ def score_live_trade(
     combined = _combine_scores(isolation_forest_score, multi_pattern_max_score)
     is_anomaly = combined >= threshold
 
-    from app.models import check_detector_agreement
+    from app.models import check_detector_agreement, compute_weak_label_confidence
     detector_agreement = check_detector_agreement(isolation_forest_score, multi_pattern_max_score)
 
-    # --- Weak label confidence (plan1.md issue #5) ---
-    # Approximate attribution confidence from pattern_scores distribution.
-    # High confidence = one pattern dominates; low confidence = scores spread equally.
-    if pattern_scores is not None and len(pattern_scores) > 1:
-        scores_arr = sorted(pattern_scores.values(), reverse=True)
-        # Ratio of top-1 to top-2 indicates how clearly one pattern dominates
-        weak_label_confidence = round(scores_arr[0] / (scores_arr[0] + scores_arr[1] + 1e-9), 4)
-        # Fold in detector_agreement: weak_label_confidence * agreement
-        if detector_agreement is not None:
-            weak_label_confidence = round(weak_label_confidence * detector_agreement, 4)
-    elif pattern_scores is not None:
-        weak_label_confidence = round(next(iter(pattern_scores.values())), 4)
+    # FIX-G02 (Option B): Use shared compute_weak_label_confidence which does NOT
+    # multiply by detector_agreement. Both signals are now independent:
+    # - weak_label_confidence: how clearly one pattern dominates the attribution
+    # - detector_agreement: whether IF and multi-pattern detectors both fired
+    # The UI shows them side by side so analysts can reason about each factor
+    # separately, rather than seeing a single blended number that obscures which
+    # signal is driving low confidence.
+    weak_label_confidence = compute_weak_label_confidence(pattern_scores)
 
     # --- Evidence list (plan1.md issue #5) ---
     from ml.explainability import generate_evidence_signals

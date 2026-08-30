@@ -1,0 +1,40 @@
+{
+  "trained_at_utc": "2026-07-26T14:00:18.003220+00:00",
+  "mode": "real-weak-supervised",
+  "data_source": "trained_models/crypto/scored_days.csv",
+  "git_commit": "0e37105ac164",
+  "dataset_hash": "311445d91cbc6f56",
+  "feature_version": "v2",
+  "weak_label_version": "v2:dual_detector_if+lof_confidence_filtered",
+  "feature_columns": [
+    "return",
+    "log_return",
+    "rolling_return_5d",
+    "rolling_return_10d",
+    "price_momentum",
+    "volume_ratio_20d",
+    "rolling_volume_mean",
+    "rolling_volume_std",
+    "obv",
+    "volatility_20d",
+    "true_range",
+    "atr_14d",
+    "rsi_14d",
+    "macd"
+  ],
+  "n_rows": 24775,
+  "n_flagged": 2161,
+  "n_kept_above_threshold": 36,
+  "n_discarded_below_threshold": 2125,
+  "confidence_threshold": 0.4,
+  "contamination": 0.05,
+  "random_state": 42,
+  "patterns": [
+    "pump_and_dump",
+    "spoofing"
+  ],
+  "attribution_counts": {
+    "pump_and_dump": 275,
+    "spoofing": 1145
+  }
+}

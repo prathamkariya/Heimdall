@@ -166,3 +166,43 @@ non-redundant features — confirmed empirically, not assumed.
   level — judged not worth the risk of hiding real errors for a purely
   cosmetic issue. Harmless; standard Prophet behavior.
 
+## Model reproducibility and provenance
+
+**Decision (FIX-G03):** `.joblib` binary model files are **not committed**
+to this repository. They are excluded by `.gitignore`. Instead, the small
+human-readable JSON provenance files are committed alongside the evaluation
+CSVs so that the complete audit trail exists in the repo without requiring
+Git LFS or checking in large binaries.
+
+### What is committed
+
+| File | Purpose |
+|---|---|
+| `trained_models/*/metadata.json` | IF training metadata (n_rows, contamination, feature columns, z-score normalization params) |
+| `trained_models/*/multi_pattern_detector_metadata.json` | Weak-supervised MPD metadata (git_commit, dataset_hash, confidence_threshold, n_discarded, per-pattern attribution counts, evaluation AUCs) |
+| `trained_models/*/symbol_baselines.json` | Per-symbol rolling mean/std baselines used for z-score normalization at inference time |
+| `trained_models/*/evaluation_results.csv` | Per-model AUC, precision, recall, F1 |
+| `trained_models/*/per_symbol_evaluation.csv` | Per-symbol hold-out evaluation |
+
+### How to regenerate models deterministically
+
+The training pipeline is fully deterministic given the same input CSVs and
+`random_state`. After a fresh clone (`.joblib` files absent):
+
+```bash
+cd backend
+
+# 1 — Phase B: train Isolation Forest + compute z-scored features
+python -m ml.scripts.train_zscored
+
+# 2 — Phase C: weak labeling + MultiPatternDetector
+python -m ml.scripts.train_weak_supervised
+```
+
+Both scripts read from `trained_models/*/scored_days.csv` (committed) and
+write `.joblib` + updated `metadata.json` to the same directory.
+
+**Verification:** after regenerating, compare `dataset_hash` in the new
+`multi_pattern_detector_metadata.json` against the committed value — they
+should be identical. A mismatch means the input data changed; AUC differences
+indicate model drift and should be investigated before deploying.

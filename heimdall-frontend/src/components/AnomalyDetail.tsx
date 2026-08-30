@@ -202,6 +202,10 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
               background: { type: 'solid' as any, color: '#12161a' },
               textColor: '#7c8790',
               fontFamily: 'IBM Plex Mono, monospace',
+              // Attribution logo replaced with a text credit below the chart
+              // per the Lightweight Charts / TradingView license.
+              // Do not remove the footer credit if this flag remains false.
+              attributionLogo: false,
             },
             grid: {
               vertLines: { color: '#232a31' },
@@ -315,6 +319,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
                 background: { type: 'solid' as any, color: '#12161a' },
                 textColor: '#7c8790',
                 fontFamily: 'IBM Plex Mono, monospace',
+                attributionLogo: false,
               },
               grid: {
                 vertLines: { color: '#232a31' },
@@ -493,6 +498,19 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
             className="w-full"
           />
         )}
+        {/* TradingView attribution — required by the Lightweight Charts license
+            when attributionLogo is set to false on the chart instances above. */}
+        <div className="pt-0.5 text-right font-mono text-[9px] text-ink-faint">
+          Charts by{' '}
+          <a
+            href="https://www.tradingview.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-dotted hover:text-ink-dim"
+          >
+            TradingView
+          </a>
+        </div>
       </div>
     </div>
   )

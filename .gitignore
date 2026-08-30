@@ -64,7 +64,23 @@ backend/mlflow.db
 !/backend/ml/data/.gitkeep
 
 # Trained model artifacts (tracked by DVC/MLflow, not git)
+# The entire directory is ignored except for the small JSON files that carry
+# model provenance — needed so an auditor can verify the deployed model was
+# produced by the leakage-audited training pipeline.
 trained_models/
+# Un-ignore provenance files (git requires un-ignoring parent dirs first,
+# then the specific files — order matters here)
+!trained_models/
+!trained_models/*/
+!trained_models/metadata.json
+!trained_models/symbol_baselines.json
+!trained_models/*/metadata.json
+!trained_models/*/symbol_baselines.json
+!trained_models/*/isolation_forest_metadata.json
+!trained_models/*/multi_pattern_detector_metadata.json
+!trained_models/*/evaluation_results.csv
+!trained_models/*/per_symbol_evaluation.csv
+!trained_models/evaluation_results.csv
 
 # Local tools
 tools/local/

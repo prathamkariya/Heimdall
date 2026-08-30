@@ -76,13 +76,20 @@ def generate_mar(context_data: dict) -> str:
     """
     
     # 3. Call Gemini
+    model_name = os.getenv("GEMINI_MODEL", "").strip()
+    if not model_name:
+        model_name = "gemini-2.5-flash"
+        logger.warning(
+            "GEMINI_MODEL env var is not set — falling back to '%s'. "
+            "Set GEMINI_MODEL explicitly in production to avoid relying on this default.",
+            model_name,
+        )
     try:
         client = genai.Client(
             api_key=api_key,
             http_options=types.HttpOptions(timeout=30000)
         )
         try:
-            model_name = os.getenv("GEMINI_MODEL", "").strip() or "gemini-3.5-flash"
             response = client.models.generate_content(
                 model=model_name,
                 contents=context,

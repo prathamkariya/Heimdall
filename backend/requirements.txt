@@ -12,6 +12,10 @@ pydantic[email]>=2.12.5
 pydantic-settings==2.7.0
 
 # ── Auth ──────────────────────────────────────────────────────────────
+# FIX-13: 3.3.0 is the only available release on PyPI (no newer version exists).
+# Algorithm-confusion CVEs are mitigated: decode_access_token passes explicit
+# algorithms=[settings.ALGORITHM] rather than trusting the token's alg header.
+# Run `pip-audit -r requirements.txt` (see FIX-14 CI step) after any future bump.
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 

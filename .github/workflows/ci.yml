@@ -41,6 +41,12 @@ jobs:
         pip install -r backend/requirements.txt
         pip install pytest httpx pytest-asyncio ruff
         pip install -e ./backend/ml
+
+    # FIX-14: dependency vulnerability scanning — blocking on high/critical
+    - name: Audit Python dependencies
+      run: |
+        pip install pip-audit
+        pip-audit -r backend/requirements.txt --severity high
         
     - name: Run Ruff Linter
       run: |
@@ -71,6 +77,12 @@ jobs:
       run: |
         cd heimdall-frontend
         npm install
+
+    # FIX-14: dependency vulnerability scanning — blocking at high severity
+    - name: Audit npm dependencies
+      run: |
+        cd heimdall-frontend
+        npm audit --audit-level=high
         
     - name: Build frontend
       run: |

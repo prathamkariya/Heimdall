@@ -92,7 +92,10 @@ services:
       --port 8000
       --workers 4
       --proxy-headers
-      --forwarded-allow-ips=*
+      --forwarded-allow-ips=nginx
+      # FIX-11: restrict to the nginx service container only (was '*', which trusted X-Forwarded-For from any source).
+      # In Compose's internal network, Nginx resolves to the 'nginx' service name.
+      # If you switch to a custom network with a fixed subnet, update this to the subnet CIDR instead.
     depends_on:
       db:
         condition: service_healthy

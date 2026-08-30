@@ -142,10 +142,11 @@ async def run_finnhub_feed() -> None:
                 async for raw_msg in ws:
                     raw = json.loads(raw_msg)
                     if raw.get("type") == "trade":
-                        event = _normalise_finnhub(raw)
-                        if event:
-                            entry_id = publish_trade_sync(event)
-                            logger.debug("Published FINNHUB tick %s → Redis %s", event.symbol, entry_id)
+                        events = _normalise_finnhub(raw)
+                        if events:
+                            for event in events:
+                                entry_id = publish_trade_sync(event)
+                                logger.debug("Published FINNHUB tick %s → Redis %s", event.symbol, entry_id)
 
         except Exception as exc:
             logger.error("Finnhub feed error: %s. Reconnecting in %ds …", exc, backoff)

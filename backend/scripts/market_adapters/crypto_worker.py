@@ -120,6 +120,7 @@ async def run_binance_feed() -> None:
     """Stream aggregate trades from Binance.  Reconnects on failure."""
     backoff = 1
     while True:
+        client = None
         try:
             logger.info("Connecting to Binance WebSocket for %s …", SYMBOLS)
             client = await AsyncClient.create(
@@ -147,10 +148,11 @@ async def run_binance_feed() -> None:
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, RECONNECT_MAX_BACKOFF_S)
         finally:
-            try:
-                await client.close_connection()
-            except Exception as e:
-                logger.debug(f"Failed to close connection: {e}")
+            if client is not None:
+                try:
+                    await client.close_connection()
+                except Exception as e:
+                    logger.debug(f"Failed to close connection: {e}")
 
 
 # ── Bybit Fallback Feed ────────────────────────────────────────────────────────

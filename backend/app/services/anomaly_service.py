@@ -99,6 +99,11 @@ def get_model_registry(market: str = "CRYPTO") -> ModelRegistry:
     Thread-safe via double-checked locking with pre-initialized per-market
     locks. Each market loads from trained_models/<market_lower>/ if that
     directory exists, falling back to the root MODEL_DIR.
+
+    If model loading fails (ModelLoadError), the registry is NOT cached so
+    the next request retries the load — transient failures (disk I/O, missing
+    file during a rolling deploy) won't permanently break a market until the
+    process is restarted.
     """
     global _registries
     if market not in _registries:
@@ -113,44 +118,16 @@ def get_model_registry(market: str = "CRYPTO") -> ModelRegistry:
                     candidate.load()
                 except ModelLoadError as e:
                     logger.warning("Model loading failed for market=%s: %s", market, e)
+                    return candidate  # don't cache — let the next call retry the load
                 _registries[market] = candidate
     return _registries[market]
 
 
-def _get_lof_model(market: str):
-    """Lazily load the LocalOutlierFactor model for the given market.
-    Returns None if the model file doesn't exist (graceful degradation).
-    """
-    from pathlib import Path
-
-    import joblib
-    market_subdir = Path(settings.MODEL_DIR) / market.lower()
-    model_dir = market_subdir if market_subdir.exists() else Path(settings.MODEL_DIR)
-    lof_path = model_dir / "local_outlier_factor.joblib"
-    if not lof_path.exists() and (model_dir.parent / "crypto" / "local_outlier_factor.joblib").exists():
-        lof_path = model_dir.parent / "crypto" / "local_outlier_factor.joblib"
-    if lof_path.exists():
-        try:
-            return joblib.load(lof_path)
-        except Exception as e:
-            logger.warning("LOF model load failed for market=%s: %s", market, e)
+def _get_lof_model(market: str):  # noqa: F811
+    # LOF model is loaded but never used for scoring (dead code, see FIX-06).
+    # Kept as a private stub so callers referencing it still compile, but
+    # get_lof_model is no longer part of the public API.
     return None
-
-
-# Per-market LOF cache (loaded lazily, same double-check pattern as _registries)
-_lof_models: dict = {}
-_lof_locks: dict = {m: threading.Lock() for m in _KNOWN_MARKETS}
-
-
-def get_lof_model(market: str = "CRYPTO"):
-    """Return the cached LOF model for `market`, loading lazily."""
-    global _lof_models
-    if market not in _lof_models:
-        lock = _lof_locks.get(market, _fallback_lock)
-        with lock:
-            if market not in _lof_models:
-                _lof_models[market] = _get_lof_model(market)
-    return _lof_models[market]
 
 
 def get_models_health_status() -> dict:
@@ -171,7 +148,8 @@ def get_models_health_status() -> dict:
             "has_isolation_forest": reg.has_isolation_forest,
             "has_multi_pattern": reg.has_multi_pattern,
             "patterns": patterns,
-            "has_lof": get_lof_model(market) is not None,
+            # has_lof removed: LOF was loaded but never used for scoring (FIX-06).
+            # Re-add only if LOF is wired into the scoring path as a third signal.
             "baseline_symbols_count": len(reg.symbol_baselines),
             "feature_columns": list(BASE_FEATURE_COLUMNS),
             "min_raw_rows_required": MIN_RAW_ROWS_FOR_FEATURES,
@@ -224,7 +202,7 @@ def _market_data_to_feature_row(record: MarketData, historical: list[MarketData]
         },
         index=[r.timestamp for r in all_records],
     )
-    df = df.sort_index()
+    df = df[~df.index.duplicated(keep="last")].sort_index()  # FIX-07: match streaming path dedup
     features_df = compute_engineered_features(df).dropna(subset=BASE_FEATURE_COLUMNS)
 
     if len(features_df) == 0:

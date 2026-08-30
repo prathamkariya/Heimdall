@@ -154,7 +154,7 @@ export interface MarketModelStatus {
   has_isolation_forest: boolean
   has_multi_pattern: boolean
   patterns: string[]
-  has_lof: boolean
+  // has_lof removed: LOF model was loaded but never wired into scoring (FIX-06).
   baseline_symbols_count: number
   feature_columns: string[]
   min_raw_rows_required: number

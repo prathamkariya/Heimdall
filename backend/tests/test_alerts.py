@@ -289,6 +289,8 @@ class TestSSELiveAlerts:
         # Mock Redis to just return an empty list immediately so the loop runs fast
         import asyncio
         class MockRedis:
+            async def xrevrange(self, *args, **kwargs):
+                return []
             async def xread(self, *args, **kwargs):
                 await asyncio.sleep(0.1)
                 # Raise CancelledError to break the while True loop, 
@@ -328,6 +330,9 @@ class TestSSELiveAlerts:
             def __init__(self):
                 self.called = False
 
+            async def xrevrange(self, *args, **kwargs):
+                return []
+
             async def xread(self, *args, **kwargs):
                 if not self.called:
                     self.called = True
@@ -343,6 +348,11 @@ class TestSSELiveAlerts:
                     raise asyncio.CancelledError()
 
         mock_get_redis.return_value = MockRedis()
+
+        # 0. Delete the default watchlist
+        watchlists = client.get("/api/v1/watchlists", headers=auth_headers).json()
+        for w in watchlists:
+            client.delete(f"/api/v1/watchlists/{w['id']}", headers=auth_headers)
 
         # 1. Create a watchlist and add "AAPL"
         wl_resp = client.post("/api/v1/watchlists", json={"name": "Tech"}, headers=auth_headers)
@@ -381,6 +391,9 @@ class TestSSELiveAlerts:
             def __init__(self):
                 self.called = False
 
+            async def xrevrange(self, *args, **kwargs):
+                return []
+
             async def xread(self, *args, **kwargs):
                 if not self.called:
                     self.called = True
@@ -397,7 +410,10 @@ class TestSSELiveAlerts:
 
         mock_get_redis.return_value = MockRedis()
 
-        # 1. Do NOT create any watchlists for the user.
+        # 1. Delete all watchlists for the user, so they have an empty set of symbols
+        watchlists = client.get("/api/v1/watchlists", headers=auth_headers).json()
+        for w in watchlists:
+            client.delete(f"/api/v1/watchlists/{w['id']}", headers=auth_headers)
 
         # 2. Get valid SSE token
         token_resp = client.post("/api/v1/auth/sse-token", headers=auth_headers)

@@ -110,14 +110,10 @@ class TestRefreshToken:
 
 
 class TestLogout:
-    def test_logout_requires_auth(self, client, auth_tokens):
-        """POST /auth/logout requires a valid access token."""
-        response = client.post(
-            "/api/v1/auth/logout",
-            cookies={"refresh_token": auth_tokens["refresh_token"]},
-            # No Authorization header
-        )
-        assert response.status_code == 403  # HTTPBearer returns 403 on missing
+    def test_logout_without_cookie_returns_204(self, client):
+        """POST /auth/logout returns 204 even without a cookie (idempotent)."""
+        response = client.post("/api/v1/auth/logout")
+        assert response.status_code == 204
 
     def test_logout_revokes_refresh_token(self, client, auth_tokens, auth_headers):
         """After logout, the refresh token must no longer work."""

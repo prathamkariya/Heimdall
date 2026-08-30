@@ -53,7 +53,7 @@ def postgres_url():
             return
         except Exception as e:
             import warnings
-            warnings.warn(f"Failed to use local fallback DB: {e}")
+            warnings.warn(f"Failed to use local fallback DB: {e}", stacklevel=2)
 
     # 2. Try Testcontainers (Docker)
     try:
@@ -63,7 +63,7 @@ def postgres_url():
             return
     except Exception as e:
         import warnings
-        warnings.warn(f"Failed to start Testcontainers Postgres: {e}")
+        warnings.warn(f"Failed to start Testcontainers Postgres: {e}", stacklevel=2)
 
     # 3. Try other fallback local databases
     candidates = []
@@ -133,7 +133,7 @@ def create_tables(test_engine):
         Base.metadata.drop_all(bind=test_engine)
     except Exception as e:
         import warnings
-        warnings.warn(f"Failed to drop tables: {e}")
+        warnings.warn(f"Failed to drop tables: {e}", stacklevel=2)
 
 
 # ══════════════════════════════════════════════════════════════

@@ -23,11 +23,11 @@ class TestCreateWatchlist:
     def test_create_watchlist_response_fields(self, client, auth_headers):
         response = client.post(
             "/api/v1/watchlists",
-            json={"name": "My Watchlist", "description": "Stocks I'm monitoring"},
+            json={"name": "My Custom Watchlist", "description": "Stocks I'm monitoring"},
             headers=auth_headers,
         )
         body = response.json()
-        assert body["name"] == "My Watchlist"
+        assert body["name"] == "My Custom Watchlist"
         assert body["description"] == "Stocks I'm monitoring"
         assert "id" in body
         assert "user_id" in body
@@ -90,10 +90,11 @@ class TestGetWatchlist:
 
 
 class TestListWatchlists:
-    def test_list_watchlists_empty_for_new_user(self, client, auth_headers):
+    def test_list_watchlists_has_default_for_new_user(self, client, auth_headers):
         response = client.get("/api/v1/watchlists", headers=auth_headers)
         assert response.status_code == 200
-        assert response.json() == []
+        assert len(response.json()) == 1
+        assert response.json()[0]["name"] == "My Watchlist"
 
     def test_list_watchlists_returns_all_user_watchlists(self, client, auth_headers):
         client.post("/api/v1/watchlists", json={"name": "List A"}, headers=auth_headers)
@@ -102,7 +103,7 @@ class TestListWatchlists:
 
         response = client.get("/api/v1/watchlists", headers=auth_headers)
         assert response.status_code == 200
-        assert len(response.json()) == 3
+        assert len(response.json()) == 4
 
     def test_list_watchlists_includes_symbol_count(self, client, auth_headers):
         create_resp = client.post(

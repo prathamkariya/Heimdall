@@ -41,7 +41,7 @@ class ModelRegistry:
                 # Do not load models from untrusted sources. Consider safetensors for future.
                 self.isolation_forest = joblib.load(iforest_path)
                 if iforest_meta.exists():
-                    with open(iforest_meta, "r") as f:
+                    with open(iforest_meta) as f:
                         self.isolation_forest_metadata = json.load(f)
             except Exception as e:
                 errors.append(f"Failed to load Isolation Forest: {e}")
@@ -60,7 +60,7 @@ class ModelRegistry:
                 # Do not load models from untrusted sources. Consider safetensors for future.
                 self.multi_pattern_detector = joblib.load(mp_path)
                 if mp_meta.exists():
-                    with open(mp_meta, "r") as f:
+                    with open(mp_meta) as f:
                         self.multi_pattern_metadata = json.load(f)
             except Exception as e:
                 errors.append(f"Failed to load Multi Pattern Detector: {e}")
@@ -69,7 +69,7 @@ class ModelRegistry:
         baselines_path = self.model_dir / "symbol_baselines.json"
         if baselines_path.exists():
             try:
-                with open(baselines_path, "r") as f:
+                with open(baselines_path) as f:
                     self.symbol_baselines = json.load(f)
             except Exception as e:
                 errors.append(f"Failed to load symbol baselines: {e}")

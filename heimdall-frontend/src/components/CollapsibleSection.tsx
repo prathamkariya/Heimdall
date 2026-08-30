@@ -43,12 +43,16 @@ export function CollapsibleSection({
         />
         {title}
       </button>
-      
-      {isExpanded && (
-        <div className="mt-2 animate-in fade-in duration-200">
-          {children}
+      <div 
+        className={`grid-expand-wrapper ${isExpanded ? 'expanded' : ''}`}
+        aria-hidden={!isExpanded}
+      >
+        <div className="grid-expand-inner">
+          <div className="mt-2 pt-1">
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </section>
   )
 }

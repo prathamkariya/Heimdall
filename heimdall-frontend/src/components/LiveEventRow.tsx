@@ -78,21 +78,21 @@ export const LiveEventRow = React.memo(function LiveEventRow({
         <span className="text-ink-dim text-[11px]">
           {event.market === 'US_EQUITY' ? 'EQUITY' : event.market}
         </span>
-        <span className="tabular-nums font-medium">
+        <span className="tabular font-medium">
           {event.price != null ? event.price.toFixed(2) : '—'}
         </span>
-        <span className="tabular-nums text-ink-dim">{event.volume != null ? (event.volume > 1000 ? (event.volume/1000).toFixed(1)+'k' : event.volume.toFixed(1)) : '—'}</span>
+        <span className="tabular text-ink-dim">{event.volume != null ? (event.volume > 1000 ? (event.volume/1000).toFixed(1)+'k' : event.volume.toFixed(1)) : '—'}</span>
 
         {/* Score */}
         <span>
           {scored ? (
-            <span className={
+            <span className={`tabular ${
               (event.anomaly_score ?? 0) >= 0.8
                 ? 'text-down font-medium'
                 : (event.anomaly_score ?? 0) >= 0.5
                   ? 'text-accent'
                   : 'text-ink-dim'
-            }>
+            }`}>
               {event.anomaly_score?.toFixed(4)}
             </span>
           ) : (

@@ -596,6 +596,7 @@ export function CaseWorkspace({
                     const isStatus = e.event_type === 'STATUS_CHANGED'
                     const isCreation = e.event_type === 'CASE_CREATED'
                     const isNote = e.event_type === 'NOTE_ADDED'
+                    const staggerClass = `stagger-${Math.min(idx + 1, 10)}`
 
                     // Compute delta from previous event
                     const prevEvent = events[idx - 1]
@@ -615,7 +616,7 @@ export function CaseWorkspace({
                     }
 
                     return (
-                      <div key={e.id} className="relative group pb-4 last:pb-0">
+                      <div key={e.id} className={`relative group pb-4 last:pb-0 opacity-0 animate-fade-in ${staggerClass}`}>
                         {/* Delta label */}
                         {deltaLabel && (
                           <div className="absolute -left-[80px] top-0.5 text-[9px] font-mono text-ink-faint/60 w-[68px] text-right">

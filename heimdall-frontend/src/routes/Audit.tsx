@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FileText, Search, User, Download } from 'lucide-react'
+import { FileText, Search, User, Download, Filter, X } from 'lucide-react'
 import { useApiFetch } from '../lib/hooks'
 import { EmptyState } from '../components/EmptyState'
 import { Pagination } from '../components/Pagination'
@@ -74,6 +74,13 @@ export function Audit() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCaseId, setSelectedCaseId] = useState<number | null>(null)
   
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [filterAssets, setFilterAssets] = useState<string[]>([])
+  const [filterMarkets, setFilterMarkets] = useState<string[]>([])
+  const [filterAnalysts, setFilterAnalysts] = useState<number[]>([])
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([])
+  const [filterDateRange, setFilterDateRange] = useState<{ start: string, end: string }>({ start: '', end: '' })
+  
   const { data: casesData, loading, execute } = useApiFetch<CasePaginatedResponse>()
   const { data: analysts, execute: executeAnalysts } = useApiFetch<Analyst[]>()
   const { data: currentUser, execute: executeCurrentUser } = useApiFetch<{ id: number; role: string }>()
@@ -103,10 +110,44 @@ export function Audit() {
     (c) => c.status === 'CLOSED' || c.status === 'DISMISSED'
   )
 
-  const filteredBySearch = allClosedCases.filter(c => 
-    c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    c.id.toString() === searchQuery
-  )
+  const availableAssets = Array.from(new Set(anomaliesData?.items?.map((a: any) => a.symbol) || [])).filter(Boolean).sort() as string[]
+  const availableMarkets = ['CRYPTO', 'US_EQUITY']
+  const availableStatuses = ['CLOSED', 'DISMISSED']
+
+  const filteredBySearch = allClosedCases.filter(c => {
+    if (searchQuery) {
+      const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase()) || c.id.toString() === searchQuery
+      if (!matchesSearch) return false
+    }
+
+    if (filterStatuses.length > 0 && !filterStatuses.includes(c.status)) return false
+    if (filterAnalysts.length > 0 && (c.assigned_to_user_id === null || !filterAnalysts.includes(c.assigned_to_user_id))) return false
+
+    if (filterDateRange.start) {
+      const closedDate = c.closed_at ? new Date(c.closed_at).getTime() : 0
+      const start = new Date(filterDateRange.start).getTime()
+      if (closedDate < start) return false
+    }
+    if (filterDateRange.end) {
+      const closedDate = c.closed_at ? new Date(c.closed_at).getTime() : 0
+      const end = new Date(filterDateRange.end).getTime() + 86400000 // end of day
+      if (closedDate >= end) return false
+    }
+
+    if (filterAssets.length > 0 || filterMarkets.length > 0) {
+      const caseAnomalies = anomaliesData?.items?.filter((a: any) => c.anomaly_ids.includes(a.id)) || []
+      
+      if (filterAssets.length > 0) {
+        if (!caseAnomalies.some((a: any) => filterAssets.includes(a.symbol))) return false
+      }
+      
+      if (filterMarkets.length > 0) {
+        if (!caseAnomalies.some((a: any) => filterMarkets.includes(a.market))) return false
+      }
+    }
+
+    return true
+  })
 
   const paginatedCases = filteredBySearch.slice(offset, offset + PAGE_SIZE)
   const totalCases = filteredBySearch.length
@@ -149,7 +190,7 @@ export function Audit() {
 
   /** Export all filtered closed cases as a SHA-256 verified CSV audit package. */
   const exportAuditCSV = async () => {
-    if (allClosedCases.length === 0) {
+    if (filteredBySearch.length === 0) {
       toast({ title: 'No Records', message: 'No archived cases to export.', variant: 'info' })
       return
     }
@@ -158,7 +199,7 @@ export function Audit() {
       ['Case ID', 'Title', 'Status', 'Assignee', 'Anomaly Count', 'Created At', 'Closed At', 'Duration (h)'],
     ]
 
-    for (const c of allClosedCases) {
+    for (const c of filteredBySearch) {
       const assignee = getAssigneeUsername(c.assigned_to_user_id)
       const anomalyCount = c.anomaly_ids?.length ?? 0
       let durationH = '-'
@@ -187,7 +228,7 @@ export function Audit() {
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const exportContent = `${csvContent}\n\n# HEIMDALL Audit Export — ${new Date().toISOString()}\n# SHA-256: ${hashHex}\n# Records: ${allClosedCases.length}`
+    const exportContent = `${csvContent}\n\n# HEIMDALL Audit Export — ${new Date().toISOString()}\n# SHA-256: ${hashHex}\n# Records: ${filteredBySearch.length}`
 
     const blob = new Blob([exportContent], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
@@ -198,7 +239,7 @@ export function Audit() {
     window.URL.revokeObjectURL(url)
     toast({
       title: 'Audit CSV Exported',
-      message: `${allClosedCases.length} records · SHA-256: ${hashHex.slice(0, 16)}…`,
+      message: `${filteredBySearch.length} records · SHA-256: ${hashHex.slice(0, 16)}…`,
       variant: 'success',
     })
   }
@@ -244,15 +285,160 @@ export function Audit() {
             />
           </div>
           <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className={`flex items-center gap-1.5 border px-3 py-1.5 rounded font-mono text-[10px] uppercase tracking-wider transition-colors cursor-pointer ${
+              showFilterPanel || filterAssets.length > 0 || filterMarkets.length > 0 || filterAnalysts.length > 0 || filterStatuses.length > 0 || filterDateRange.start || filterDateRange.end
+                ? 'bg-accent/10 border-accent/30 text-accent hover:bg-accent/20' 
+                : 'bg-surface border-line text-ink-dim hover:text-ink hover:bg-raised'
+            }`}
+          >
+            <Filter size={12} />
+            Filters
+            {(filterAssets.length > 0 || filterMarkets.length > 0 || filterAnalysts.length > 0 || filterStatuses.length > 0 || filterDateRange.start || filterDateRange.end) && (
+              <span className="ml-1 bg-accent text-void rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
+                {filterAssets.length + filterMarkets.length + filterAnalysts.length + filterStatuses.length + (filterDateRange.start ? 1 : 0) + (filterDateRange.end ? 1 : 0)}
+              </span>
+            )}
+          </button>
+          <button
             onClick={exportAuditCSV}
             title="Export verified CSV audit package with SHA-256 checksum"
-            className="flex items-center gap-1.5 border border-line bg-surface hover:bg-raised hover:border-accent/50 text-ink-dim hover:text-ink px-3 py-1.5 rounded font-mono text-[10px] uppercase tracking-wider transition-colors"
+            className="flex items-center gap-1.5 border border-line bg-surface hover:bg-raised hover:border-accent/50 text-ink-dim hover:text-ink px-3 py-1.5 rounded font-mono text-[10px] uppercase tracking-wider transition-colors cursor-pointer"
           >
             <Download size={12} />
             Export CSV
           </button>
         </div>
       </header>
+
+      {/* Advanced Filter Panel */}
+      {showFilterPanel && (
+        <div className="bg-surface border-b border-line px-5 py-4 animate-slide-in">
+          <div className="flex items-start justify-between mb-4">
+            <h3 className="font-mono text-[11px] uppercase tracking-wider text-ink-faint flex items-center gap-1.5">
+              <Filter size={12} /> Advanced Filters
+            </h3>
+            <button 
+              onClick={() => {
+                setFilterAssets([])
+                setFilterMarkets([])
+                setFilterAnalysts([])
+                setFilterStatuses([])
+                setFilterDateRange({ start: '', end: '' })
+              }}
+              className="text-[10px] font-mono text-ink-faint hover:text-accent flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <X size={10} /> CLEAR ALL
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-5 gap-6">
+            <div>
+              <label className="block text-[10px] font-mono text-ink-dim mb-2">ASSETS</label>
+              <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
+                {availableAssets.map(asset => (
+                  <label key={asset} className="flex items-center gap-2 text-[11px] font-mono text-ink cursor-pointer hover:bg-raised/50 px-1 py-0.5 rounded">
+                    <input 
+                      type="checkbox" 
+                      checked={filterAssets.includes(asset)}
+                      onChange={(e) => {
+                        if (e.target.checked) setFilterAssets([...filterAssets, asset])
+                        else setFilterAssets(filterAssets.filter(a => a !== asset))
+                      }}
+                      className="accent-accent"
+                    />
+                    {asset}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-ink-dim mb-2">MARKETS</label>
+              <div className="space-y-1">
+                {availableMarkets.map(market => (
+                  <label key={market} className="flex items-center gap-2 text-[11px] font-mono text-ink cursor-pointer hover:bg-raised/50 px-1 py-0.5 rounded">
+                    <input 
+                      type="checkbox" 
+                      checked={filterMarkets.includes(market)}
+                      onChange={(e) => {
+                        if (e.target.checked) setFilterMarkets([...filterMarkets, market])
+                        else setFilterMarkets(filterMarkets.filter(m => m !== market))
+                      }}
+                      className="accent-accent"
+                    />
+                    {market}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-ink-dim mb-2">ANALYST</label>
+              <div className="max-h-32 overflow-y-auto space-y-1 pr-2">
+                {analysts?.map(analyst => (
+                  <label key={analyst.id} className="flex items-center gap-2 text-[11px] font-mono text-ink cursor-pointer hover:bg-raised/50 px-1 py-0.5 rounded">
+                    <input 
+                      type="checkbox" 
+                      checked={filterAnalysts.includes(analyst.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setFilterAnalysts([...filterAnalysts, analyst.id])
+                        else setFilterAnalysts(filterAnalysts.filter(a => a !== analyst.id))
+                      }}
+                      className="accent-accent"
+                    />
+                    {analyst.username}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-ink-dim mb-2">STATUS</label>
+              <div className="space-y-1">
+                {availableStatuses.map(status => (
+                  <label key={status} className="flex items-center gap-2 text-[11px] font-mono text-ink cursor-pointer hover:bg-raised/50 px-1 py-0.5 rounded">
+                    <input 
+                      type="checkbox" 
+                      checked={filterStatuses.includes(status)}
+                      onChange={(e) => {
+                        if (e.target.checked) setFilterStatuses([...filterStatuses, status])
+                        else setFilterStatuses(filterStatuses.filter(s => s !== status))
+                      }}
+                      className="accent-accent"
+                    />
+                    {status}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-mono text-ink-dim mb-2">DATE RANGE (CLOSED)</label>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-[9px] text-ink-faint block mb-0.5">FROM</span>
+                  <input 
+                    type="date" 
+                    value={filterDateRange.start}
+                    onChange={e => setFilterDateRange(prev => ({ ...prev, start: e.target.value }))}
+                    className="w-full bg-void border border-line px-2 py-1 rounded text-[11px] text-ink font-mono outline-none focus:border-accent [color-scheme:dark]"
+                  />
+                </div>
+                <div>
+                  <span className="text-[9px] text-ink-faint block mb-0.5">TO</span>
+                  <input 
+                    type="date" 
+                    value={filterDateRange.end}
+                    onChange={e => setFilterDateRange(prev => ({ ...prev, end: e.target.value }))}
+                    className="w-full bg-void border border-line px-2 py-1 rounded text-[11px] text-ink font-mono outline-none focus:border-accent [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Column Headers */}
       <div className="grid grid-cols-[80px_1.5fr_100px_80px_90px_120px_120px_100px] gap-x-4 border-b border-line bg-surface px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-faint select-none">

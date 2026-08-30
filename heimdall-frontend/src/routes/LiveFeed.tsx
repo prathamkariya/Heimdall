@@ -333,7 +333,7 @@ export function LiveFeed() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] uppercase tracking-wider text-ink-faint font-mono">Time</span>
-                  <span className="text-[11px] font-mono text-ink-dim tabular-nums">
+                  <span className="text-[11px] font-mono text-ink-dim tabular">
                     {formatTimestamp(selectedEvent.timestamp_ms || selectedEvent.timestamp)}
                   </span>
                 </div>

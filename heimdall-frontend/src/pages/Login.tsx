@@ -52,10 +52,10 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <input
-                type="email"
+                type="text"
                 required
                 autoFocus
-                placeholder="Email"
+                placeholder="Username"
                 className="w-full rounded-md border border-line bg-void px-4 py-3 text-[15px] text-ink outline-none placeholder:text-ink-faint focus:border-accent/60 focus:ring-1 focus:ring-accent/30 transition-all font-brand"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

@@ -140,9 +140,10 @@ interface AnomalyChartProps {
 
 export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
+  const rsiContainerRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [callout, setCallout] = useState<{ close: number; volumeSurge: number; rsi?: number } | null>(null)
+  const [callout, setCallout] = useState<{ close: number; volumeSurge: number; rsi?: number; isHover?: boolean } | null>(null)
   const [showSma, setShowSma] = useState(true)
   const [showBands, setShowBands] = useState(false)
   const [showRsi, setShowRsi] = useState(false)
@@ -150,6 +151,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
   useEffect(() => {
     let active = true
     let chart: any = null
+    let rsiChart: any = null
 
     async function loadChartData() {
       setLoading(true)
@@ -208,12 +210,15 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
         const avgVol = chartData.reduce((s, d) => s + d.value, 0) / chartData.length
         const surgeFactor = avgVol > 0 ? Math.round((closest.value / avgVol) * 10) / 10 : 1.0
 
+        const defaultCallout = {
+          close: closest?.close ?? 0,
+          volumeSurge: surgeFactor,
+          rsi: lastRsi ? Math.round(lastRsi * 10) / 10 : undefined,
+          isHover: false,
+        }
+
         if (active && closest) {
-          setCallout({
-            close: closest.close,
-            volumeSurge: surgeFactor,
-            rsi: lastRsi ? Math.round(lastRsi * 10) / 10 : undefined,
-          })
+          setCallout(defaultCallout)
         }
 
         if (chartContainerRef.current && active) {
@@ -304,6 +309,102 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
           ])
 
           chart.timeScale().fitContent()
+
+          chart.subscribeCrosshairMove((param: any) => {
+            if (!active) return;
+            if (param.point === undefined || !param.time || param.point.x < 0 || param.point.x > chartContainerRef.current!.clientWidth || param.point.y < 0 || param.point.y > chartContainerRef.current!.clientHeight) {
+              setCallout(defaultCallout);
+              if (rsiChart) rsiChart.clearCrosshairPosition();
+            } else {
+              const candleData = param.seriesData.get(candleSeries) as any;
+              if (candleData) {
+                 const currentAvgVol = chartData.reduce((s, d) => s + d.value, 0) / chartData.length;
+                 const currentSurge = currentAvgVol > 0 ? Math.round(((candleData.value ?? candleData.close) / currentAvgVol) * 10) / 10 : 1.0;
+                 
+                 const rsiIdx = chartData.findIndex(d => d.time === param.time);
+                 const cRsi = rsiIdx >= 0 && rsiValues[rsiIdx] !== null ? Math.round(rsiValues[rsiIdx]! * 10) / 10 : undefined;
+
+                 setCallout({
+                   close: candleData.close ?? candleData.value,
+                   volumeSurge: currentSurge,
+                   rsi: cRsi,
+                   isHover: true,
+                 });
+              }
+            }
+          });
+
+          if (showRsi && rsiContainerRef.current) {
+            rsiContainerRef.current.innerHTML = '';
+            rsiChart = createChart(rsiContainerRef.current, {
+              layout: {
+                background: { type: 'solid' as any, color: '#12161a' },
+                textColor: '#7c8790',
+                fontFamily: 'IBM Plex Mono, monospace',
+              },
+              grid: {
+                vertLines: { color: '#232a31' },
+                horzLines: { color: '#232a31' },
+              },
+              rightPriceScale: {
+                borderColor: '#232a31',
+              },
+              width: rsiContainerRef.current.clientWidth || 340,
+              height: 80,
+              timeScale: {
+                borderColor: '#232a31',
+                timeVisible: true,
+                secondsVisible: false,
+              },
+            });
+
+            const rsiSeries = rsiChart.addSeries(LineSeries, {
+              color: '#9f85ff',
+              lineWidth: 1.5,
+              priceScaleId: 'right',
+            });
+            const rsiDataForChart = chartData
+              .map((d, i) => rsiValues[i] !== null ? { time: d.time, value: rsiValues[i] as number } : null)
+              .filter(Boolean) as { time: any; value: number }[];
+            rsiSeries.setData(rsiDataForChart);
+
+            rsiSeries.createPriceLine({ price: 70, color: '#e8604c80', lineWidth: 1, lineStyle: 2 });
+            rsiSeries.createPriceLine({ price: 30, color: '#4fbf7a80', lineWidth: 1, lineStyle: 2 });
+
+            rsiChart.timeScale().fitContent();
+
+            const timeScale1 = chart.timeScale();
+            const timeScale2 = rsiChart.timeScale();
+            
+            timeScale1.subscribeVisibleLogicalRangeChange((timeRange: any) => {
+              if (timeRange) timeScale2.setVisibleLogicalRange(timeRange);
+            });
+            timeScale2.subscribeVisibleLogicalRangeChange((timeRange: any) => {
+              if (timeRange) timeScale1.setVisibleLogicalRange(timeRange);
+            });
+
+            rsiChart.subscribeCrosshairMove((param: any) => {
+              if (!active) return;
+              if (param.point === undefined || !param.time || param.point.x < 0 || param.point.x > rsiContainerRef.current!.clientWidth || param.point.y < 0 || param.point.y > rsiContainerRef.current!.clientHeight) {
+                setCallout(defaultCallout);
+                chart.clearCrosshairPosition();
+              } else {
+                 const rsiData = param.seriesData.get(rsiSeries) as any;
+                 const idx = chartData.findIndex(d => d.time === param.time);
+                 if (idx >= 0) {
+                    const cData = chartData[idx];
+                    const currentAvgVol = chartData.reduce((s, d) => s + d.value, 0) / chartData.length;
+                    const currentSurge = currentAvgVol > 0 ? Math.round((cData.value / currentAvgVol) * 10) / 10 : 1.0;
+                    setCallout({
+                      close: cData.close,
+                      volumeSurge: currentSurge,
+                      rsi: rsiData ? Math.round(rsiData.value * 10) / 10 : undefined,
+                      isHover: true,
+                    });
+                 }
+              }
+            });
+          }
         }
         setLoading(false)
       } catch (err: any) {
@@ -320,6 +421,9 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
       if (chart && chartContainerRef.current) {
         chart.applyOptions({ width: chartContainerRef.current.clientWidth })
       }
+      if (rsiChart && rsiContainerRef.current) {
+        rsiChart.applyOptions({ width: rsiContainerRef.current.clientWidth })
+      }
     }
     window.addEventListener('resize', handleResize)
 
@@ -327,6 +431,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
       active = false
       window.removeEventListener('resize', handleResize)
       if (chart) chart.remove()
+      if (rsiChart) rsiChart.remove()
     }
   }, [symbol, marketTimestamp, anomaly, showSma, showBands, showRsi])
 
@@ -403,10 +508,18 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
           {error}
         </div>
       )}
-      <div
-        ref={chartContainerRef}
-        className={loading || error ? 'invisible h-0' : 'visible w-full'}
-      />
+      <div className={loading || error ? 'invisible h-0' : 'visible w-full flex flex-col gap-1'}>
+        <div
+          ref={chartContainerRef}
+          className="w-full"
+        />
+        {showRsi && (
+          <div
+            ref={rsiContainerRef}
+            className="w-full"
+          />
+        )}
+      </div>
     </div>
   )
 }

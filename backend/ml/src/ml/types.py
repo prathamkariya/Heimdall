@@ -7,6 +7,7 @@ class EvidenceSignal:
     value: float
     threshold: float
     triggered: bool
+    z_score: float | None = None
 
 @dataclass
 class DetectionResult:

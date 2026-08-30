@@ -69,3 +69,7 @@ trained_models/
 # Local tools
 tools/local/
 ruff_*.txt
+
+docs/
+
+docs

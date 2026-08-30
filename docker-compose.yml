@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # ── PostgreSQL (Standard database) ──
   db:
-    image: postgres:15-alpine
+    image: timescale/timescaledb:latest-pg15
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}

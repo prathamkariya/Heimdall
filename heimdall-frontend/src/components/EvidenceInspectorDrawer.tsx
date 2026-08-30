@@ -56,35 +56,15 @@ function getSignalMeta(name: string) {
   }
 }
 
-/** Compute pseudo z-score relative to the threshold (threshold treated as ~2σ by convention) */
-function estimateZScore(value: number, threshold: number): number {
-  if (threshold === 0) return 0
-  const sigma = threshold / 2
-  return (value - threshold) / sigma
-}
-
-/** Estimate confidence distribution width (fictional bars showing normal vs anomalous range) */
-function getDistributionBars(value: number, threshold: number): { pct: number; isTrigger: boolean }[] {
-  const bars: { pct: number; isTrigger: boolean }[] = []
-  const buckets = 16
-  const max = Math.max(value * 1.3, threshold * 2.5)
-  const bucketSize = max / buckets
-  for (let i = 0; i < buckets; i++) {
-    const x = i * bucketSize
-    // Normal distribution around 0 (below threshold), anomalous above threshold
-    const mu = threshold * 0.4
-    const sigma = threshold * 0.3
-    const density = Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2)) * 100
-    bars.push({ pct: Math.min(100, Math.max(2, density)), isTrigger: x >= threshold })
-  }
-  return bars
+/** Estimate percentile using logistic approximation of normal CDF */
+function estimatePercentile(z: number): number {
+  return (1 / (1 + Math.exp(-1.702 * z))) * 100
 }
 
 export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceInspectorDrawerProps) {
   const meta = getSignalMeta(signal.name)
-  const zScore = signal.zScore ?? estimateZScore(signal.value, signal.threshold)
-  const percentile = signal.percentile ?? Math.min(99.9, 50 + zScore * 15)
-  const bars = getDistributionBars(signal.value, signal.threshold)
+  const zScore = signal.z_score
+  const percentile = zScore !== undefined && zScore !== null ? estimatePercentile(zScore) : null
 
   const multiplier = signal.threshold > 0 ? (signal.value / signal.threshold) : 1
   const isHighSeverity = multiplier >= 2.5
@@ -92,15 +72,15 @@ export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceIns
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex justify-end"
       onClick={onClose}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-void/60 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-void/60 backdrop-blur-sm animate-fade-in" />
 
       {/* Panel */}
       <div
-        className="relative w-[520px] max-h-[90vh] overflow-y-auto bg-surface border border-line rounded-xl shadow-2xl animate-fade-in-zoom"
+        className="relative w-[520px] h-full overflow-y-auto bg-surface border-l border-line shadow-2xl animate-slide-in-right flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -140,9 +120,9 @@ export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceIns
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="flex-1 p-6 space-y-6">
           {/* Observed vs Threshold */}
-          <div>
+          <div className="animate-fade-in stagger-1">
             <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint mb-3">
               Observed vs Baseline Threshold
             </div>
@@ -188,55 +168,33 @@ export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceIns
           </div>
 
           {/* Z-Score and Percentile */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 animate-fade-in stagger-2">
             <div className="bg-void/50 border border-line/60 rounded-lg p-4">
               <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint mb-2">Z-Score</div>
-              <div className={`text-xl font-mono font-bold ${Math.abs(zScore) > 2 ? 'text-down' : 'text-ink'}`}>
-                {zScore > 0 ? '+' : ''}{zScore.toFixed(2)}σ
+              <div className={zScore !== undefined && zScore !== null ? `text-xl font-mono font-bold ${Math.abs(zScore) > 2 ? 'text-down' : 'text-ink'}` : 'text-xl font-mono font-medium text-ink-faint italic'}>
+                {zScore !== undefined && zScore !== null ? `${zScore > 0 ? '+' : ''}${zScore.toFixed(2)}σ` : 'Not available'}
               </div>
               <div className="text-[10px] text-ink-faint mt-1">
-                {Math.abs(zScore) > 3 ? 'Extreme outlier' : Math.abs(zScore) > 2 ? 'Significant deviation' : Math.abs(zScore) > 1 ? 'Minor deviation' : 'Within normal range'}
+                {zScore !== undefined && zScore !== null
+                  ? (Math.abs(zScore) > 3 ? 'Extreme outlier' : Math.abs(zScore) > 2 ? 'Significant deviation' : Math.abs(zScore) > 1 ? 'Minor deviation' : 'Within normal range')
+                  : 'No baseline available'}
               </div>
             </div>
             <div className="bg-void/50 border border-line/60 rounded-lg p-4">
               <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint mb-2">Percentile</div>
-              <div className={`text-xl font-mono font-bold ${percentile > 95 ? 'text-down' : 'text-ink'}`}>
-                p{percentile.toFixed(1)}
+              <div className={percentile !== null ? `text-xl font-mono font-bold ${percentile > 95 ? 'text-down' : 'text-ink'}` : 'text-xl font-mono font-medium text-ink-faint italic'}>
+                {percentile !== null ? `p${percentile.toFixed(1)}` : 'Not available'}
               </div>
               <div className="text-[10px] text-ink-faint mt-1">
-                {percentile > 99 ? 'Rarer than 1 in 100 observations' : percentile > 95 ? 'Rarer than 1 in 20' : 'Within expected range'}
+                {percentile !== null
+                  ? (percentile > 99 ? 'Rarer than 1 in 100 observations' : percentile > 95 ? 'Rarer than 1 in 20' : 'Within expected range')
+                  : 'No distribution available'}
               </div>
-            </div>
-          </div>
-
-          {/* Distribution visualization */}
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint mb-3 flex items-center gap-1.5">
-              <Info size={10} />
-              Historical Distribution
-            </div>
-            <div className="flex items-end gap-[2px] h-12">
-              {bars.map((bar, i) => (
-                <div
-                  key={i}
-                  className={`flex-1 rounded-t-sm transition-all duration-300 ${
-                    bar.isTrigger
-                      ? signal.triggered ? 'bg-down/70' : 'bg-accent/40'
-                      : 'bg-line'
-                  }`}
-                  style={{ height: `${bar.pct}%` }}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-ink-faint mt-1">
-              <span>Normal</span>
-              <span className="text-down/80">← Anomalous threshold →</span>
-              <span>Extreme</span>
             </div>
           </div>
 
           {/* Detection Formula */}
-          <div className="bg-void border border-line/60 rounded-lg p-4">
+          <div className="bg-void border border-line/60 rounded-lg p-4 animate-fade-in stagger-3">
             <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint mb-2">Detection Formula</div>
             <code className="text-[12px] font-mono text-accent block leading-relaxed">
               {signal.formula ?? meta.formula}
@@ -244,7 +202,7 @@ export function EvidenceInspectorDrawer({ signal, symbol, onClose }: EvidenceIns
           </div>
 
           {/* Signal Description */}
-          <div className="text-[12px] text-ink-dim leading-relaxed border-t border-line/40 pt-4">
+          <div className="text-[12px] text-ink-dim leading-relaxed border-t border-line/40 pt-4 animate-fade-in stagger-4">
             {signal.description ?? meta.description}
           </div>
         </div>

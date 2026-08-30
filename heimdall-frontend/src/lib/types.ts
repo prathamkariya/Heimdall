@@ -63,6 +63,7 @@ export interface EvidenceSignal {
   value: number
   threshold: number
   triggered: boolean
+  z_score?: number
 }
 
 /** Structured prediction from the ML pipeline boundary. */

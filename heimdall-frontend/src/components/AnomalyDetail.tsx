@@ -6,6 +6,7 @@ import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
 import { SignalStrength } from './SignalStrength'
 import { EvidenceBar } from './EvidenceBar'
 import { CollapsibleSection } from './CollapsibleSection'
+import { Skeleton } from './Skeleton'
 import { formatDate } from '../lib/utils'
 import { useSettings } from '../lib/SettingsContext'
 
@@ -103,35 +104,6 @@ function computeRSI(closes: number[], period = 14): (number | null)[] {
   return rsi
 }
 
-/** Synthesize realistic candles if remote market-data is sparse */
-function synthesizeCandles(symbol: string, targetTimestamp: string) {
-  const targetTime = Math.floor(new Date(targetTimestamp).getTime() / 1000)
-  const hash = symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const base = hash > 0 ? (hash * 13.7) % 65000 + 50 : 100
-  const candles = []
-  let curr = base
-  for (let i = 45; i >= 0; i--) {
-    const t = targetTime - i * 60
-    const change = (Math.sin(i * 0.4 + hash) * 0.015 + (Math.random() - 0.48) * 0.01) * curr
-    const open = curr
-    const close = curr + change
-    const high = Math.max(open, close) + Math.random() * (curr * 0.005)
-    const low = Math.min(open, close) - Math.random() * (curr * 0.005)
-    const volume = (Math.abs(change) * 1000 + 500) * (i === 0 ? 3.5 : 1)
-    candles.push({
-      time: t as any,
-      open,
-      high,
-      low,
-      close,
-      value: volume,
-      color: close >= open ? '#4fbf7a40' : '#e8604c40',
-    })
-    curr = close
-  }
-  return candles
-}
-
 interface AnomalyChartProps {
   symbol: string
   marketTimestamp: string
@@ -175,12 +147,14 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
               color: parseFloat(d.close) >= parseFloat(d.open) ? '#4fbf7a40' : '#e8604c40',
             }))
           }
-        } catch {
-          // fallback to synthesized
+        } catch (err) {
+          console.error("Failed to load chart data:", err)
         }
 
         if (chartData.length < 5) {
-          chartData = synthesizeCandles(symbol, marketTimestamp)
+          setError('Insufficient historical market data to render a price chart for this window.')
+          setLoading(false)
+          return
         }
 
         if (!active) return
@@ -528,15 +502,15 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
 /** Severity badge — color coded per Phase 0 tokens */
 function SeverityBadge({ severity }: { severity: string }) {
   const colorMap: Record<string, string> = {
-    CRITICAL: 'bg-down/20 text-down border-down/30',
-    HIGH: 'bg-down-dim/30 text-down border-down-dim/40',
-    MEDIUM: 'bg-accent-dim/30 text-accent border-accent-dim/40',
-    LOW: 'bg-raised text-ink-dim border-line',
+    CRITICAL: 'bg-down/15 text-down border-down/40',
+    HIGH: 'bg-down-dim/20 text-down border-down-dim/40',
+    MEDIUM: 'bg-accent-dim/20 text-accent border-accent-dim/40',
+    LOW: 'bg-raised/50 text-ink-dim border-line',
   }
   const classes = colorMap[severity] ?? colorMap.LOW
 
   return (
-    <span className={`inline-block rounded border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${classes}`}>
+    <span className={`inline-flex items-center justify-center rounded border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider ${classes}`}>
       {severity}
     </span>
   )
@@ -834,7 +808,13 @@ function RelatedAlerts({ currentId, symbol, onSelectAnomaly }: { currentId: numb
   }, [symbol, currentId])
 
   if (loading) {
-    return <div className="mt-2 text-ink-faint font-mono text-[10px]">Finding related alerts...</div>
+    return (
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-[34px] w-full" />
+        <Skeleton className="h-[34px] w-full" />
+        <Skeleton className="h-[34px] w-full" />
+      </div>
+    )
   }
 
   if (alerts.length === 0) {

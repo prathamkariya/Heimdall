@@ -10,6 +10,7 @@ def generate_evidence_signals(
     raw_features: dict[str, Any],
     isolation_forest_score: float | None = None,
     multi_pattern_max_score: float | None = None,
+    zscored_features: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """
     Dynamically generates explainability evidence from raw feature values and model scores.
@@ -71,5 +72,30 @@ def generate_evidence_signals(
             "threshold": 0.65,
             "triggered": True
         })
+
+    # Add z_scores to signals if present
+    if zscored_features:
+        for sig in signals:
+            # We map from signal name to the actual feature name by stripping prefixes/suffixes
+            fname = sig["name"]
+            if fname.startswith("high_"):
+                fname = fname[len("high_"):]
+            if fname.endswith("_spike"):
+                fname = fname[:-len("_spike")]
+            if fname.endswith("_overbought"):
+                fname = fname[:-len("_overbought")]
+            if fname.endswith("_oversold"):
+                fname = fname[:-len("_oversold")]
+
+            if fname in zscored_features and zscored_features[fname] is not None:
+                try:
+                    sig["z_score"] = float(zscored_features[fname])
+                except (ValueError, TypeError):
+                    sig["z_score"] = None
+            else:
+                sig["z_score"] = None
+    else:
+        for sig in signals:
+            sig["z_score"] = None
 
     return signals

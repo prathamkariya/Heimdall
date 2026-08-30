@@ -38,8 +38,11 @@ class UserRegister(BaseModel):
         return v
 
 
+from typing import Optional
+
 class UserLogin(BaseModel):
-    email: EmailStr
+    username: Optional[str] = None
+    email: Optional[str] = None
     password: str = Field(..., min_length=1)
 
 
@@ -116,6 +119,7 @@ class EvidenceSignalSchema(BaseModel):
     value: float
     threshold: float
     triggered: bool
+    z_score: float | None = None
 
 
 class DetectionResultSchema(BaseModel):

@@ -4,7 +4,7 @@ import { apiFetch, initializeAuth } from './api';
 
 /* ── Typed credential shapes (replaces `any`) ── */
 interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
 }
 

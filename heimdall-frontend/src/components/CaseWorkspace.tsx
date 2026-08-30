@@ -378,35 +378,28 @@ export function CaseWorkspace({
                       const priceSig = evidence.find(e => e.name.toLowerCase().includes('price') || e.name.toLowerCase().includes('z_score'))
                       const score = primaryAnomaly?.anomaly_score ?? 0.65
 
-                      const rsiVal = rsiSig ? rsiSig.value.toFixed(1) : (50 + score * 32).toFixed(1)
-                      const volRatio = volSig ? `${volSig.value.toFixed(1)}x` : `${(1.2 + score * 2.1).toFixed(1)}x`
-                      const macdStatus = priceSig ? `${priceSig.value >= 0 ? '+' : ''}${priceSig.value.toFixed(1)}σ` : (score > 0.7 ? '+2.4σ' : 'Aligned')
-                      const vwapStatus = score > 0.75 ? 'Divergent (+3.2%)' : 'Mean Reverting'
+                      const rsiVal = rsiSig ? rsiSig.value.toFixed(1) : null
+                      const volRatio = volSig ? `${volSig.value.toFixed(1)}x` : null
+                      const macdStatus = priceSig ? `${priceSig.value >= 0 ? '+' : ''}${priceSig.value.toFixed(1)}σ` : null
 
                       return (
-                        <div className="grid grid-cols-4 gap-4 mt-4">
+                        <div className="grid grid-cols-3 gap-4 mt-4">
                           <div className="bg-void/20 border border-line/50 p-3 rounded">
                             <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">RSI (14)</span>
-                            <span className={`font-mono font-medium ${Number(rsiVal) > 70 ? 'text-down' : Number(rsiVal) < 30 ? 'text-up' : 'text-ink'}`}>
-                              {rsiVal}
+                            <span className={rsiVal ? `font-mono font-medium ${Number(rsiVal) > 70 ? 'text-down' : Number(rsiVal) < 30 ? 'text-up' : 'text-ink'}` : 'font-mono text-[11px] text-ink-faint italic'}>
+                              {rsiVal ?? 'Not available'}
                             </span>
                           </div>
                           <div className="bg-void/20 border border-line/50 p-3 rounded">
                             <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">Price Delta</span>
-                            <span className={`font-mono font-medium ${macdStatus.startsWith('+') ? 'text-up' : 'text-down'}`}>
-                              {macdStatus}
+                            <span className={macdStatus ? `font-mono font-medium ${macdStatus.startsWith('+') ? 'text-up' : 'text-down'}` : 'font-mono text-[11px] text-ink-faint italic'}>
+                              {macdStatus ?? 'Not available'}
                             </span>
                           </div>
                           <div className="bg-surface border border-line/50 p-3 rounded">
                             <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">Vol Ratio</span>
-                            <span className={`font-mono font-medium ${parseFloat(volRatio) > 2.0 ? 'text-down' : 'text-ink'}`}>
-                              {volRatio}
-                            </span>
-                          </div>
-                          <div className="bg-surface border border-line/50 p-3 rounded">
-                            <span className="block text-[10px] font-mono text-ink-faint uppercase tracking-wider mb-1">VWAP Status</span>
-                            <span className={`font-mono font-medium ${vwapStatus.startsWith('Divergent') ? 'text-warn' : 'text-ink'}`}>
-                              {vwapStatus}
+                            <span className={volRatio ? `font-mono font-medium ${parseFloat(volRatio) > 2.0 ? 'text-down' : 'text-ink'}` : 'font-mono text-[11px] text-ink-faint italic'}>
+                              {volRatio ?? 'Not available'}
                             </span>
                           </div>
                         </div>

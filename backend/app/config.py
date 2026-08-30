@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str | None = None
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "market_surveillance"
+    POSTGRES_DB: str = "heimdall"
     DATABASE_URL: str | None = None
 
     # JWT — Access tokens

@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { LogoLockup } from '../brand';
 
 export function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export function Login() {
     setError('');
     setLoading(true);
     try {
-      await login({ email, password });
+      await login({ username, password });
       navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -57,8 +57,8 @@ export function Login() {
                 autoFocus
                 placeholder="Username"
                 className="w-full rounded-md border border-line bg-void px-4 py-3 text-[15px] text-ink outline-none placeholder:text-ink-faint focus:border-accent/60 focus:ring-1 focus:ring-accent/30 transition-all font-brand"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
             </div>
 

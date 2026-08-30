@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 import app.alias
 from app.config import settings
@@ -27,6 +28,7 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 logger = logging.getLogger("market_surveillance.errors")
 

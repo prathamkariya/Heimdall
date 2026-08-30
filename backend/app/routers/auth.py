@@ -72,7 +72,8 @@ def login(request: Request, response: Response, payload: UserLogin, db: Session 
     Authenticate user and return access + refresh token pair.
     Returns 401 for any invalid credential (deliberately vague message).
     """
-    user = authenticate_user(db, payload.email, payload.password)
+    identifier = payload.username or payload.email
+    user = authenticate_user(db, identifier, payload.password)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

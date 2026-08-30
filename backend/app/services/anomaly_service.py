@@ -595,7 +595,8 @@ def score_live_trade(
     raw_dicts = generate_evidence_signals(
         raw_features, 
         isolation_forest_score, 
-        multi_pattern_max_score
+        multi_pattern_max_score,
+        zscored_features
     )
     evidence_signals = [EvidenceSignal(**sig) for sig in raw_dicts]
     

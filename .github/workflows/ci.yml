@@ -46,7 +46,7 @@ jobs:
     - name: Audit Python dependencies
       run: |
         pip install pip-audit
-        pip-audit -r backend/requirements.txt --severity high
+        pip-audit -r backend/requirements.txt
         
     - name: Run Ruff Linter
       run: |

@@ -1,17 +1,21 @@
 {
-  "trained_at_utc": "2026-07-18T07:10:17.669365+00:00",
-  "mode": "real-unsupervised-zscored",
-  "data_source": "trained_models/crypto/real_if_input.csv",
-  "n_rows": 1800,
-  "n_flagged": 90,
-  "contamination": 0.05,
-  "n_estimators": 100,
-  "random_state": 42,
+  "generated_at_utc": "2026-08-30T17:40:00.074906+00:00",
+  "provenance_note": "Provenance metadata for the deployed 3-feature models (return, volume_ratio_20d, volatility_20d). Feature schema v2 (12 features) exists in config.py but was added after these models were trained. Retraining to v2 is tracked as a future task. This file documents what is actually deployed.",
+  "git_commit": "91ad41ab302f",
+  "dataset_hash": "acbb8e921bc86ad4",
+  "feature_version": "v1",
   "feature_columns": [
     "return",
     "volume_ratio_20d",
     "volatility_20d"
   ],
+  "mode": "real-weak-supervised",
+  "data_source": "trained_models/CRYPTO/real_if_input.csv",
+  "n_rows": 1900,
+  "n_symbols": 5,
+  "confidence_threshold": 0.4,
+  "n_flagged": "see multi_pattern_detector_metadata.json",
+  "n_discarded": "see multi_pattern_detector_metadata.json",
   "zscore_normalization": {
     "features": [
       "return",

@@ -1,0 +1,94 @@
+{
+  "trained_at_utc": "2026-07-17T10:06:10.900532+00:00",
+  "mode": "synthetic",
+  "data_source": "synthetic",
+  "patterns_trained": [
+    "pump_and_dump",
+    "wash_trading",
+    "spoofing",
+    "layering"
+  ],
+  "feature_columns": [
+    "return",
+    "volume_ratio_20d",
+    "volatility_20d"
+  ],
+  "random_state": 42,
+  "test_size": 0.2,
+  "evaluation": [
+    {
+      "pattern": "pump_and_dump",
+      "n_positive": 15,
+      "auc": 0.9586176727909012,
+      "precision": 0.9285714285714286,
+      "recall": 0.8666666666666667,
+      "f1": 0.896551724137931
+    },
+    {
+      "pattern": "wash_trading",
+      "n_positive": 33,
+      "auc": 0.9826362801569414,
+      "precision": 0.6818181818181818,
+      "recall": 0.9090909090909091,
+      "f1": 0.7792207792207793
+    },
+    {
+      "pattern": "spoofing",
+      "n_positive": 10,
+      "auc": 0.9102331606217616,
+      "precision": 0.15151515151515152,
+      "recall": 0.5,
+      "f1": 0.23255813953488372
+    },
+    {
+      "pattern": "layering",
+      "n_positive": 15,
+      "auc": 0.8234470691163606,
+      "precision": 0.125,
+      "recall": 0.4,
+      "f1": 0.19047619047619047
+    }
+  ],
+  "blended_baseline_comparison": [
+    {
+      "pattern": "pump_and_dump",
+      "n_positive_test": 15,
+      "blended_model_auc": 0.9881014873140858,
+      "per_pattern_model_auc": 0.9586176727909012,
+      "auc_improvement": -0.029483814523184604,
+      "blended_model_recall_at_tuned_threshold": 0.9333333333333333,
+      "per_pattern_model_recall_at_tuned_threshold": 0.8666666666666667,
+      "recall_improvement": -0.06666666666666665
+    },
+    {
+      "pattern": "wash_trading",
+      "n_positive_test": 33,
+      "blended_model_auc": 0.9307955588947324,
+      "per_pattern_model_auc": 0.9826362801569414,
+      "auc_improvement": 0.051840721262208955,
+      "blended_model_recall_at_tuned_threshold": 0.9393939393939394,
+      "per_pattern_model_recall_at_tuned_threshold": 0.8787878787878788,
+      "recall_improvement": -0.06060606060606066
+    },
+    {
+      "pattern": "spoofing",
+      "n_positive_test": 10,
+      "blended_model_auc": 0.8396373056994818,
+      "per_pattern_model_auc": 0.9102331606217616,
+      "auc_improvement": 0.07059585492227982,
+      "blended_model_recall_at_tuned_threshold": 0.8,
+      "per_pattern_model_recall_at_tuned_threshold": 0.5,
+      "recall_improvement": -0.30000000000000004
+    },
+    {
+      "pattern": "layering",
+      "n_positive_test": 15,
+      "blended_model_auc": 0.8412948381452319,
+      "per_pattern_model_auc": 0.8234470691163606,
+      "auc_improvement": -0.017847769028871308,
+      "blended_model_recall_at_tuned_threshold": 0.8,
+      "per_pattern_model_recall_at_tuned_threshold": 0.8,
+      "recall_improvement": 0.0
+    }
+  ]
+}

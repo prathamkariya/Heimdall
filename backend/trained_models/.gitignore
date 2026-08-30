@@ -9,3 +9,10 @@
 # training pipeline by checking dataset_hash + confidence_threshold in metadata.json.
 !metadata.json
 !symbol_baselines.json
+!isolation_forest_metadata.json
+!multi_pattern_detector_metadata.json
+!evaluation_results.csv
+!per_symbol_evaluation.csv
+!SYNTHETIC_BASELINE_metadata.json
+!SYNTHETIC_BASELINE.md
+!*.md

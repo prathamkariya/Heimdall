@@ -78,7 +78,7 @@ def list_anomalies(
 
             from ml.explainability import generate_evidence_signals
 
-            from app.schemas import DetectionResultSchema, EvidenceSignalSchema
+            from app.schemas import DetectionResultSchema, EvidenceSignalSchema, TimelineEvent
 
             raw_features = json.loads(anomaly.features) if anomaly.features else {}
             pattern_scores = json.loads(anomaly.pattern_scores) if anomaly.pattern_scores else {}
@@ -126,6 +126,35 @@ def list_anomalies(
                     source="stored",
                     evidence=evidence_signals,
                 )
+                
+            # --- Synthesize Timeline Events ---
+            timeline = []
+            timeline.append(TimelineEvent(
+                timestamp=md.timestamp,
+                event_type="MARKET_DATA",
+                description=f"Market conditions recorded for {md.symbol}",
+                metadata={"volume": md.volume, "close": md.close}
+            ))
+
+            if evidence_signals:
+                trigger_names = [sig.name for sig in evidence_signals if sig.triggered]
+                if trigger_names:
+                    timeline.append(TimelineEvent(
+                        timestamp=anomaly.detected_at,
+                        event_type="EVIDENCE",
+                        description=f"Evidence triggers activated: {', '.join(trigger_names)}",
+                        metadata={"triggers": len(trigger_names)}
+                    ))
+
+            classification = best_pattern or ("UNCLASSIFIED" if anomaly.anomaly_score >= 0.5 else "NORMAL")
+            timeline.append(TimelineEvent(
+                timestamp=anomaly.detected_at,
+                event_type="DETECTION",
+                description=f"Model classified as: {classification}",
+                metadata={"confidence": wlc, "detector_agreement": da}
+            ))
+            item_dict["timeline"] = timeline
+
         except Exception as e:
             # Log the failure but don't break the list endpoint
             logging.error("Failed to generate explainability for anomaly %s: %s", anomaly.id, e, exc_info=True)

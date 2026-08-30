@@ -113,6 +113,8 @@ interface AnomalyChartProps {
 export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const rsiContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<any>(null)
+  const rsiChartRef = useRef<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [callout, setCallout] = useState<{ close: number; volumeSurge: number; rsi?: number; isHover?: boolean } | null>(null)
@@ -223,6 +225,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
               secondsVisible: false,
             },
           })
+          chartRef.current = chart
 
           const candleSeries = chart.addSeries(CandlestickSeries, {
             upColor:      '#4fbf7a',
@@ -276,15 +279,61 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
 
           const markerColor = severityColor(anomaly?.severity)
           const markerLabel = primaryPatternLabel(anomaly?.pattern_scores ?? null)
-          createSeriesMarkers(candleSeries, [
-            {
-              time:     closest.time,
-              position: 'aboveBar',
-              color:    markerColor,
-              shape:    'arrowDown',
-              text:     markerLabel,
-            },
-          ])
+          
+          let markers: any[] = []
+          
+          if (anomaly?.timeline && anomaly.timeline.length > 0) {
+             const uniqueTimes = new Set();
+             markers = anomaly.timeline.map((event) => {
+                const targetTime = Math.floor(new Date(event.timestamp).getTime() / 1000)
+                const closestIdx = chartData.reduce((bestI, curr, i) =>
+                  Math.abs(curr.time - targetTime) < Math.abs(chartData[bestI].time - targetTime) ? i : bestI
+                , 0)
+                const matchedTime = chartData[closestIdx]?.time
+                
+                // Lightweight charts doesn't like multiple markers on the exact same time
+                // We offset duplicate times slightly if needed, but since it's logical time,
+                // we might just group them or pick the most important.
+                // For now, we'll keep it simple and just use the exact time.
+                // It actually allows multiple markers on the same time if they are in an array, 
+                // but let's just make sure they render cleanly.
+                
+                let color = '#7c8790'
+                let shape = 'circle'
+                let text = ''
+                
+                if (event.event_type === 'MARKET_DATA') {
+                  color = '#4fbf7a'; shape = 'arrowUp'; text = 'MKT';
+                } else if (event.event_type === 'EVIDENCE') {
+                  color = '#d9a441'; shape = 'arrowDown'; text = 'EVD';
+                } else if (event.event_type === 'DETECTION') {
+                  color = markerColor; shape = 'arrowDown'; text = markerLabel;
+                }
+                
+                return {
+                  time: matchedTime,
+                  position: event.event_type === 'MARKET_DATA' ? 'belowBar' : 'aboveBar',
+                  color: color,
+                  shape: shape,
+                  text: text,
+                }
+             })
+             
+             // Sort markers by time as required by lightweight charts
+             markers.sort((a, b) => a.time - b.time)
+          } else {
+            markers = [
+              {
+                time:     closest.time,
+                position: 'aboveBar',
+                color:    markerColor,
+                shape:    'arrowDown',
+                text:     markerLabel,
+              },
+            ]
+          }
+          
+          createSeriesMarkers(candleSeries, markers)
 
           chart.timeScale().fitContent()
 
@@ -336,6 +385,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
                 secondsVisible: false,
               },
             });
+            rsiChartRef.current = rsiChart
 
             const rsiSeries = rsiChart.addSeries(LineSeries, {
               color: '#9f85ff',
@@ -427,6 +477,16 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
           </span>
           {/* Indicator toggles */}
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                 if (chartRef.current) chartRef.current.timeScale().fitContent();
+                 if (rsiChartRef.current) rsiChartRef.current.timeScale().fitContent();
+              }}
+              className="font-mono text-[9px] px-1.5 py-0.5 rounded border border-line text-ink-faint hover:text-ink transition-colors mr-2"
+              title="Reset Zoom"
+            >
+              RESET ZOOM
+            </button>
             <button
               onClick={() => setShowSma(!showSma)}
               className={`font-mono text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
@@ -678,23 +738,34 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
           </CollapsibleSection>
         )}
 
-        {/* Timestamps */}
-        <CollapsibleSection title="Timestamps" storageKey="heimdall_col_timestamps">
-          <dl className="mt-2 space-y-1">
-            <div className="flex justify-between font-mono text-[10px] gap-2">
-              <dt className="text-ink-faint truncate">Market</dt>
-              <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.market_timestamp, timezone)}</dd>
-            </div>
-            <div className="flex justify-between font-mono text-[10px] gap-2">
-              <dt className="text-ink-faint truncate">Detected</dt>
-              <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.detected_at, timezone)}</dd>
-            </div>
-          </dl>
-        </CollapsibleSection>
+        {/* Investigation Timeline */}
+        {anomaly.timeline && anomaly.timeline.length > 0 ? (
+          <CollapsibleSection title="Investigation Timeline" storageKey="heimdall_col_timeline">
+            <InvestigationTimeline events={anomaly.timeline} timezone={timezone} />
+          </CollapsibleSection>
+        ) : (
+          <CollapsibleSection title="Timestamps" storageKey="heimdall_col_timestamps">
+            <dl className="mt-2 space-y-1">
+              <div className="flex justify-between font-mono text-[10px] gap-2">
+                <dt className="text-ink-faint truncate">Market</dt>
+                <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.market_timestamp, timezone)}</dd>
+              </div>
+              <div className="flex justify-between font-mono text-[10px] gap-2">
+                <dt className="text-ink-faint truncate">Detected</dt>
+                <dd className="text-ink-dim tabular truncate">{formatDt(anomaly.detected_at, timezone)}</dd>
+              </div>
+            </dl>
+          </CollapsibleSection>
+        )}
 
         {/* Related Alerts */}
         <CollapsibleSection title={`Related Alerts (${anomaly.symbol})`} storageKey="heimdall_col_related_alerts">
           <RelatedAlerts currentId={anomaly.id} symbol={anomaly.symbol} onSelectAnomaly={onSelectAnomaly} />
+        </CollapsibleSection>
+
+        {/* Correlated Markets */}
+        <CollapsibleSection title="Correlated Markets" storageKey="heimdall_col_correlated_markets">
+          <CorrelatedMarkets symbol={anomaly.symbol} />
         </CollapsibleSection>
 
         {/* Incident Management Workflow (Phases B2-B5) */}
@@ -780,6 +851,45 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
   )
 }
 
+/* ── Investigation Timeline ────────────────────────────────────────────── */
+
+function InvestigationTimeline({ events, timezone }: { events: any[], timezone: 'local' | 'utc' }) {
+  return (
+    <div className="mt-4 relative">
+      <div className="absolute left-[11px] top-2 bottom-2 w-[1px] bg-line" />
+      <div className="space-y-4">
+        {events.map((event, i) => (
+          <div key={i} className="relative pl-8">
+            <div className={`absolute left-[7.5px] top-1.5 h-2 w-2 rounded-full border ${
+              event.event_type === 'MARKET_DATA' ? 'bg-surface border-ink-dim' :
+              event.event_type === 'EVIDENCE' ? 'bg-accent/20 border-accent' :
+              'bg-down/20 border-down'
+            }`} />
+            
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-[9px] text-ink-faint tabular">
+                {formatDt(event.timestamp, timezone)}
+              </span>
+              <span className="font-mono text-[11px] font-medium text-ink-dim">
+                {event.description}
+              </span>
+              {event.metadata && (
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {Object.entries(event.metadata).map(([k, v]) => (
+                    <span key={k} className="font-mono text-[9px] text-ink-faint bg-raised/50 px-1.5 py-0.5 rounded border border-line">
+                      {k}: <span className="text-ink-dim tabular">{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : String(v)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ── Evidence panel ────────────────────────────────────────────────────── */
 
 function EvidencePanel({ signals }: { signals: EvidenceSignal[] }) {
@@ -852,6 +962,69 @@ function RelatedAlerts({ currentId, symbol, onSelectAnomaly }: { currentId: numb
             <span className="text-ink-dim truncate max-w-[150px]">{a.primary_signal || 'NORMAL'}</span>
           </div>
           <span className="text-ink-faint tabular text-[10px]">{formatDt(a.detected_at, timezone)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ── Correlated Markets panel ────────────────────────────────────────────── */
+
+function CorrelatedMarkets({ symbol }: { symbol: string }) {
+  const [correlated, setCorrelated] = useState<{ symbol: string, score: number }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true;
+    async function fetchCorrelation() {
+      try {
+        const universe = Array.from(new Set([symbol, 'BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'AAPL', 'TSLA', 'NVDA'])).join(',');
+        const res = await apiFetch(`/market-data/correlation?symbols=${encodeURIComponent(universe)}&limit=60`) as any;
+        
+        if (active && res && res.symbols && res.matrix) {
+          const idx = res.symbols.indexOf(symbol);
+          if (idx !== -1) {
+            const row = res.matrix[idx];
+            const sorted = res.symbols
+              .map((sym: string, i: number) => ({ symbol: sym, score: row[i] }))
+              .filter((x: any) => x.symbol !== symbol && !isNaN(x.score))
+              .sort((a: any, b: any) => Math.abs(b.score) - Math.abs(a.score))
+              .slice(0, 5);
+            setCorrelated(sorted);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch correlation", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    fetchCorrelation();
+    return () => { active = false };
+  }, [symbol]);
+
+  if (loading) {
+    return (
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-[30px] w-full" />
+        <Skeleton className="h-[30px] w-full" />
+        <Skeleton className="h-[30px] w-full" />
+      </div>
+    )
+  }
+
+  if (correlated.length === 0) {
+    return <div className="mt-2 text-ink-faint font-mono text-[10px]">No correlated assets found.</div>
+  }
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      {correlated.map(c => (
+        <div key={c.symbol} className="flex items-center justify-between font-mono text-[11px] border border-line bg-surface/50 px-3 py-1.5 rounded">
+          <span className="text-ink-dim">{c.symbol}</span>
+          <span className={`tabular ${c.score >= 0.7 ? 'text-accent font-medium' : c.score <= -0.7 ? 'text-warn font-medium' : 'text-ink-faint'}`}>
+            {c.score > 0 ? '+' : ''}{c.score.toFixed(2)}
+          </span>
         </div>
       ))}
     </div>

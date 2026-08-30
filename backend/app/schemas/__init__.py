@@ -132,6 +132,14 @@ class DetectionResultSchema(BaseModel):
     evidence: list[EvidenceSignalSchema] = []
 
 
+class TimelineEvent(BaseModel):
+    """A single chronologically ordered event in an anomaly's investigation timeline."""
+    timestamp: datetime
+    event_type: str
+    description: str
+    metadata: dict | None = None
+
+
 class AnomalyResponse(OrmBase):
     id: int
     market_data_id: int
@@ -179,6 +187,7 @@ class AnomalyListResponse(AnomalyResponse):
     detection_result: DetectionResultSchema | None = None
     detector_agreement: float | None = None
     weak_label_confidence: float | None = None
+    timeline: list[TimelineEvent] | None = None
 
 
 class AnomalyPaginatedResponse(BaseModel):

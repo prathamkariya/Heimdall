@@ -47,7 +47,15 @@ export interface AnomalyListItem {
   detection_result?: DetectionResult | null
   detector_agreement?: number | null
   weak_label_confidence?: number | null
+  timeline?: TimelineEvent[] | null
   severity?: string
+}
+
+export interface TimelineEvent {
+  timestamp: string
+  event_type: string
+  description: string
+  metadata?: Record<string, any> | null
 }
 
 export interface AnomalyPaginatedResponse {

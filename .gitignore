@@ -72,8 +72,8 @@ trained_models/
 # then the specific files — order matters here)
 !trained_models/
 !trained_models/*/
-!trained_models/metadata.json
-!trained_models/symbol_baselines.json
+!trained_models/*.md
+!trained_models/*.json
 !trained_models/*/metadata.json
 !trained_models/*/symbol_baselines.json
 !trained_models/*/isolation_forest_metadata.json

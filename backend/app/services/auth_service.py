@@ -153,6 +153,30 @@ def revoke_refresh_token(db: Session, raw_token: str, user_id: int) -> bool:
     return True
 
 
+def revoke_refresh_token_by_token_only(db: Session, raw_token: str) -> bool:
+    """
+    Revoke a refresh token by its hash alone, without requiring user_id.
+
+    Safe because the caller proves possession of the raw token itself (not a
+    guessable ID). Used exclusively by the /logout endpoint so that a user
+    with an expired access token (but a valid refresh-token cookie) can still
+    log out and invalidate their session.
+
+    Returns True if found and revoked, False otherwise.
+    """
+    token_hash = _hash_refresh_token(raw_token)
+    db_token = db.query(RefreshToken).filter(
+        RefreshToken.token_hash == token_hash,
+    ).first()
+
+    if db_token is None or db_token.revoked:
+        return False
+
+    db_token.revoked = True
+    db.commit()
+    return True
+
+
 def revoke_all_user_tokens(db: Session, user_id: int) -> int:
     """
     Revoke ALL refresh tokens for a user (logout from all devices).

@@ -22,6 +22,7 @@ from app.services.auth_service import (
     hash_password,
     revoke_all_user_tokens,
     revoke_refresh_token,
+    revoke_refresh_token_by_token_only,
     rotate_refresh_token,
 )
 
@@ -140,17 +141,21 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
 def logout(
     request: Request,
     response: Response,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Revoke a specific refresh token (logout from one device).
-    Requires a valid access token — prevents unauthenticated token revocation.
-    Returns 204 whether or not the token was found (to not leak info).
+    Revoke the refresh token from the cookie, if present.
+
+    Does NOT require a valid access token — a user with an expired access token
+    but a still-valid refresh-token cookie must still be able to log out and
+    invalidate their session. Possession of the raw refresh token cookie itself
+    proves the caller's identity sufficiently for revocation.
+
+    Returns 204 whether or not a token was found (avoid info leaks).
     """
     refresh_token = request.cookies.get("refresh_token")
     if refresh_token:
-        revoke_refresh_token(db, refresh_token, current_user.id)
+        revoke_refresh_token_by_token_only(db, refresh_token)
     response.delete_cookie("refresh_token")
     # Always return 204 — don't reveal whether token existed
 

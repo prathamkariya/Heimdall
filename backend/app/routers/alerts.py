@@ -1,5 +1,6 @@
 """app/routers/alerts.py — Alert management endpoints."""
 import logging
+import threading
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -119,6 +120,10 @@ import json
 from fastapi import Query
 from fastapi.responses import StreamingResponse
 
+# FIX-10: module-level SSE subscriber counter so the Prometheus gauge stays accurate
+_current_subscriber_count: int = 0
+_subscriber_count_lock = threading.Lock()
+
 
 @router.get("/stream/live")
 async def stream_live_alerts(
@@ -175,46 +180,56 @@ async def stream_live_alerts(
         db.close()
 
     async def event_generator():
-        client = get_async_redis()
-        last_id = "$"
-        
-        # Send an initial ping to flush HTTP headers and trigger client onopen
-        yield ": ping\n\n"
-
-        # Replay recent alerts from the stream so the UI immediately shows recent surveillance activity
+        global _current_subscriber_count
+        from app.routers.telemetry import set_active_subscribers
+        with _subscriber_count_lock:
+            _current_subscriber_count += 1
+            set_active_subscribers(_current_subscriber_count)
         try:
-            recent_entries = await client.xrevrange(STREAM_ALERTS, count=25)
-            if recent_entries:
-                for entry_id, fields in reversed(recent_entries):
-                    data = json.loads(fields["data"])
-                    if not watchlist_symbols:
-                        pass  # empty watchlist — seeded at registration; user deliberately removed all symbols
-                    elif data.get("symbol") in watchlist_symbols:
-                        yield f"data: {fields['data']}\n\n"
-        except Exception as e:
-            logger.warning("Error replaying recent alerts for user_id=%s: %s", user_id, e)
-        
-        while True:
+            client = get_async_redis()
+            last_id = "$"
+            
+            # Send an initial ping to flush HTTP headers and trigger client onopen
+            yield ": ping\n\n"
+
+            # Replay recent alerts from the stream so the UI immediately shows recent surveillance activity
             try:
-                results = await client.xread({STREAM_ALERTS: last_id}, count=10, block=2000)
-                if results:
-                    for _stream_name, entries in results:
-                        for entry_id, fields in entries:
-                            last_id = entry_id
-                            data = json.loads(fields["data"])
-                            # B2: Strict data isolation: only emit if the symbol is in this user's explicit watchlists.
-                            if not watchlist_symbols:
-                                pass  # empty watchlist — deliberate (user removed all symbols after Option A seed)
-                            elif data.get("symbol") in watchlist_symbols:
-                                yield f"data: {fields['data']}\n\n"
-                else:
-                    # Keep-alive ping every 2 seconds when idle
-                    yield ": ping\n\n"
-            except asyncio.CancelledError:
-                break
+                recent_entries = await client.xrevrange(STREAM_ALERTS, count=25)
+                if recent_entries:
+                    for entry_id, fields in reversed(recent_entries):
+                        data = json.loads(fields["data"])
+                        if not watchlist_symbols:
+                            pass  # empty watchlist — seeded at registration; user deliberately removed all symbols
+                        elif data.get("symbol") in watchlist_symbols:
+                            yield f"data: {fields['data']}\n\n"
             except Exception as e:
-                # Log Redis failures instead of swallowing them silently
-                logger.error("SSE Redis read error for user_id=%s: %s", user_id, e)
-                await asyncio.sleep(2)
+                logger.warning("Error replaying recent alerts for user_id=%s: %s", user_id, e)
+            
+            while True:
+                try:
+                    results = await client.xread({STREAM_ALERTS: last_id}, count=10, block=2000)
+                    if results:
+                        for _stream_name, entries in results:
+                            for entry_id, fields in entries:
+                                last_id = entry_id
+                                data = json.loads(fields["data"])
+                                # B2: Strict data isolation: only emit if the symbol is in this user's explicit watchlists.
+                                if not watchlist_symbols:
+                                    pass  # empty watchlist — deliberate (user removed all symbols after Option A seed)
+                                elif data.get("symbol") in watchlist_symbols:
+                                    yield f"data: {fields['data']}\n\n"
+                    else:
+                        # Keep-alive ping every 2 seconds when idle
+                        yield ": ping\n\n"
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    # Log Redis failures instead of swallowing them silently
+                    logger.error("SSE Redis read error for user_id=%s: %s", user_id, e)
+                    await asyncio.sleep(2)
+        finally:
+            with _subscriber_count_lock:
+                _current_subscriber_count -= 1
+                set_active_subscribers(_current_subscriber_count)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

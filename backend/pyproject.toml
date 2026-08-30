@@ -2,6 +2,7 @@
 line-length = 120
 
 [tool.ruff.lint]
+select = ["E", "F", "B", "S", "BLE", "DTZ", "PLW", "LOG", "G", "UP", "RUF"]
 ignore = [
     "E501", # Line too long
     "B008", # Do not perform function call in argument defaults (FastAPI uses Depends() heavily)

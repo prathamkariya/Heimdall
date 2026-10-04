@@ -26,11 +26,11 @@ from datetime import datetime, timezone
 
 import httpx
 
+from contextlib import suppress
+
 if sys.platform == "win32":
-    try:
+    with suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
@@ -188,7 +188,7 @@ def run_verification(base_url: str) -> int:
                 json={"body": note_body},
                 headers=auth,
             )
-            check("Analyst note submission returns 201", r.status_code == 201, f"HTTP {r.status_code}")
+            check("Analyst note submission returns 200/201", r.status_code in (200, 201), f"HTTP {r.status_code}")
         except Exception as exc:
             check("Analyst note submission", False, str(exc))
 

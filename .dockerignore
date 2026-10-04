@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.ruff_cache
+.venv
+venv
+backend/mlruns
+backend/mlflow.db
+backend/backend_test_results.txt
+.git
+.gitignore
+heimdall-frontend/node_modules
+heimdall-frontend/dist

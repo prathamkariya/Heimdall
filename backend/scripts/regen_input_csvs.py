@@ -54,8 +54,8 @@ def regen(market: str, src_path: Path) -> None:
     # Recompute features per symbol (same discipline as prepare_real_data.py)
     frames = []
     for sym, grp in df.groupby("symbol"):
-        grp = grp.sort_index()
-        feat = compute_engineered_features(grp[["close", "volume"]])
+        sorted_grp = grp.sort_index()
+        feat = compute_engineered_features(sorted_grp[["close", "volume"]])
         feat["symbol"] = sym
         n_before = len(feat)
         feat = feat.dropna(subset=BASE_FEATURE_COLUMNS)

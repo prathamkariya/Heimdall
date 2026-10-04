@@ -41,8 +41,8 @@ class UserRegister(BaseModel):
 from typing import Optional
 
 class UserLogin(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
+    username: str | None = None
+    email: str | None = None
     password: str = Field(..., min_length=1)
 
 

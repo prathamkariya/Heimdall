@@ -1,4 +1,4 @@
-import { X, TrendingUp, Info, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { X, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react'
 import type { EvidenceSignal } from '../lib/types'
 
 interface EvidenceInspectorDrawerProps {

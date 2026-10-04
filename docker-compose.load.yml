@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ══════════════════════════════════════════════════════════════
 # Load-Test Stack — ISOLATED from the development environment
 #

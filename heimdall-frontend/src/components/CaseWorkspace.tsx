@@ -376,7 +376,6 @@ export function CaseWorkspace({
                       const rsiSig = evidence.find(e => e.name.toLowerCase().includes('rsi'))
                       const volSig = evidence.find(e => e.name.toLowerCase().includes('volume') || e.name.toLowerCase().includes('vol'))
                       const priceSig = evidence.find(e => e.name.toLowerCase().includes('price') || e.name.toLowerCase().includes('z_score'))
-                      const score = primaryAnomaly?.anomaly_score ?? 0.65
 
                       const rsiVal = rsiSig ? rsiSig.value.toFixed(1) : null
                       const volRatio = volSig ? `${volSig.value.toFixed(1)}x` : null

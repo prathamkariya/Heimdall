@@ -20,17 +20,24 @@ Exit codes:
 """
 import argparse
 import hashlib
+import os
 import sys
 from datetime import datetime, timezone
 
 import httpx
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────────────────────────────────────
 DEFAULT_BASE_URL = "http://localhost:8000"
-ADMIN_EMAIL = "admin@heimdall.io"
-ADMIN_PASSWORD = "admin123"
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@heimdall.io")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Password123!")
 
 SYNTHETIC_TICKS = [
     {

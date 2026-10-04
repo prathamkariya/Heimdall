@@ -59,8 +59,9 @@ MIN_PERIODS = 20
 def _git_commit() -> str:
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+            ["git", "rev-parse", "HEAD"],  # noqa: S607
             capture_output=True, text=True, timeout=3,
+            check=False,
             cwd=str(_BACKEND.parent)  # repo root
         )
         return result.stdout.strip()[:12] if result.returncode == 0 else "unknown"
@@ -86,12 +87,12 @@ def _compute_symbol_baselines(df: pd.DataFrame) -> dict:
     zscore_features = ["return", "volatility_20d"]
 
     for symbol, grp in df.groupby("symbol"):
-        grp = grp.sort_index()
+        sorted_grp = grp.sort_index()
         baseline: dict[str, dict] = {}
         for feat in zscore_features:
-            if feat not in grp.columns:
+            if feat not in sorted_grp.columns:
                 continue
-            series = grp[feat].astype(float)
+            series = sorted_grp[feat].astype(float)
             rolling_mean = series.shift(1).rolling(ROLLING_WINDOW, min_periods=MIN_PERIODS).mean()
             rolling_std = series.shift(1).rolling(ROLLING_WINDOW, min_periods=MIN_PERIODS).std()
             # Use the last valid values as the serving-time baseline

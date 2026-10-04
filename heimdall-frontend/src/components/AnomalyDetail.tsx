@@ -1,8 +1,8 @@
 import { X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createChart, CandlestickSeries, HistogramSeries, LineSeries, createSeriesMarkers } from 'lightweight-charts'
 import { apiFetch } from '../lib/api'
-import type { AnomalyListItem, EvidenceSignal } from '../lib/types'
+import type { AnomalyListItem, EvidenceSignal, CaseNote, CaseEvent } from '../lib/types'
 import { SignalStrength } from './SignalStrength'
 import { EvidenceBar } from './EvidenceBar'
 import { CollapsibleSection } from './CollapsibleSection'
@@ -283,8 +283,7 @@ export function AnomalyChart({ symbol, marketTimestamp, anomaly }: AnomalyChartP
           let markers: any[] = []
           
           if (anomaly?.timeline && anomaly.timeline.length > 0) {
-             const uniqueTimes = new Set();
-             markers = anomaly.timeline.map((event) => {
+            markers = anomaly.timeline.map((event) => {
                 const targetTime = Math.floor(new Date(event.timestamp).getTime() / 1000)
                 const closestIdx = chartData.reduce((bestI, curr, i) =>
                   Math.abs(curr.time - targetTime) < Math.abs(chartData[bestI].time - targetTime) ? i : bestI
@@ -666,10 +665,31 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+        {/* 1. Case Information & Workflow (Institutional Top Workspace) */}
+        <CaseInformation
+          anomaly={anomaly}
+          associatedCase={associatedCase}
+          actionLoading={actionLoading}
+          timezone={timezone}
+          onCreateCase={handleCreateCase}
+          onUpdateStatus={handleUpdateCaseStatus}
+        />
+
+        {/* 2. Signal Attribution & Visualization */}
+        <SignalVisualization anomaly={anomaly} patterns={patterns} />
+
+        {/* 3. Price Chart & Indicators */}
         <AnomalyChart symbol={anomaly.symbol} marketTimestamp={anomaly.market_timestamp} anomaly={anomaly} />
 
-        {/* Summary metrics */}
-        <CollapsibleSection title="Detection Summary" storageKey="heimdall_col_detection_summary">
+        {/* 4. Evidence Signals */}
+        {anomaly.evidence && anomaly.evidence.length > 0 && (
+          <CollapsibleSection title="Evidence Signals" storageKey="heimdall_col_evidence_signals">
+            <EvidencePanel signals={anomaly.evidence} />
+          </CollapsibleSection>
+        )}
+
+        {/* 5. Detection Summary */}
+        <CollapsibleSection title="Detection Metrics" storageKey="heimdall_col_detection_summary">
           <dl className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 mt-2">
             <dt className="font-mono text-[10px] text-ink-faint truncate">Anomaly Confidence</dt>
             <dd className="font-mono text-[11px] tabular">
@@ -704,7 +724,7 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
           </dl>
         </CollapsibleSection>
 
-        {/* Pattern breakdown — the "not a black box" signal */}
+        {/* 6. Pattern Breakdown */}
         {Object.keys(patterns).length > 0 && (
           <CollapsibleSection title="Pattern Scores" storageKey="heimdall_col_pattern_scores">
             <div className="mt-2 space-y-2">
@@ -731,16 +751,9 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
           </CollapsibleSection>
         )}
 
-
-        {anomaly.evidence && anomaly.evidence.length > 0 && (
-          <CollapsibleSection title="Evidence Signals" storageKey="heimdall_col_evidence_signals">
-            <EvidencePanel signals={anomaly.evidence} />
-          </CollapsibleSection>
-        )}
-
-        {/* Investigation Timeline */}
+        {/* 7. Historical Timeline */}
         {anomaly.timeline && anomaly.timeline.length > 0 ? (
-          <CollapsibleSection title="Investigation Timeline" storageKey="heimdall_col_timeline">
+          <CollapsibleSection title="Historical Timeline" storageKey="heimdall_col_timeline">
             <InvestigationTimeline events={anomaly.timeline} timezone={timezone} />
           </CollapsibleSection>
         ) : (
@@ -758,93 +771,24 @@ export function AnomalyDetail({ anomaly, cases, onClose, onCaseUpdated, onSelect
           </CollapsibleSection>
         )}
 
-        {/* Related Alerts */}
+        {/* 8. Related Alerts */}
         <CollapsibleSection title={`Related Alerts (${anomaly.symbol})`} storageKey="heimdall_col_related_alerts">
           <RelatedAlerts currentId={anomaly.id} symbol={anomaly.symbol} onSelectAnomaly={onSelectAnomaly} />
         </CollapsibleSection>
 
-        {/* Correlated Markets */}
+        {/* 9. Correlated Markets */}
         <CollapsibleSection title="Correlated Markets" storageKey="heimdall_col_correlated_markets">
           <CorrelatedMarkets symbol={anomaly.symbol} />
         </CollapsibleSection>
 
-        {/* Incident Management Workflow (Phases B2-B5) */}
-        <CollapsibleSection title="Incident Workflow" storageKey="heimdall_col_incident_workflow" className="border-t border-line pt-4">
-          {associatedCase ? (
-            <div className="mt-2 space-y-3 font-mono text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-ink-faint">CASE ID</span>
-                <span className="text-accent font-medium">CASE-{associatedCase.id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-faint">TITLE</span>
-                <span className="text-ink-dim truncate max-w-[200px]" title={associatedCase.title}>
-                  {associatedCase.title}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-ink-faint">STATUS</span>
-                <span className={`font-semibold rounded px-1.5 py-0.5 border ${
-                  associatedCase.status === 'OPEN' ? 'text-down bg-down/10 border-down/20' :
-                  associatedCase.status === 'IN_REVIEW' ? 'text-accent bg-accent/10 border-accent/20' :
-                  associatedCase.status === 'ESCALATED' ? 'text-down font-bold bg-down/20 border-down/30 animate-pulse' :
-                  'text-ink-dim bg-raised border-line'
-                }`}>
-                  {associatedCase.status}
-                </span>
-              </div>
+        {/* 10. Analyst Notes */}
+        <CollapsibleSection title="Analyst Notes" storageKey="heimdall_col_analyst_notes">
+          <AnalystNotes caseId={associatedCase?.id} timezone={timezone} />
+        </CollapsibleSection>
 
-              <div className="flex flex-wrap gap-1.5 pt-2">
-                {associatedCase.status === 'OPEN' && (
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => handleUpdateCaseStatus(associatedCase.id, 'IN_REVIEW')}
-                    className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    START REVIEW
-                  </button>
-                )}
-                {associatedCase.status === 'IN_REVIEW' && (
-                  <>
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateCaseStatus(associatedCase.id, 'ESCALATED')}
-                      className="rounded bg-down/10 border border-down/30 text-down hover:bg-down/20 px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
-                    >
-                      ESCALATE
-                    </button>
-                    <button
-                      disabled={actionLoading}
-                      onClick={() => handleUpdateCaseStatus(associatedCase.id, 'CLOSED')}
-                      className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
-                    >
-                      RESOLVE/CLOSE
-                    </button>
-                  </>
-                )}
-                {(associatedCase.status === 'DISMISSED' || associatedCase.status === 'CLOSED' || associatedCase.status === 'ESCALATED') && (
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => handleUpdateCaseStatus(associatedCase.id, 'OPEN')}
-                    className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
-                  >
-                    REOPEN CASE
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2 font-mono text-[11px] text-ink-faint flex flex-col gap-2">
-              <p>No active case is investigating this anomaly.</p>
-              <button
-                disabled={actionLoading}
-                onClick={handleCreateCase}
-                className="w-full rounded bg-accent border border-accent text-void hover:bg-accent-dim hover:border-accent-dim px-4 py-2 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
-              >
-                START INVESTIGATION
-              </button>
-            </div>
-          )}
+        {/* 11. Case Audit Log */}
+        <CollapsibleSection title="Audit Trail" storageKey="heimdall_col_audit_log">
+          <AuditLog caseId={associatedCase?.id} timezone={timezone} />
         </CollapsibleSection>
       </div>
     </div>
@@ -1025,6 +969,434 @@ function CorrelatedMarkets({ symbol }: { symbol: string }) {
           <span className={`tabular ${c.score >= 0.7 ? 'text-accent font-medium' : c.score <= -0.7 ? 'text-warn font-medium' : 'text-ink-faint'}`}>
             {c.score > 0 ? '+' : ''}{c.score.toFixed(2)}
           </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ── Signal Visualization component ────────────────────────────────────── */
+
+function SignalVisualization({
+  anomaly,
+  patterns,
+}: {
+  anomaly: AnomalyListItem
+  patterns: Record<string, number>
+}) {
+  const signalName = primaryPatternLabel(anomaly.pattern_scores)
+  
+  // Calculate confidence: prefer weak_label_confidence, then multi_pattern_max_score, then max score from patterns, then anomaly_score
+  const maxScore = Object.values(patterns).length > 0 ? Math.max(...Object.values(patterns)) : null
+  const confidence = anomaly.weak_label_confidence ?? anomaly.multi_pattern_max_score ?? maxScore ?? anomaly.anomaly_score
+  const pct = Math.min(100, Math.max(0, Math.round(confidence * 100)))
+
+  // Classifications
+  const isHigh = pct >= 75
+  const isModerate = pct >= 45
+  const confidenceLabel = isHigh ? 'HIGH CONFIDENCE' : isModerate ? 'MODERATE CONFIDENCE' : 'LOW CONFIDENCE'
+  const confidenceBadge = isHigh
+    ? 'text-down bg-down/10 border-down/30'
+    : isModerate
+    ? 'text-accent bg-accent/10 border-accent/30'
+    : 'text-ink-dim bg-raised border-line'
+
+  // Total segments in discrete bar (10 blocks)
+  const totalBlocks = 10
+  const filledBlocks = Math.round((pct / 100) * totalBlocks)
+
+  return (
+    <div className="rounded border border-line bg-surface/70 p-3 font-mono">
+      <div className="flex items-center justify-between text-[10px] text-ink-faint">
+        <span className="tracking-wider uppercase">SIGNAL ATTRIBUTION</span>
+        <span className={`px-1.5 py-0.5 rounded border text-[9px] font-semibold ${confidenceBadge}`}>
+          {confidenceLabel}
+        </span>
+      </div>
+
+      <div className="mt-1.5 flex items-baseline justify-between">
+        <span className="text-[13px] font-bold tracking-tight text-ink flex items-center gap-1.5">
+          <span className={`inline-block h-2 w-2 rounded-full ${isHigh ? 'bg-down animate-pulse' : isModerate ? 'bg-accent' : 'bg-ink-dim'}`} />
+          {signalName}
+        </span>
+        <span className="text-[13px] font-semibold tabular text-ink">
+          {pct}%
+        </span>
+      </div>
+
+      {/* Discrete meter bar: Institutional Terminal style */}
+      <div className="mt-2.5 flex items-center gap-1">
+        {Array.from({ length: totalBlocks }).map((_, i) => {
+          const filled = i < filledBlocks
+          return (
+            <div
+              key={i}
+              className={`h-2 flex-1 rounded-xs transition-all ${
+                filled
+                  ? isHigh
+                    ? 'bg-down'
+                    : isModerate
+                    ? 'bg-accent'
+                    : 'bg-ink-dim'
+                  : 'bg-raised/70 border border-line/50'
+              }`}
+            />
+          )
+        })}
+      </div>
+
+      {/* Secondary diagnostic indicators */}
+      <div className="mt-2.5 pt-2 border-t border-line/60 flex items-center justify-between text-[10px] text-ink-faint">
+        <span>DETECTOR: <strong className="text-ink-dim">{anomaly.detector_agreement === 1.0 ? 'DUAL CONSENSUS' : anomaly.detector_agreement === 0.5 ? 'SINGLE / PARTIAL' : 'OUTLIER'}</strong></span>
+        <span>SCORE: <strong className="text-ink-dim tabular">{(anomaly.anomaly_score * 100).toFixed(1)}%</strong></span>
+      </div>
+    </div>
+  )
+}
+
+/* ── Case Information & Workflow Component ─────────────────────────────── */
+
+function CaseInformation({
+  anomaly,
+  associatedCase,
+  actionLoading,
+  timezone,
+  onCreateCase,
+  onUpdateStatus,
+}: {
+  anomaly: AnomalyListItem
+  associatedCase?: any
+  actionLoading: boolean
+  timezone: 'local' | 'utc'
+  onCreateCase: () => void
+  onUpdateStatus: (caseId: number, status: string) => void
+}) {
+  return (
+    <div className="rounded border border-line bg-surface/60 p-3 font-mono space-y-3">
+      <div className="flex items-center justify-between border-b border-line/70 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-ink-faint uppercase tracking-wider">CASE INFORMATION</span>
+          {associatedCase && (
+            <span className="text-[10px] font-semibold text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20">
+              CASE #{associatedCase.id}
+            </span>
+          )}
+        </div>
+        <div>
+          {associatedCase ? (
+            <span
+              className={`text-[10px] font-bold rounded px-2 py-0.5 border ${
+                associatedCase.status === 'OPEN'
+                  ? 'text-down bg-down/10 border-down/20'
+                  : associatedCase.status === 'IN_REVIEW'
+                  ? 'text-accent bg-accent/10 border-accent/20'
+                  : associatedCase.status === 'ESCALATED'
+                  ? 'text-down font-bold bg-down/20 border-down/30 animate-pulse'
+                  : 'text-ink-dim bg-raised border-line'
+              }`}
+            >
+              {associatedCase.status}
+            </span>
+          ) : (
+            <span className="text-[10px] text-ink-faint rounded px-2 py-0.5 bg-raised border border-line">
+              UNASSIGNED
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Asset, Severity, and Event Timestamp */}
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] pt-0.5 border-b border-line/50 pb-2">
+        <div>
+          <span className="text-ink-faint text-[10px] uppercase block">Asset:</span>
+          <span className="text-ink font-semibold">{anomaly.symbol} <span className="text-[10px] font-normal text-ink-faint">({anomaly.market})</span></span>
+        </div>
+        <div>
+          <span className="text-ink-faint text-[10px] uppercase block">Severity:</span>
+          {anomaly.severity ? <SeverityBadge severity={anomaly.severity} /> : <span className="text-ink-faint">—</span>}
+        </div>
+        <div className="col-span-2">
+          <span className="text-ink-faint text-[10px] uppercase block">Event Timestamp:</span>
+          <span className="text-ink-dim tabular">{formatDt(anomaly.market_timestamp, timezone)}</span>
+        </div>
+      </div>
+
+      {associatedCase ? (
+        <div className="space-y-2 text-[11px]">
+          <div className="flex justify-between items-start gap-2">
+            <span className="text-ink-faint text-[10px] uppercase">Title:</span>
+            <span className="text-ink-dim truncate font-medium text-right max-w-[220px]" title={associatedCase.title}>
+              {associatedCase.title}
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center text-[10px]">
+            <span className="text-ink-faint uppercase">Opened:</span>
+            <span className="text-ink-dim tabular">{formatDt(associatedCase.created_at, timezone)}</span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {associatedCase.status === 'OPEN' && (
+              <button
+                disabled={actionLoading}
+                onClick={() => onUpdateStatus(associatedCase.id, 'IN_REVIEW')}
+                className="rounded bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 px-3 py-1 font-mono text-[10px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                START REVIEW
+              </button>
+            )}
+            {associatedCase.status === 'IN_REVIEW' && (
+              <>
+                <button
+                  disabled={actionLoading}
+                  onClick={() => onUpdateStatus(associatedCase.id, 'ESCALATED')}
+                  className="rounded bg-down/10 border border-down/30 text-down hover:bg-down/20 px-3 py-1 font-mono text-[10px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  ESCALATE
+                </button>
+                <button
+                  disabled={actionLoading}
+                  onClick={() => onUpdateStatus(associatedCase.id, 'CLOSED')}
+                  className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1 font-mono text-[10px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  RESOLVE/CLOSE
+                </button>
+              </>
+            )}
+            {(associatedCase.status === 'DISMISSED' || associatedCase.status === 'CLOSED' || associatedCase.status === 'ESCALATED') && (
+              <button
+                disabled={actionLoading}
+                onClick={() => onUpdateStatus(associatedCase.id, 'OPEN')}
+                className="rounded bg-surface border border-line hover:bg-raised text-ink-dim px-3 py-1 font-mono text-[10px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                REOPEN CASE
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[11px] text-ink-faint">
+            No formal investigation case is linked to this anomaly.
+          </p>
+          <button
+            disabled={actionLoading}
+            onClick={onCreateCase}
+            className="w-full rounded bg-accent border border-accent text-void hover:bg-accent-dim hover:border-accent-dim px-3 py-1.5 font-mono text-[11px] font-medium tracking-wider cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
+          >
+            START INVESTIGATION
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Analyst Notes Component ───────────────────────────────────────────── */
+
+function AnalystNotes({
+  caseId,
+  timezone,
+}: {
+  caseId?: number
+  timezone: 'local' | 'utc'
+}) {
+  const [notes, setNotes] = useState<CaseNote[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [newNote, setNewNote] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchNotes = useCallback(async () => {
+    if (!caseId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await apiFetch(`/cases/${caseId}/notes`) as CaseNote[]
+      setNotes(data || [])
+    } catch (err: any) {
+      console.error('Failed to load case notes', err)
+      setError('Failed to load notes')
+    } finally {
+      setLoading(false)
+    }
+  }, [caseId])
+
+  useEffect(() => {
+    if (caseId) {
+      fetchNotes()
+    } else {
+      setNotes([])
+    }
+  }, [caseId, fetchNotes])
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!caseId || !newNote.trim()) return
+
+    setSubmitting(true)
+    setError(null)
+    try {
+      const created = await apiFetch(`/cases/${caseId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ body: newNote.trim() }),
+      }) as CaseNote
+      setNotes((prev) => [...prev, created])
+      setNewNote('')
+    } catch (err: any) {
+      console.error('Failed to add case note', err)
+      setError(err.message || 'Failed to submit note')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!caseId) {
+    return (
+      <div className="mt-2 text-ink-faint font-mono text-[11px] border border-line/60 bg-surface/40 p-3 rounded">
+        Start an investigation above to log analyst notes, evidence hypotheses, and forensic records.
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-2 space-y-3 font-mono">
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-[40px] w-full" />
+          <Skeleton className="h-[40px] w-full" />
+        </div>
+      ) : notes.length === 0 ? (
+        <div className="text-ink-faint text-[10px] italic py-1">
+          No analyst notes recorded yet.
+        </div>
+      ) : (
+        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+          {notes.map((note) => (
+            <div key={note.id} className="border border-line bg-surface/50 rounded p-2.5 space-y-1">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-accent font-medium">Analyst #{note.author_user_id}</span>
+                <span className="text-ink-faint tabular">{formatDt(note.created_at, timezone)}</span>
+              </div>
+              <p className="text-[11px] text-ink-dim whitespace-pre-wrap leading-relaxed">
+                {note.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <div className="text-[10px] text-down">{error}</div>}
+
+      <form onSubmit={handleAddNote} className="space-y-2 pt-1">
+        <textarea
+          value={newNote}
+          onChange={(e) => setNewNote(e.target.value)}
+          placeholder="Record analyst note, hypothesis, or rationale..."
+          rows={2}
+          className="w-full rounded border border-line bg-raised/50 px-2.5 py-1.5 text-[11px] text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none resize-none font-mono"
+        />
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={submitting || !newNote.trim()}
+            className="rounded bg-accent/15 border border-accent/30 text-accent hover:bg-accent/25 px-3 py-1 text-[10px] font-medium tracking-wider cursor-pointer disabled:opacity-40 transition-colors"
+          >
+            {submitting ? 'RECORDING...' : 'ADD NOTE'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+/* ── Audit Log Component ───────────────────────────────────────────────── */
+
+function AuditLog({
+  caseId,
+  timezone,
+}: {
+  caseId?: number
+  timezone: 'local' | 'utc'
+}) {
+  const [events, setEvents] = useState<CaseEvent[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    async function fetchEvents() {
+      if (!caseId) {
+        setEvents([])
+        return
+      }
+      setLoading(true)
+      try {
+        const data = await apiFetch(`/cases/${caseId}/events`) as CaseEvent[]
+        if (active) {
+          setEvents((data || []).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()))
+        }
+      } catch (err) {
+        console.error('Failed to load case events', err)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    fetchEvents()
+    return () => { active = false }
+  }, [caseId])
+
+  if (!caseId) {
+    return (
+      <div className="mt-2 text-ink-faint font-mono text-[11px] border border-line/60 bg-surface/40 p-3 rounded">
+        Audit log events are tracked once an investigation case is initiated.
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-2 space-y-2">
+        <Skeleton className="h-[28px] w-full" />
+        <Skeleton className="h-[28px] w-full" />
+      </div>
+    )
+  }
+
+  if (events.length === 0) {
+    return <div className="mt-2 text-ink-faint font-mono text-[10px]">No audit events logged.</div>
+  }
+
+  const getBadgeStyle = (eventType: string) => {
+    switch (eventType) {
+      case 'STATUS_CHANGE': return 'text-accent border-accent/30 bg-accent/10'
+      case 'ASSIGNED': return 'text-ink border-line bg-raised'
+      case 'NOTE_ADDED': return 'text-ink-dim border-line bg-surface'
+      case 'ANOMALY_LINKED': return 'text-down-dim border-down-dim/30 bg-down/10'
+      case 'CREATED': return 'text-ink border-line bg-raised'
+      default: return 'text-ink-faint border-line bg-raised/30'
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-2 font-mono max-h-[220px] overflow-y-auto pr-1">
+      {events.map((ev) => (
+        <div key={ev.id} className="border border-line/70 bg-surface/40 rounded p-2 text-[10px] space-y-1">
+          <div className="flex items-center justify-between">
+            <span className={`px-1.5 py-0.5 rounded border text-[9px] font-semibold ${getBadgeStyle(ev.event_type)}`}>
+              {ev.event_type}
+            </span>
+            <span className="text-ink-faint tabular">{formatDt(ev.created_at, timezone)}</span>
+          </div>
+          {ev.detail && (
+            <p className="text-[11px] text-ink-dim leading-snug">
+              {ev.detail}
+            </p>
+          )}
+          {ev.actor_user_id && (
+            <div className="text-[9px] text-ink-faint">
+              Actor: User #{ev.actor_user_id}
+            </div>
+          )}
         </div>
       ))}
     </div>
